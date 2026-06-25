@@ -4,14 +4,14 @@ import json
 import os
 
 THEMES = {
-    "Licenses & Permits": ["licens", "tilladelse", "kapacitet", "bruttotonnage", " BT ", " kW "],
-    "VMS & Tracking": ["VMS", "fartøjsovervåg", "sporings", "position", "satellit", "FOS", "AIS"],
-    "Logbooks & Electronic Reporting": ["logbog", "indberetning", "ERS", "elektronisk", "fangst", "afgangsdeklaration", "forhåndsunderretning"],
-    "Fishing Gear & Engine Power": ["redskab", "trawl", "maskineffekt", "motorstyrke", "kW", "maskin", "motor"],
-    "Landings, Weighing & Sales": ["landing", "salgsnotat", "omladning", "fiskevare", "overførsel", "afhentning", "vejes", "vejning", "landingsdeklaration", "overtagelseserklæring"],
-    "Inspection & Surveillance": ["inspektion", "kontrollør", "embedsmand", "observatør", "inspektionsrapport", "inspektionsfartøj", "flyvning"],
-    "Enforcement & Points System": ["sanktion", "point", "overtrædelse", "håndhævelse", "overtrædelser", "sanktioner"],
-    "Data Validation & Systems": ["validering", "krydskontrol", "database", "bistand", "samarbejde", "FLUX", "oplysninger", "webservice"]
+    "Licenser og tilladelser": ["licens", "tilladelse", "kapacitet", "bruttotonnage", " BT ", " kW "],
+    "VMS og sporing": ["VMS", "fartøjsovervåg", "sporings", "position", "satellit", "FOS", "AIS"],
+    "Logbøger og elektronisk rapportering": ["logbog", "indberetning", "ERS", "elektronisk", "fangst", "afgangsdeklaration", "forhåndsunderretning"],
+    "Fiskeredskaber og motoreffekt": ["redskab", "trawl", "maskineffekt", "motorstyrke", "kW", "maskin", "motor"],
+    "Landinger, vejning og salg": ["landing", "salgsnotat", "omladning", "fiskevare", "overførsel", "afhentning", "vejes", "vejning", "landingsdeklaration", "overtagelseserklæring"],
+    "Inspektion og overvågning": ["inspektion", "kontrollør", "embedsmand", "observatør", "inspektionsrapport", "inspektionsfartøj", "flyvning"],
+    "Sanktioner og pointsystem": ["sanktion", "point", "overtrædelse", "håndhævelse", "overtrædelser", "sanktioner"],
+    "Datavalidering og systemer": ["validering", "krydskontrol", "database", "bistand", "samarbejde", "FLUX", "oplysninger", "webservice"]
 }
 
 def clean_articles(articles):
@@ -27,7 +27,7 @@ def clean_articles(articles):
 
 def detect_theme(title, body):
     combined = (title + " " + body).lower()
-    best_theme = "General / Framework"
+    best_theme = "Generelt / Ramme"
     max_matches = 0
     for theme, keywords in THEMES.items():
         matches = 0
@@ -222,7 +222,7 @@ def main():
                 "label": label,
                 "title": f"Underafsnit af Art. {cit['target_art_num']}" if parent_node else "Ekstern reference",
                 "doc": cit["target_doc"],
-                "theme": parent_node["theme"] if parent_node else "General / Framework",
+                "theme": parent_node["theme"] if parent_node else "Generelt / Ramme",
                 "body": f"Se hovedartiklen: {parent_node['label']} ({parent_node['title']})" if parent_node else "Ekstern reference",
                 "is_subnode": True,
                 "parent_id": parent_id
