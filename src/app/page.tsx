@@ -836,7 +836,11 @@ function InteractiveGraphView({
   const [searchQuery, setSearchQuery] = useState("");
 
   // Group nodes by category to construct filters
-  const categories = Array.from(new Set(data.nodes.map(n => n.theme))).sort();
+  const categories = Array.from(new Set(data.nodes.map(n => n.theme))).sort((a, b) => {
+    if (a === "Kandidat Case") return 1;
+    if (b === "Kandidat Case") return -1;
+    return a.localeCompare(b);
+  });
 
   return (
     <div className="flex-1 flex overflow-hidden relative">
