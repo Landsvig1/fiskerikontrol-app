@@ -527,6 +527,13 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     svg.call(zoom);
     zoomBehaviorRef.current = zoom;
 
+    // Start zoomed out (scale of 0.5) centered
+    const initialScale = 0.5;
+    const initialTransform = d3.zoomIdentity
+      .translate((width * (1 - initialScale)) / 2, (height * (1 - initialScale)) / 2)
+      .scale(initialScale);
+    svg.call(zoom.transform, initialTransform);
+
     // Deep copy nodes and links for simulation run
     const nodes: GraphNode[] = data.nodes.map(n => ({ ...n }));
     const links: GraphLink[] = data.links.map(l => ({
@@ -715,11 +722,18 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
   };
 
   const handleResetZoom = () => {
-    if (!svgRef.current || !zoomBehaviorRef.current) return;
+    if (!svgRef.current || !zoomBehaviorRef.current || !containerRef.current) return;
+    const width = containerRef.current.clientWidth || 800;
+    const height = containerRef.current.clientHeight || 600;
+    const initialScale = 0.5;
+    const initialTransform = d3.zoomIdentity
+      .translate((width * (1 - initialScale)) / 2, (height * (1 - initialScale)) / 2)
+      .scale(initialScale);
+
     d3.select(svgRef.current)
       .transition()
       .duration(250)
-      .call(zoomBehaviorRef.current.transform, d3.zoomIdentity);
+      .call(zoomBehaviorRef.current.transform, initialTransform);
   };
 
   return (
