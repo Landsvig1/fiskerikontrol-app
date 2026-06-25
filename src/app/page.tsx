@@ -12,8 +12,7 @@ import {
   ArrowRight,
   RefreshCw,
   Info,
-  CheckCircle,
-  HelpCircle
+  CheckCircle
 } from "lucide-react";
 import * as d3 from "d3";
 
@@ -74,8 +73,10 @@ interface GraphData {
   conflicts: ConflictRecord[];
 }
 
+type TabType = "dashboard" | "graph" | "overlaps" | "conflicts" | "browse";
+
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<"dashboard" | "graph" | "overlaps" | "conflicts" | "browse">("dashboard");
+  const [activeTab, setActiveTab] = useState<TabType>("dashboard");
   const [data, setData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -215,7 +216,7 @@ function DashboardView({
   onDataParsed
 }: { 
   data: GraphData; 
-  setActiveTab: (tab: any) => void;
+  setActiveTab: (tab: TabType) => void;
   onDataParsed: (newData: GraphData) => void;
 }) {
   const controlCount = data.nodes.filter(n => n.doc === "control" && !n.is_subnode).length;
@@ -253,9 +254,10 @@ function DashboardView({
       setParseStatus("Analyserer krydsreferencer, modaliteter og modstrid...");
       const graphResult = await res.json();
       onDataParsed(graphResult);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setParseError(err.message || "Der opstod en uventet fejl under analysen.");
+      const msg = err instanceof Error ? err.message : String(err);
+      setParseError(msg || "Der opstod en uventet fejl under analysen.");
     } finally {
       setIsParsing(false);
     }
@@ -341,7 +343,7 @@ function DashboardView({
       <div className="max-w-4xl">
         <h2 className="text-3xl font-extrabold tracking-tight">Kortlægning af europæisk fiskeriregulering</h2>
         <p className="text-base text-[#94a3b8] mt-2 leading-relaxed">
-          Dette værktøj analyserer afhængigheder, krydsreferencer og retlige modstrid i EU's fiskerikontrolordning. 
+          Dette værktøj analyserer afhængigheder, krydsreferencer og retlige modstrid i EU&apos;s fiskerikontrolordning. 
           Ved at dekonstruere lovgivningen til en struktur af noder (artikler/stykker) og kanter (citationer/modallogiske bindinger) 
           kan vi automatisk afdække overlap og uoverensstemmelser.
         </p>
@@ -419,7 +421,7 @@ function DashboardView({
             <div className="flex gap-3">
               <CheckCircle className="w-5 h-5 text-[#10b981] shrink-0 mt-0.5" />
               <p>
-                <strong>Modalklassificering:</strong> Hver krydsreference tildeles en modalitet (Forpligtelse, Undtagelse/Dispensation, Tilladelse, Forbud) ud fra tekstkonteksten (fx ord som <em>"fritages"</em>, <em>"skal"</em>, <em>"forbudt"</em>).
+                <strong>Modalklassificering:</strong> Hver krydsreference tildeles en modalitet (Forpligtelse, Undtagelse/Dispensation, Tilladelse, Forbud) ud fra tekstkonteksten (fx ord som <em>&quot;fritages&quot;</em>, <em>&quot;skal&quot;</em>, <em>&quot;forbudt&quot;</em>).
               </p>
             </div>
             <div className="flex gap-3">
@@ -457,7 +459,7 @@ function InteractiveGraphView({
   selectedNode: GraphNode | null;
   setSelectedNode: (node: GraphNode | null) => void;
   activeDocFilter: "all" | "control" | "impl";
-  setActiveDocFilter: (val: any) => void;
+  setActiveDocFilter: (val: "all" | "control" | "impl") => void;
   activeCategoryFilter: string;
   setActiveCategoryFilter: (val: string) => void;
 }) {
@@ -534,10 +536,10 @@ function InteractiveGraphView({
 
     // Force simulation
     const simulation = d3.forceSimulation<GraphNode>(filteredNodes)
-      .force("link", d3.forceLink<GraphNode, GraphLink>(filteredLinks).id((d: any) => d.id).distance(100))
+      .force("link", d3.forceLink<GraphNode, GraphLink>(filteredLinks).id((d) => d.id).distance(100))
       .force("charge", d3.forceManyBody().strength(-70))
       .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collide", d3.forceCollide().radius((d: any) => {
+      .force("collide", d3.forceCollide<GraphNode>().radius((d) => {
         const deg = degree[d.id] || 0;
         return 6 + Math.min(deg * 0.8, 18) + 5;
       }));
@@ -561,7 +563,7 @@ function InteractiveGraphView({
 
     // Draw nodes
     const node = g.append("g")
-      .selectAll("circle")
+      .selectAll<SVGCircleElement, GraphNode>("circle")
       .data(filteredNodes)
       .join("circle")
       .attr("r", d => {
@@ -572,7 +574,7 @@ function InteractiveGraphView({
       .attr("stroke", "#0d1527")
       .attr("stroke-width", 1.5)
       .style("cursor", "pointer")
-      .call(d3.drag<any, any>()
+      .call(d3.drag<SVGCircleElement, GraphNode>()
         .on("start", dragstarted)
         .on("drag", dragged)
         .on("end", dragended)
@@ -624,18 +626,18 @@ function InteractiveGraphView({
     });
 
     // Drag helper functions
-    function dragstarted(event: any, d: GraphNode) {
+    function dragstarted(event: d3.D3DragEvent<SVGCircleElement, GraphNode, unknown>, d: GraphNode) {
       if (!event.active) simulation.alphaTarget(0.3).restart();
       d.fx = d.x;
       d.fy = d.y;
     }
 
-    function dragged(event: any, d: GraphNode) {
+    function dragged(event: d3.D3DragEvent<SVGCircleElement, GraphNode, unknown>, d: GraphNode) {
       d.fx = event.x;
       d.fy = event.y;
     }
 
-    function dragended(event: any, d: GraphNode) {
+    function dragended(event: d3.D3DragEvent<SVGCircleElement, GraphNode, unknown>, d: GraphNode) {
       if (!event.active) simulation.alphaTarget(0);
       d.fx = null;
       d.fy = null;
@@ -644,7 +646,7 @@ function InteractiveGraphView({
     return () => {
       simulation.stop();
     };
-  }, [data, activeDocFilter, activeCategoryFilter, searchQuery]);
+  }, [data, activeDocFilter, activeCategoryFilter, searchQuery, setSelectedNode]);
 
   return (
     <div className="flex-1 flex overflow-hidden relative">
@@ -827,7 +829,7 @@ function OverlapsView({
 }: { 
   data: GraphData; 
   setSelectedNode: (node: GraphNode) => void;
-  setActiveTab: (tab: any) => void;
+  setActiveTab: (tab: TabType) => void;
 }) {
   return (
     <div className="flex-1 overflow-y-auto p-8 bg-[#070b13]">
@@ -881,7 +883,7 @@ function OverlapsView({
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1e293b] text-[#94a3b8]">{c.modality}</span>
                         </div>
                         <p className="text-xs font-serif italic text-[#94a3b8] mt-2 block border-l-2 border-[#1e293b] pl-2">
-                          "...{c.snippet}..."
+                          &quot;...{c.snippet}...&quot;
                         </p>
                       </div>
                     );
@@ -906,7 +908,7 @@ function ConflictsView({
 }: { 
   data: GraphData; 
   setSelectedNode: (node: GraphNode) => void;
-  setActiveTab: (tab: any) => void;
+  setActiveTab: (tab: TabType) => void;
 }) {
   return (
     <div className="flex-1 overflow-y-auto p-8 bg-[#070b13]">
@@ -999,7 +1001,7 @@ function BrowseView({
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   setSelectedNode: (node: GraphNode) => void;
-  setActiveTab: (tab: any) => void;
+  setActiveTab: (tab: TabType) => void;
 }) {
   const filteredNodes = data.nodes.filter(n => {
     if (!searchQuery.trim()) return true;
