@@ -906,7 +906,7 @@ function InteractiveGraphView({
 
       {/* Details sidebar drawer */}
       {selectedNode && (
-        <div className="w-96 bg-[#0d1527] border-l border-[#1e293b] flex flex-col h-full z-20 shadow-2xl transition-all duration-300">
+        <div className="absolute right-0 top-0 w-96 bg-[#0d1527] border-l border-[#1e293b] flex flex-col h-full z-20 shadow-2xl transition-all duration-300">
           <div className="p-6 border-b border-[#1e293b] relative flex flex-col gap-2">
             <button 
               onClick={() => setSelectedNode(null)}
