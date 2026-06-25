@@ -176,10 +176,6 @@ export default function Home() {
           <DashboardView 
             data={data} 
             setActiveTab={setActiveTab} 
-            onDataParsed={(newData) => {
-              setData(newData);
-              setActiveTab("graph");
-            }}
           />
         )}
         {activeTab === "pipeline" && (
