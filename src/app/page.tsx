@@ -1021,55 +1021,75 @@ function OverlapsView({
         </h2>
         <p className="text-sm text-[#94a3b8] leading-relaxed">
           Nedenfor vises en liste over rammebestemmelser eller stykker, der er genstand for flere uafhængige kildehenvisninger 
-          fra gennemførelsesforordningen. Dette er indikatorer for retlig kompleksitet og områder med tæt administrative regler.
+          fra gennemførelsesforordningen. Dette er indikatorer for retlig kompleksitet og områder med tætte administrative regler.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 max-w-4xl">
+      <div className="grid grid-cols-1 gap-6 max-w-4xl">
         {data.overlaps.sort((a, b) => b.count - a.count).map((record, i) => {
           const targetNode = data.nodes.find(n => n.id === record.target);
           if (!targetNode) return null;
 
           return (
-            <div key={i} className="bg-[#0d1527] border border-[#1e293b] p-6 rounded-xl space-y-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-[10px] font-bold uppercase text-[#fbbf24] bg-[#fbbf24]/10 border border-[#fbbf24]/30 px-2 py-0.5 rounded">
-                    Overlap ({record.count} referencer)
-                  </span>
-                  <h3 className="text-base font-bold mt-2 flex items-center gap-2">
+            <div key={i} className="bg-[#0d1527] border border-[#1e293b] p-6 rounded-xl space-y-4 shadow-md">
+              <div className="flex items-start justify-between gap-4 flex-wrap md:flex-nowrap">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-bold uppercase text-[#fbbf24] bg-[#fbbf24]/10 border border-[#fbbf24]/30 px-2 py-0.5 rounded">
+                      Overlap ({record.count} referencer)
+                    </span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                      targetNode.doc === "control" 
+                        ? "bg-[#3b82f6]/10 text-[#60a5fa] border-[#3b82f6]/20" 
+                        : "bg-[#10b981]/10 text-[#34d399] border-[#10b981]/20"
+                    }`}>
+                      {targetNode.doc === "control" ? "Ramme (EF 1224/2009)" : "Gennemførelse (EU 2025/2196)"}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-bold mt-2">
                     Målbestemmelse: <span className="text-[#38bdf8]">{targetNode.label}</span>
                   </h3>
-                  <p className="text-xs text-[#94a3b8] mt-1">{targetNode.title}</p>
+                  <p className="text-xs text-[#94a3b8] leading-relaxed">{targetNode.title}</p>
                 </div>
                 <button 
                   onClick={() => {
                     setSelectedNode(targetNode);
                     setActiveTab("graph");
                   }}
-                  className="px-3 py-1.5 rounded bg-[#1e293b] text-xs font-semibold hover:bg-[#334155] transition-all flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded bg-[#1e293b] text-xs font-semibold hover:bg-[#334155] transition-all flex items-center gap-1.5 shrink-0 border border-[#1e293b] hover:border-[#38bdf8]/40 text-[#f8fafc]"
                 >
                   Vis i graf <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
 
               <div className="border-t border-[#1e293b] pt-4">
-                <h4 className="text-xs uppercase font-bold text-[#94a3b8] tracking-wider mb-2">Refererende artikler:</h4>
+                <h4 className="text-xs uppercase font-bold text-[#94a3b8] tracking-wider mb-3">Refererende artikler:</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {record.citations.map((c, idx) => {
                     const sourceNode = data.nodes.find(n => n.id === c.source);
                     return (
-                      <div key={idx} className="bg-[#070b13] p-3 border border-[#1e293b] rounded-lg">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-semibold text-[#10b981]">{sourceNode?.label}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1e293b] text-[#94a3b8]">
-                            {c.modality === "Exception" ? "Undtagelse" :
-                             c.modality === "Prohibition" ? "Forbud" :
-                             c.modality === "Permission" ? "Tilladelse" :
-                             "Forpligtelse"}
-                          </span>
+                      <div key={idx} className="bg-[#070b13] p-4 border border-[#1e293b] rounded-lg flex flex-col justify-between">
+                        <div>
+                          <div className="flex justify-between items-center gap-2 mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-[#38bdf8]">{sourceNode?.label}</span>
+                              <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
+                                sourceNode?.doc === "control" 
+                                  ? "bg-[#3b82f6]/10 text-[#60a5fa] border-[#3b82f6]/20" 
+                                  : "bg-[#10b981]/10 text-[#34d399] border-[#10b981]/20"
+                              }`}>
+                                {sourceNode?.doc === "control" ? "Ramme" : "Gennemførelse"}
+                              </span>
+                            </div>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1e293b] text-[#94a3b8] font-medium">
+                              {c.modality === "Exception" ? "Undtagelse" :
+                               c.modality === "Prohibition" ? "Forbud" :
+                               c.modality === "Permission" ? "Tilladelse" :
+                               "Forpligtelse"}
+                            </span>
+                          </div>
                         </div>
-                        <p className="text-xs font-serif italic text-[#94a3b8] mt-2 block border-l-2 border-[#1e293b] pl-2">
+                        <p className="text-xs font-serif italic text-[#94a3b8] block border-l-2 border-[#1e293b] pl-2 leading-relaxed">
                           &quot;...{c.snippet}...&quot;
                         </p>
                       </div>
@@ -1117,33 +1137,42 @@ function ConflictsView({
 
           return (
             <div key={i} className="bg-[#110e19] border border-[#ef4444]/20 p-6 rounded-xl space-y-4 shadow-lg hover:border-[#ef4444]/40 transition-all duration-300">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-[10px] font-bold uppercase text-[#f87171] bg-[#ef4444]/10 border border-[#ef4444]/30 px-2 py-0.5 rounded">
-                    Modstrid detekteret ({record.modalities.map(m => 
-                      m === "Exception" ? "Undtagelse" :
-                      m === "Prohibition" ? "Forbud" :
-                      m === "Permission" ? "Tilladelse" :
-                      "Forpligtelse"
-                    ).join(" ↔ ")})
-                  </span>
+              <div className="flex items-start justify-between gap-4 flex-wrap md:flex-nowrap">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-bold uppercase text-[#f87171] bg-[#ef4444]/10 border border-[#ef4444]/30 px-2 py-0.5 rounded">
+                      Modstrid detekteret ({record.modalities.map(m => 
+                        m === "Exception" ? "Undtagelse" :
+                        m === "Prohibition" ? "Forbud" :
+                        m === "Permission" ? "Tilladelse" :
+                        "Forpligtelse"
+                      ).join(" ↔ ")})
+                    </span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                      targetNode.doc === "control" 
+                        ? "bg-[#3b82f6]/10 text-[#60a5fa] border-[#3b82f6]/20" 
+                        : "bg-[#10b981]/10 text-[#34d399] border-[#10b981]/20"
+                    }`}>
+                      {targetNode.doc === "control" ? "Ramme (EF 1224/2009)" : "Gennemførelse (EU 2025/2196)"}
+                    </span>
+                  </div>
                   <h3 className="text-lg font-bold mt-2">
                     Modstrid vedrørende: <span className="text-[#38bdf8]">{targetNode.label}</span>
                   </h3>
-                  <p className="text-xs text-[#94a3b8] mt-1">{targetNode.title}</p>
+                  <p className="text-xs text-[#94a3b8] leading-relaxed">{targetNode.title}</p>
                 </div>
                 <button 
                   onClick={() => {
                     setSelectedNode(targetNode);
                     setActiveTab("graph");
                   }}
-                  className="px-3 py-1.5 rounded bg-[#ef4444]/10 hover:bg-[#ef4444]/20 text-[#f87171] text-xs font-semibold transition-all flex items-center gap-1.5 border border-[#ef4444]/30"
+                  className="px-3 py-1.5 rounded bg-[#ef4444]/10 hover:bg-[#ef4444]/20 text-[#f87171] text-xs font-semibold transition-all flex items-center gap-1.5 border border-[#ef4444]/30 shrink-0"
                 >
                   Vis i graf <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
 
-              <p className="text-sm text-[#f8fafc] bg-[#ef4444]/5 p-3 rounded-lg border border-[#ef4444]/10">
+              <p className="text-sm text-[#f8fafc] bg-[#ef4444]/5 p-3 rounded-lg border border-[#ef4444]/10 leading-relaxed">
                 {record.description}
               </p>
 
@@ -1153,15 +1182,24 @@ function ConflictsView({
                   return (
                     <div key={idx} className="bg-[#070b13] p-4 border border-[#1e293b] rounded-lg flex flex-col justify-between">
                       <div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-bold text-[#38bdf8]">{sourceNode?.label}</span>
+                        <div className="flex justify-between items-center gap-2 mb-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-[#38bdf8]">{sourceNode?.label}</span>
+                            <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
+                              sourceNode?.doc === "control" 
+                                ? "bg-[#3b82f6]/10 text-[#60a5fa] border-[#3b82f6]/20" 
+                                : "bg-[#10b981]/10 text-[#34d399] border-[#10b981]/20"
+                            }`}>
+                              {sourceNode?.doc === "control" ? "Ramme" : "Gennemførelse"}
+                            </span>
+                          </div>
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                             c.modality === "Exception" ? "bg-[#ef4444]/20 text-[#f87171]" : "bg-[#3b82f6]/20 text-[#60a5fa]"
                           }`}>
                             {c.modality === "Exception" ? "Undtagelse" : "Forpligtelse"}
                           </span>
                         </div>
-                        <p className="text-xs text-[#94a3b8] mt-1 truncate">{sourceNode?.title}</p>
+                        <p className="text-xs text-[#94a3b8] mt-1 leading-relaxed">{sourceNode?.title}</p>
                       </div>
                       
                       <div className="mt-4 p-3 bg-[#0d1527] rounded text-xs font-serif leading-relaxed text-[#f8fafc]/90 border-l-2 border-[#38bdf8]/40 whitespace-pre-wrap">
