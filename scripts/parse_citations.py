@@ -93,13 +93,14 @@ def parse_citations(source_art, body, doc_type, control_map):
     # - "artikel 14, stk. 1, litra a"
     citations = []
     
-    pattern = r'\bartikel\s+(\d+)(?:\s*,\s*stk\.\s*(\d+))?(?:\s*,\s*litra\s*([a-z]))?\b'
+    pattern = r'\bartikel\s+(\d+)\s*([a-z])?(?:\s*,\s*stk\.\s*(\d+))?(?:\s*,\s*litra\s*([a-z]))?\b'
     matches = re.finditer(pattern, body, re.IGNORECASE)
     
     for m in matches:
         art_num = int(m.group(1))
-        stk_num = m.group(2)
-        litra_val = m.group(3)
+        suffix = m.group(2)
+        stk_num = m.group(3)
+        litra_val = m.group(4)
         
         # Determine context window to detect modality and target document
         start_ctx = max(0, m.start() - 100)
@@ -124,15 +125,19 @@ def parse_citations(source_art, body, doc_type, control_map):
             
         # Determine Modality (Exception vs. Obligation vs. Permission)
         modality = "Obligation"
-        if any(w in context for w in ["undtagen", "fritaget", "fritages", "uanset", "afvige", "undtagelse", "dispensation"]):
+        if re.search(r'\b(?:undtagen|fritaget|fritages|uanset|afvige|undtagelse|dispensation)\b', context, re.IGNORECASE):
             modality = "Exception"
-        elif any(w in context for w in ["forbudt", "må ikke", "ikke tilladt"]):
+        elif re.search(r'\b(?:forbudt|må\s+ikke|ikke\s+tilladt)\b', context, re.IGNORECASE):
             modality = "Prohibition"
-        elif any(w in context for w in ["kan", "tilladt", "må", "hjemmel", "bemyndiget"]):
+        elif re.search(r'\b(?:kan|tilladt|må|hjemmel|bemyndiget)\b', context, re.IGNORECASE):
             modality = "Permission"
             
         # Build target node ID
-        target_node_id = f"{target_doc}_art_{art_num}"
+        target_art_id = f"{target_doc}_art_{art_num}"
+        if suffix:
+            target_art_id += f"_{suffix}"
+
+        target_node_id = target_art_id
         if stk_num:
             target_node_id += f"_stk_{stk_num}"
             if litra_val:
@@ -141,7 +146,7 @@ def parse_citations(source_art, body, doc_type, control_map):
         citations.append({
             "source": source_art["id"],
             "target": target_node_id,
-            "target_art": f"{target_doc}_art_{art_num}",
+            "target_art": target_art_id,
             "target_doc": target_doc,
             "target_art_num": art_num,
             "target_stk": stk_num,

@@ -180,14 +180,15 @@ function parseCitations(
 ): CitationRecord[] {
   const citations: CitationRecord[] = [];
   
-  // Regex to extract: artikel X, optionally stk. Y, litra Z
-  const pattern = /\bartikel\s+(\d+)(?:\s*,\s*stk\.\s*(\d+))?(?:\s*,\s*litra\s*([a-z]))?\b/gi;
+  // Regex to extract: artikel X (optionally suffix), optionally stk. Y, litra Z
+  const pattern = /\bartikel\s+(\d+)\s*([a-z])?(?:\s*,\s*stk\.\s*(\d+))?(?:\s*,\s*litra\s*([a-z]))?\b/gi;
   let match;
   
   while ((match = pattern.exec(body)) !== null) {
     const artNum = parseInt(match[1], 10);
-    const stkNum = match[2] || null;
-    const litraVal = match[3] || null;
+    const suffix = match[2] || null;
+    const stkNum = match[3] || null;
+    const litraVal = match[4] || null;
     const matchIndex = match.index;
     const matchLength = match[0].length;
 
@@ -218,19 +219,25 @@ function parseCitations(
 
     // Determine modality
     let modality: "Obligation" | "Exception" | "Prohibition" | "Permission" = "Obligation";
-    const exceptionKeywords = ["undtagen", "fritaget", "fritages", "uanset", "afvige", "undtagelse", "dispensation"];
-    const prohibitionKeywords = ["forbudt", "må ikke", "ikke tilladt"];
-    const permissionKeywords = ["kan", "tilladt", "må", "hjemmel", "bemyndiget"];
+    
+    const exceptionRegex = /\b(?:undtagen|fritaget|fritages|uanset|afvige|undtagelse|dispensation)\b/i;
+    const prohibitionRegex = /\b(?:forbudt|må\s+ikke|ikke\s+tilladt)\b/i;
+    const permissionRegex = /\b(?:kan|tilladt|må|hjemmel|bemyndiget)\b/i;
 
-    if (exceptionKeywords.some(w => context.includes(w))) {
+    if (exceptionRegex.test(context)) {
       modality = "Exception";
-    } else if (prohibitionKeywords.some(w => context.includes(w))) {
+    } else if (prohibitionRegex.test(context)) {
       modality = "Prohibition";
-    } else if (permissionKeywords.some(w => context.includes(w))) {
+    } else if (permissionRegex.test(context)) {
       modality = "Permission";
     }
 
-    let targetNodeId = `${targetDoc}_art_${artNum}`;
+    let targetArtId = `${targetDoc}_art_${artNum}`;
+    if (suffix) {
+      targetArtId += `_${suffix}`;
+    }
+
+    let targetNodeId = targetArtId;
     if (stkNum) {
       targetNodeId += `_stk_${stkNum}`;
       if (litraVal) {
@@ -241,7 +248,7 @@ function parseCitations(
     citations.push({
       source: sourceArt.id,
       target: targetNodeId,
-      target_art: `${targetDoc}_art_${artNum}`,
+      target_art: targetArtId,
       target_doc: targetDoc,
       target_art_num: artNum,
       target_stk: stkNum,

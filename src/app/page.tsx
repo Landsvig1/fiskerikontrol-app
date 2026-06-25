@@ -448,6 +448,7 @@ function DashboardView({
 // ----------------------------------------------------
 interface D3GraphCanvasProps {
   data: GraphData;
+  selectedNode: GraphNode | null;
   activeDocFilter: "all" | "control" | "impl";
   activeCategoryFilter: string;
   searchQuery: string;
@@ -456,6 +457,7 @@ interface D3GraphCanvasProps {
 
 const D3GraphCanvas = React.memo(function D3GraphCanvas({
   data,
+  selectedNode,
   activeDocFilter,
   activeCategoryFilter,
   searchQuery,
@@ -463,6 +465,43 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
 }: D3GraphCanvasProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const zoomBehaviorRef = useRef<any>(null);
+
+  // Secondary effect to handle persistent selections (nodes/links opacity & highlight) without resetting simulation
+  useEffect(() => {
+    if (!svgRef.current) return;
+    const svg = d3.select(svgRef.current);
+
+    if (selectedNode) {
+      const connectedNodeIds = new Set<string>();
+      connectedNodeIds.add(selectedNode.id);
+
+      // Highlight links connected to the selected node and dim the rest
+      svg.selectAll("line").style("stroke-opacity", (l: any) => {
+        const sId = typeof l.source === "object" ? l.source.id : l.source;
+        const tId = typeof l.target === "object" ? l.target.id : l.target;
+        if (sId === selectedNode.id || tId === selectedNode.id) {
+          connectedNodeIds.add(sId);
+          connectedNodeIds.add(tId);
+          return 1.0;
+        }
+        return 0.08; // Dimmed
+      });
+
+      // Highlight selected node and direct connections
+      svg.selectAll("circle")
+        .style("opacity", (n: any) => connectedNodeIds.has(n.id) ? 1.0 : 0.15)
+        .attr("stroke-width", (n: any) => n.id === selectedNode.id ? 3.0 : 1.5)
+        .attr("stroke", (n: any) => n.id === selectedNode.id ? "#38bdf8" : "#0d1527");
+    } else {
+      // Reset styling
+      svg.selectAll("line").style("stroke-opacity", 0.4);
+      svg.selectAll("circle")
+        .style("opacity", 1.0)
+        .attr("stroke-width", 1.5)
+        .attr("stroke", "#0d1527");
+    }
+  }, [selectedNode]);
 
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return;
@@ -486,6 +525,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       });
 
     svg.call(zoom);
+    zoomBehaviorRef.current = zoom;
 
     // Deep copy nodes and links for simulation run
     const nodes: GraphNode[] = data.nodes.map(n => ({ ...n }));
@@ -577,7 +617,9 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     });
 
     node.on("mouseover", (event, d) => {
-      // Highlight hover node and connections
+      // Highlight hover node and connections (if no node is persistently selected)
+      if (selectedNode) return;
+      
       const connectedNodeIds = new Set<string>();
       connectedNodeIds.add(d.id);
 
@@ -599,6 +641,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     });
 
     node.on("mouseout", () => {
+      if (selectedNode) return;
       link.style("stroke-opacity", 0.4);
       node.style("opacity", 1.0);
     });
@@ -655,9 +698,58 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     };
   }, [data, activeDocFilter, activeCategoryFilter, searchQuery, setSelectedNode]);
 
+  const handleZoomIn = () => {
+    if (!svgRef.current || !zoomBehaviorRef.current) return;
+    d3.select(svgRef.current)
+      .transition()
+      .duration(250)
+      .call(zoomBehaviorRef.current.scaleBy, 1.3);
+  };
+
+  const handleZoomOut = () => {
+    if (!svgRef.current || !zoomBehaviorRef.current) return;
+    d3.select(svgRef.current)
+      .transition()
+      .duration(250)
+      .call(zoomBehaviorRef.current.scaleBy, 1 / 1.3);
+  };
+
+  const handleResetZoom = () => {
+    if (!svgRef.current || !zoomBehaviorRef.current) return;
+    d3.select(svgRef.current)
+      .transition()
+      .duration(250)
+      .call(zoomBehaviorRef.current.transform, d3.zoomIdentity);
+  };
+
   return (
     <div ref={containerRef} className="flex-1 bg-[#070b13] relative overflow-hidden">
       <svg ref={svgRef} className="w-full h-full block" />
+
+      {/* Zoom HUD Controls */}
+      <div className="absolute top-6 right-6 flex flex-col gap-2 bg-[#0d1527]/90 border border-[#1e293b] p-2 rounded-xl backdrop-blur-md z-10 shadow-lg select-none">
+        <button 
+          onClick={handleZoomIn}
+          className="w-8 h-8 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-sm font-bold flex items-center justify-center transition-all cursor-pointer border border-[#1e293b] hover:border-[#38bdf8]/40 text-[#f8fafc]"
+          title="Zoom ind"
+        >
+          +
+        </button>
+        <button 
+          onClick={handleZoomOut}
+          className="w-8 h-8 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-sm font-bold flex items-center justify-center transition-all cursor-pointer border border-[#1e293b] hover:border-[#38bdf8]/40 text-[#f8fafc]"
+          title="Zoom ud"
+        >
+          &minus;
+        </button>
+        <button 
+          onClick={handleResetZoom}
+          className="w-8 h-8 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-xs font-semibold flex items-center justify-center transition-all cursor-pointer border border-[#1e293b] hover:border-[#38bdf8]/40 text-[#94a3b8] hover:text-[#38bdf8]"
+          title="Nulstil zoom"
+        >
+          Reset
+        </button>
+      </div>
       
       {/* Modality Legend overlay */}
       <div className="absolute bottom-6 left-6 bg-[#0d1527]/90 border border-[#1e293b] p-4 rounded-xl space-y-2 text-xs text-[#94a3b8] backdrop-blur-md">
@@ -772,6 +864,7 @@ function InteractiveGraphView({
       {/* Graph Canvas */}
       <D3GraphCanvas
         data={data}
+        selectedNode={selectedNode}
         activeDocFilter={activeDocFilter}
         activeCategoryFilter={activeCategoryFilter}
         searchQuery={searchQuery}
