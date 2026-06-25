@@ -527,8 +527,8 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     svg.call(zoom);
     zoomBehaviorRef.current = zoom;
 
-    // Start zoomed out (scale of 0.5) centered
-    const initialScale = 0.5;
+    // Start zoomed out (scale of 0.3) centered
+    const initialScale = 0.3;
     const initialTransform = d3.zoomIdentity
       .translate((width * (1 - initialScale)) / 2, (height * (1 - initialScale)) / 2)
       .scale(initialScale);
@@ -725,7 +725,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     if (!svgRef.current || !zoomBehaviorRef.current || !containerRef.current) return;
     const width = containerRef.current.clientWidth || 800;
     const height = containerRef.current.clientHeight || 600;
-    const initialScale = 0.5;
+    const initialScale = 0.3;
     const initialTransform = d3.zoomIdentity
       .translate((width * (1 - initialScale)) / 2, (height * (1 - initialScale)) / 2)
       .scale(initialScale);
