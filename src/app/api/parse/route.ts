@@ -39,10 +39,11 @@ export async function POST(request: Request) {
     );
 
     return NextResponse.json(graphData);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error parsing PDFs on server:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: `Fejl under parsing af PDF: ${error.message || error}` },
+      { error: `Fejl under parsing af PDF: ${errorMessage}` },
       { status: 500 }
     );
   }
