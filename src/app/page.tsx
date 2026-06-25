@@ -859,18 +859,21 @@ function InteractiveGraphView({
               onClick={() => setActiveCategoryFilter("all")}
               className={`text-left px-3 py-2 rounded-lg text-xs font-semibold ${activeCategoryFilter === "all" ? "bg-[#38bdf8]/10 border border-[#38bdf8]/20 text-[#38bdf8]" : "text-[#94a3b8] hover:bg-[#1e293b]"}`}
             >
-              Alle kategorier
+              Alle kategorier ({data.nodes.length})
             </button>
-            {categories.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategoryFilter(cat)}
-                className={`text-left px-3 py-2 rounded-lg text-xs font-semibold truncate ${activeCategoryFilter === cat ? "bg-[#38bdf8]/10 border border-[#38bdf8]/20 text-[#38bdf8]" : "text-[#94a3b8] hover:bg-[#1e293b]"}`}
-                title={cat}
-              >
-                {cat}
-              </button>
-            ))}
+            {categories.map(cat => {
+              const count = data.nodes.filter(n => n.theme === cat).length;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategoryFilter(cat)}
+                  className={`text-left px-3 py-2 rounded-lg text-xs font-semibold truncate ${activeCategoryFilter === cat ? "bg-[#38bdf8]/10 border border-[#38bdf8]/20 text-[#38bdf8]" : "text-[#94a3b8] hover:bg-[#1e293b]"}`}
+                  title={`${cat} (${count})`}
+                >
+                  {cat} ({count})
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
