@@ -228,13 +228,11 @@ export default function Home() {
 // VIEW 1: DASHBOARD VIEW
 // ----------------------------------------------------
 function DashboardView({ 
-  data, 
-  setActiveTab,
-  onDataParsed
+  data,
+  setActiveTab
 }: { 
   data: GraphData; 
   setActiveTab: (tab: TabType) => void;
-  onDataParsed: (newData: GraphData) => void;
 }) {
   const controlCount = data.nodes.filter(n => n.doc === "control" && !n.is_subnode).length;
   const implCount = data.nodes.filter(n => n.doc === "impl" && !n.is_subnode).length;
@@ -253,7 +251,7 @@ function DashboardView({
           </span>
         </div>
         <p className="text-sm text-[#94a3b8] leading-relaxed">
-          Systemet kører automatisk ingestion og semantisk parsing af EU's fiskeriregulativer.
+          Systemet kører automatisk ingestion og semantisk parsing af EU&apos;s fiskeriregulativer.
           Dette sikrer fuld sporbarhed fra lovtekst til softwareudviklings-krav (User Stories).
         </p>
 
@@ -1366,7 +1364,7 @@ function PipelineView() {
                   1. Ingestion & Semantisk Parsing <Database className="w-5 h-5 text-[#38bdf8]" />
                 </h3>
                 <p className="text-sm text-[#94a3b8] leading-relaxed mb-4">
-                  Pipeline trækker automatisk rå lovtekst fra EUR-Lex. I stedet for at læse flad tekst, bruger AI'en semantisk gruppering til at samle regler på tværs af hierarkiet (fx alle regler for "Logbog" på tværs af ramme og implementering).
+                  Pipeline trækker automatisk rå lovtekst fra EUR-Lex. I stedet for at læse flad tekst, bruger AI&apos;en semantisk gruppering til at samle regler på tværs af hierarkiet (fx alle regler for &quot;Logbog&quot; på tværs af ramme og implementering).
                 </p>
                 <div className="bg-[#070b13] p-3 rounded border border-[#1e293b] text-xs font-mono text-[#38bdf8] text-left overflow-x-auto">
                   {`{\n  "doc": "impl",\n  "theme": "Logbog",\n  "modality": "Obligation"\n}`}
@@ -1387,7 +1385,7 @@ function PipelineView() {
                   <Activity className="w-5 h-5 text-[#10b981]" /> 2. Hierarki & Konfliktopløsning
                 </h3>
                 <p className="text-sm text-[#94a3b8] leading-relaxed mb-4">
-                  Lovteksterne mappes som en relationsgraf. Engine'en forstår, at Gennemførelsesforordningen er underlagt Rammeforordningen. Den detekterer automatisk retlige anomalier (fx hvis en underordnet regel fritager for en overordnet pligt uden delegation).
+                  Lovteksterne mappes som en relationsgraf. Engine&apos;en forstår, at Gennemførelsesforordningen er underlagt Rammeforordningen. Den detekterer automatisk retlige anomalier (fx hvis en underordnet regel fritager for en overordnet pligt uden delegation).
                 </p>
                 <div className="flex items-center gap-3 text-xs font-semibold">
                   <span className="px-2 py-1 bg-[#ef4444]/10 text-[#f87171] rounded border border-[#ef4444]/20">Modstrid Detekteret</span>
@@ -1410,7 +1408,7 @@ function PipelineView() {
                 <div className="bg-[#070b13] p-4 rounded border border-[#1e293b] text-left">
                   <span className="text-[10px] text-[#fbbf24] font-bold uppercase tracking-wider block mb-2">Genereret User Story</span>
                   <p className="text-sm text-[#f8fafc] italic leading-relaxed">
-                    "Som fiskerikontrollør har jeg brug for, at systemet automatisk flager fartøjer over 12m, der ikke har indsendt e-logbog inden for 24 timer, så vi kan håndhæve Artikel 14 i EF 1224/2009."
+                    &quot;Som fiskerikontrollør har jeg brug for, at systemet automatisk flager fartøjer over 12m, der ikke har indsendt e-logbog inden for 24 timer, så vi kan håndhæve Artikel 14 i EF 1224/2009.&quot;
                   </p>
                 </div>
               </div>
