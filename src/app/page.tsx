@@ -465,7 +465,13 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
 }: D3GraphCanvasProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const zoomBehaviorRef = useRef<any>(null);
+  const zoomBehaviorRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const selectedNodeRef = useRef<GraphNode | null>(null);
+
+  // Keep ref updated
+  useEffect(() => {
+    selectedNodeRef.current = selectedNode;
+  }, [selectedNode]);
 
   // Secondary effect to handle persistent selections (nodes/links opacity & highlight) without resetting simulation
   useEffect(() => {
@@ -477,9 +483,10 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       connectedNodeIds.add(selectedNode.id);
 
       // Highlight links connected to the selected node and dim the rest
-      svg.selectAll("line").style("stroke-opacity", (l: any) => {
-        const sId = typeof l.source === "object" ? l.source.id : l.source;
-        const tId = typeof l.target === "object" ? l.target.id : l.target;
+      svg.selectAll("line").style("stroke-opacity", (d: unknown) => {
+        const l = d as GraphLink;
+        const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
+        const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
         if (sId === selectedNode.id || tId === selectedNode.id) {
           connectedNodeIds.add(sId);
           connectedNodeIds.add(tId);
@@ -490,9 +497,18 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
 
       // Highlight selected node and direct connections
       svg.selectAll("circle")
-        .style("opacity", (n: any) => connectedNodeIds.has(n.id) ? 1.0 : 0.15)
-        .attr("stroke-width", (n: any) => n.id === selectedNode.id ? 3.0 : 1.5)
-        .attr("stroke", (n: any) => n.id === selectedNode.id ? "#38bdf8" : "#0d1527");
+        .style("opacity", (d: unknown) => {
+          const n = d as GraphNode;
+          return connectedNodeIds.has(n.id) ? 1.0 : 0.15;
+        })
+        .attr("stroke-width", (d: unknown) => {
+          const n = d as GraphNode;
+          return n.id === selectedNode.id ? 3.0 : 1.5;
+        })
+        .attr("stroke", (d: unknown) => {
+          const n = d as GraphNode;
+          return n.id === selectedNode.id ? "#38bdf8" : "#0d1527";
+        });
     } else {
       // Reset styling
       svg.selectAll("line").style("stroke-opacity", 0.4);
@@ -625,7 +641,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
 
     node.on("mouseover", (event, d) => {
       // Highlight hover node and connections (if no node is persistently selected)
-      if (selectedNode) return;
+      if (selectedNodeRef.current) return;
       
       const connectedNodeIds = new Set<string>();
       connectedNodeIds.add(d.id);
@@ -648,7 +664,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     });
 
     node.on("mouseout", () => {
-      if (selectedNode) return;
+      if (selectedNodeRef.current) return;
       link.style("stroke-opacity", 0.4);
       node.style("opacity", 1.0);
     });
