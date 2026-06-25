@@ -61,14 +61,14 @@ export interface ParseResult {
 }
 
 const THEMES: Record<string, string[]> = {
-  "Licenses & Permits": ["licens", "tilladelse", "kapacitet", "bruttotonnage", " BT ", " kW "],
-  "VMS & Tracking": ["VMS", "fartøjsovervåg", "sporings", "position", "satellit", "FOS", "AIS"],
-  "Logbooks & Electronic Reporting": ["logbog", "indberetning", "ERS", "elektronisk", "fangst", "afgangsdeklaration", "forhåndsunderretning"],
-  "Fishing Gear & Engine Power": ["redskab", "trawl", "maskineffekt", "motorstyrke", "kW", "maskin", "motor"],
-  "Landings, Weighing & Sales": ["landing", "salgsnotat", "omladning", "fiskevare", "overførsel", "afhentning", "vejes", "vejning", "landingsdeklaration", "overtagelseserklæring"],
-  "Inspection & Surveillance": ["inspektion", "kontrollør", "embedsmand", "observatør", "inspektionsrapport", "inspektionsfartøj", "flyvning"],
-  "Enforcement & Points System": ["sanktion", "point", "overtrædelse", "håndhævelse", "overtrædelser", "sanktioner"],
-  "Data Validation & Systems": ["validering", "krydskontrol", "database", "bistand", "samarbejde", "FLUX", "oplysninger", "webservice"]
+  "Licenser og tilladelser": ["licens", "tilladelse", "kapacitet", "bruttotonnage", " BT ", " kW "],
+  "VMS og sporing": ["VMS", "fartøjsovervåg", "sporings", "position", "satellit", "FOS", "AIS"],
+  "Logbøger og elektronisk rapportering": ["logbog", "indberetning", "ERS", "elektronisk", "fangst", "afgangsdeklaration", "forhåndsunderretning"],
+  "Fiskeredskaber og motoreffekt": ["redskab", "trawl", "maskineffekt", "motorstyrke", "kW", "maskin", "motor"],
+  "Landinger, vejning og salg": ["landing", "salgsnotat", "omladning", "fiskevare", "overførsel", "afhentning", "vejes", "vejning", "landingsdeklaration", "overtagelseserklæring"],
+  "Inspektion og overvågning": ["inspektion", "kontrollør", "embedsmand", "observatør", "inspektionsrapport", "inspektionsfartøj", "flyvning"],
+  "Sanktioner og pointsystem": ["sanktion", "point", "overtrædelse", "håndhævelse", "overtrædelser", "sanktioner"],
+  "Datavalidering og systemer": ["validering", "krydskontrol", "database", "bistand", "samarbejde", "FLUX", "oplysninger", "webservice"]
 };
 
 function cleanArticles(articles: RawArticle[]): RawArticle[] {
@@ -91,7 +91,7 @@ function cleanArticles(articles: RawArticle[]): RawArticle[] {
 
 function detectTheme(title: string, body: string): string {
   const combined = (title + " " + body).toLowerCase();
-  let bestTheme = "General / Framework";
+  let bestTheme = "Generelt / Ramme";
   let maxMatches = 0;
   
   for (const [theme, keywords] of Object.entries(THEMES)) {
@@ -321,7 +321,7 @@ export function analyzeCitationsAndBuildGraph(controlText: string, implText: str
         label,
         title: parentNode ? `Underafsnit af Art. ${cit.target_art_num}` : "Ekstern reference",
         doc: cit.target_doc,
-        theme: parentNode ? parentNode.theme : "General / Framework",
+        theme: parentNode ? parentNode.theme : "Generelt / Ramme",
         body: parentNode ? `Se hovedartiklen: ${parentNode.label} (${parentNode.title})` : "Ekstern reference",
         is_subnode: true,
         parent_id: cit.target_art

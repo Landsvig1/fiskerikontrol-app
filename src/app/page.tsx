@@ -126,10 +126,10 @@ export default function Home() {
           <Database className="w-6 h-6 text-[#38bdf8]" />
           <div>
             <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-[#38bdf8] to-[#818cf8] bg-clip-text text-transparent">
-              Fiskerikontrol: Citation Graph & Conflict Engine
+              Fiskerikontrol: Citationsgraf og konfliktanalyse
             </h1>
             <p className="text-xs text-[#94a3b8]">
-              Ramme (1224/2009) & Implementing Rules (2025/2196)
+              Ramme (1224/2009) & Gennemførelsesbestemmelser (2025/2196)
             </p>
           </div>
         </div>
@@ -446,30 +446,23 @@ function DashboardView({
 // ----------------------------------------------------
 // VIEW 2: INTERACTIVE GRAPH VIEW (D3 SVG Canvas wrapper)
 // ----------------------------------------------------
-function InteractiveGraphView({ 
-  data, 
-  selectedNode, 
-  setSelectedNode,
-  activeDocFilter,
-  setActiveDocFilter,
-  activeCategoryFilter,
-  setActiveCategoryFilter
-}: { 
-  data: GraphData; 
-  selectedNode: GraphNode | null;
-  setSelectedNode: (node: GraphNode | null) => void;
+interface D3GraphCanvasProps {
+  data: GraphData;
   activeDocFilter: "all" | "control" | "impl";
-  setActiveDocFilter: (val: "all" | "control" | "impl") => void;
   activeCategoryFilter: string;
-  setActiveCategoryFilter: (val: string) => void;
-}) {
+  searchQuery: string;
+  setSelectedNode: (node: GraphNode | null) => void;
+}
+
+const D3GraphCanvas = React.memo(function D3GraphCanvas({
+  data,
+  activeDocFilter,
+  activeCategoryFilter,
+  searchQuery,
+  setSelectedNode
+}: D3GraphCanvasProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const simulationRef = useRef<d3.Simulation<GraphNode, GraphLink> | null>(null);
-
-  // Group nodes by category to construct filters
-  const categories = Array.from(new Set(data.nodes.map(n => n.theme))).sort();
 
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return;
@@ -543,8 +536,6 @@ function InteractiveGraphView({
         const deg = degree[d.id] || 0;
         return 6 + Math.min(deg * 0.8, 18) + 5;
       }));
-
-    simulationRef.current = simulation;
 
     // Draw links
     const link = g.append("g")
@@ -643,10 +634,75 @@ function InteractiveGraphView({
       d.fy = null;
     }
 
+    // Resize observer to handle drawer opening/closing and window resize
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (!entries || entries.length === 0) return;
+      const { width: newWidth, height: newHeight } = entries[0].contentRect;
+      if (newWidth === 0 || newHeight === 0) return;
+      
+      svg.attr("viewBox", [0, 0, newWidth, newHeight]);
+      simulation.force("center", d3.forceCenter(newWidth / 2, newHeight / 2));
+      simulation.alpha(0.1).restart();
+    });
+
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
     return () => {
       simulation.stop();
+      resizeObserver.disconnect();
     };
   }, [data, activeDocFilter, activeCategoryFilter, searchQuery, setSelectedNode]);
+
+  return (
+    <div ref={containerRef} className="flex-1 bg-[#070b13] relative overflow-hidden">
+      <svg ref={svgRef} className="w-full h-full block" />
+      
+      {/* Modality Legend overlay */}
+      <div className="absolute bottom-6 left-6 bg-[#0d1527]/90 border border-[#1e293b] p-4 rounded-xl space-y-2 text-xs text-[#94a3b8] backdrop-blur-md">
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-0.5 bg-[#ef4444] border-t border-dashed" />
+          <span>Undtagelse / Fritagelse</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-0.5 bg-[#3b82f6]" />
+          <span>Forpligtelse</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-0.5 bg-[#ec4899]" />
+          <span>Forbud</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-0.5 bg-[#10b981]" />
+          <span>Tilladelse</span>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+function InteractiveGraphView({ 
+  data, 
+  selectedNode, 
+  setSelectedNode,
+  activeDocFilter,
+  setActiveDocFilter,
+  activeCategoryFilter,
+  setActiveCategoryFilter
+}: { 
+  data: GraphData; 
+  selectedNode: GraphNode | null;
+  setSelectedNode: (node: GraphNode | null) => void;
+  activeDocFilter: "all" | "control" | "impl";
+  setActiveDocFilter: (val: "all" | "control" | "impl") => void;
+  activeCategoryFilter: string;
+  setActiveCategoryFilter: (val: string) => void;
+}) {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Group nodes by category to construct filters
+  const categories = Array.from(new Set(data.nodes.map(n => n.theme))).sort();
 
   return (
     <div className="flex-1 flex overflow-hidden relative">
@@ -713,30 +769,14 @@ function InteractiveGraphView({
         </div>
       </div>
 
-      {/* Graph Area */}
-      <div ref={containerRef} className="flex-1 bg-[#070b13] relative overflow-hidden">
-        <svg ref={svgRef} className="w-full h-full block" />
-        
-        {/* Modality Legend overlay */}
-        <div className="absolute bottom-6 left-6 bg-[#0d1527]/90 border border-[#1e293b] p-4 rounded-xl space-y-2 text-xs text-[#94a3b8] backdrop-blur-md">
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-0.5 bg-[#ef4444] border-t border-dashed" />
-            <span>Undtagelse / Fritagelse (Exception)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-0.5 bg-[#3b82f6]" />
-            <span>Forpligtelse (Obligation)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-0.5 bg-[#ec4899]" />
-            <span>Forbud (Prohibition)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-0.5 bg-[#10b981]" />
-            <span>Tilladelse (Permission)</span>
-          </div>
-        </div>
-      </div>
+      {/* Graph Canvas */}
+      <D3GraphCanvas
+        data={data}
+        activeDocFilter={activeDocFilter}
+        activeCategoryFilter={activeCategoryFilter}
+        searchQuery={searchQuery}
+        setSelectedNode={setSelectedNode}
+      />
 
       {/* Details sidebar drawer */}
       {selectedNode && (
@@ -803,7 +843,10 @@ function InteractiveGraphView({
                           l.modality === "Permission" ? "bg-[#10b981]/10 text-[#34d399]" :
                           "bg-[#3b82f6]/10 text-[#60a5fa]"
                         }`}>
-                          {l.modality}
+                          {l.modality === "Exception" ? "Undtagelse" :
+                           l.modality === "Prohibition" ? "Forbud" :
+                           l.modality === "Permission" ? "Tilladelse" :
+                           "Forpligtelse"}
                         </span>
                       </div>
                       <p className="text-[11px] text-[#94a3b8] truncate mt-1">{targetNode.title || "(Uden titel)"}</p>
@@ -880,7 +923,12 @@ function OverlapsView({
                       <div key={idx} className="bg-[#070b13] p-3 border border-[#1e293b] rounded-lg">
                         <div className="flex justify-between items-center">
                           <span className="text-xs font-semibold text-[#10b981]">{sourceNode?.label}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1e293b] text-[#94a3b8]">{c.modality}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1e293b] text-[#94a3b8]">
+                            {c.modality === "Exception" ? "Undtagelse" :
+                             c.modality === "Prohibition" ? "Forbud" :
+                             c.modality === "Permission" ? "Tilladelse" :
+                             "Forpligtelse"}
+                          </span>
                         </div>
                         <p className="text-xs font-serif italic text-[#94a3b8] mt-2 block border-l-2 border-[#1e293b] pl-2">
                           &quot;...{c.snippet}...&quot;
@@ -933,7 +981,12 @@ function ConflictsView({
               <div className="flex items-start justify-between">
                 <div>
                   <span className="text-[10px] font-bold uppercase text-[#f87171] bg-[#ef4444]/10 border border-[#ef4444]/30 px-2 py-0.5 rounded">
-                    Modstrid Detekteret ({record.modalities.join(" ↔ ")})
+                    Modstrid detekteret ({record.modalities.map(m => 
+                      m === "Exception" ? "Undtagelse" :
+                      m === "Prohibition" ? "Forbud" :
+                      m === "Permission" ? "Tilladelse" :
+                      "Forpligtelse"
+                    ).join(" ↔ ")})
                   </span>
                   <h3 className="text-lg font-bold mt-2">
                     Modstrid vedrørende: <span className="text-[#38bdf8]">{targetNode.label}</span>
@@ -966,7 +1019,7 @@ function ConflictsView({
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                             c.modality === "Exception" ? "bg-[#ef4444]/20 text-[#f87171]" : "bg-[#3b82f6]/20 text-[#60a5fa]"
                           }`}>
-                            {c.modality}
+                            {c.modality === "Exception" ? "Undtagelse" : "Forpligtelse"}
                           </span>
                         </div>
                         <p className="text-xs text-[#94a3b8] mt-1 truncate">{sourceNode?.title}</p>
