@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import * as d3 from "d3";
 import { GraphNode, GraphLink, GraphData } from "@/app/page";
 
@@ -139,7 +139,49 @@ function CitationGraphCanvas({
 }: CitationGraphViewProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const zoomBehaviorRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const selectedNodeRef = useRef<GraphNode | null>(null);
+
+  const top10Nodes = useMemo(() => {
+    const nodes: GraphNode[] = data.nodes.map(n => ({ ...n }));
+    const links: GraphLink[] = data.links.map(l => ({
+      ...l,
+      source: typeof l.source === 'object' ? l.source.id : l.source,
+      target: typeof l.target === 'object' ? l.target.id : l.target
+    }));
+
+    const filteredNodes = nodes.filter(n => {
+      if (activeDocFilter !== "all" && n.doc !== activeDocFilter) return false;
+      if (activeCategoryFilter !== "all" && n.theme !== activeCategoryFilter) return false;
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        return n.label.toLowerCase().includes(query) || 
+               n.title.toLowerCase().includes(query) || 
+               n.body.toLowerCase().includes(query);
+      }
+      return true;
+    });
+
+    const filteredNodeIds = new Set(filteredNodes.map(n => n.id));
+    const filteredLinks = links.filter(l => {
+      const srcId = typeof l.source === 'object' ? l.source.id : l.source;
+      const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
+      return filteredNodeIds.has(srcId) && filteredNodeIds.has(tgtId);
+    });
+
+    const degree: Record<string, number> = {};
+    filteredLinks.forEach(l => {
+      const s = typeof l.source === 'object' ? l.source.id : l.source;
+      const t = typeof l.target === 'object' ? l.target.id : l.target;
+      degree[s] = (degree[s] || 0) + 1;
+      degree[t] = (degree[t] || 0) + 1;
+    });
+
+    return filteredNodes
+      .map(n => ({ ...n, degree: degree[n.id] || 0 }))
+      .sort((a, b) => (b.degree || 0) - (a.degree || 0))
+      .slice(0, 10);
+  }, [data, activeDocFilter, activeCategoryFilter, searchQuery]);
 
   useEffect(() => {
     selectedNodeRef.current = selectedNode;
@@ -207,6 +249,7 @@ function CitationGraphCanvas({
         g.attr("transform", event.transform);
       });
     svg.call(zoom);
+    zoomBehaviorRef.current = zoom;
 
     // Initial Zoom
     const initialTransform = d3.zoomIdentity.translate(0, 0).scale(1);
@@ -373,9 +416,109 @@ function CitationGraphCanvas({
     };
   }, [data, activeDocFilter, activeCategoryFilter, searchQuery, setSelectedNode]);
 
+  const handleZoomIn = () => {
+    if (!svgRef.current || !zoomBehaviorRef.current) return;
+    d3.select(svgRef.current)
+      .transition()
+      .duration(250)
+      .call(zoomBehaviorRef.current.scaleBy, 1.3);
+  };
+
+  const handleZoomOut = () => {
+    if (!svgRef.current || !zoomBehaviorRef.current) return;
+    d3.select(svgRef.current)
+      .transition()
+      .duration(250)
+      .call(zoomBehaviorRef.current.scaleBy, 1 / 1.3);
+  };
+
+  const handleResetZoom = () => {
+    if (!svgRef.current || !zoomBehaviorRef.current || !containerRef.current) return;
+    const initialTransform = d3.zoomIdentity.translate(0, 0).scale(1);
+    d3.select(svgRef.current)
+      .transition()
+      .duration(250)
+      .call(zoomBehaviorRef.current.transform, initialTransform);
+  };
+
+  const handleFocusNode = (nodeId: string) => {
+    if (!svgRef.current || !zoomBehaviorRef.current || !containerRef.current) return;
+    const gNodes = d3.select(svgRef.current).selectAll<SVGGElement, GraphNode>("g.node");
+    let targetNode: GraphNode | undefined;
+    gNodes.each(function(d) {
+      if (d.id === nodeId) {
+        targetNode = d;
+      }
+    });
+    if (!targetNode || targetNode.x === undefined || targetNode.y === undefined) return;
+    const width = containerRef.current.clientWidth || 800;
+    const height = containerRef.current.clientHeight || 600;
+    setSelectedNode(targetNode);
+    
+    const targetScale = 1.5;
+    const transform = d3.zoomIdentity
+      .translate(width / 2 - targetNode.x * targetScale, height / 2 - targetNode.y * targetScale)
+      .scale(targetScale);
+
+    d3.select(svgRef.current)
+      .transition()
+      .duration(500)
+      .call(zoomBehaviorRef.current.transform, transform);
+  };
+
   return (
-    <div className="w-full h-full relative" ref={containerRef}>
-      <svg ref={svgRef} className="w-full h-full" style={{ outline: 'none' }} />
+    <div className="w-full h-full relative overflow-hidden" ref={containerRef}>
+      <svg ref={svgRef} className="w-full h-full block" style={{ outline: 'none' }} />
+
+      {/* Zoom HUD Controls & Important Articles */}
+      <div className="absolute top-6 right-6 flex flex-col gap-2 z-10 select-none">
+        <div className="flex flex-col gap-2 bg-[#0d1527]/90 border border-[#1e293b] p-2 rounded-xl backdrop-blur-md shadow-lg">
+          <button 
+            onClick={handleZoomIn}
+            className="w-8 h-8 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-sm font-bold flex items-center justify-center transition-all cursor-pointer border border-[#1e293b] hover:border-[#38bdf8]/40 text-[#f8fafc]"
+            title="Zoom ind"
+          >
+            +
+          </button>
+          <button 
+            onClick={handleZoomOut}
+            className="w-8 h-8 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-sm font-bold flex items-center justify-center transition-all cursor-pointer border border-[#1e293b] hover:border-[#38bdf8]/40 text-[#f8fafc]"
+            title="Zoom ud"
+          >
+            &minus;
+          </button>
+          <button 
+            onClick={handleResetZoom}
+            className="w-8 h-8 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-xs font-semibold flex items-center justify-center transition-all cursor-pointer border border-[#1e293b] hover:border-[#38bdf8]/40 text-[#94a3b8] hover:text-[#38bdf8]"
+            title="Nulstil zoom"
+          >
+            Reset
+          </button>
+        </div>
+
+        {/* Top 10 nodes */}
+        {top10Nodes.length > 0 && (
+          <div className="flex flex-col gap-2 bg-[#0d1527]/90 border border-[#1e293b] p-2 rounded-xl backdrop-blur-md shadow-lg max-h-[calc(100vh-250px)] overflow-y-auto">
+            <div className="text-[10px] uppercase font-bold text-[#94a3b8] text-center mb-1">
+              Top 10
+            </div>
+            {top10Nodes.map(node => (
+              <button
+                key={node.id}
+                onClick={() => handleFocusNode(node.id)}
+                className={`w-8 h-8 rounded-lg text-xs font-semibold flex items-center justify-center transition-all cursor-pointer border text-center ${
+                  selectedNode?.id === node.id 
+                    ? "bg-[#38bdf8] text-[#070b13] border-[#38bdf8]" 
+                    : "bg-[#1e293b] hover:bg-[#334155] border-[#1e293b] hover:border-[#38bdf8]/40 text-[#f8fafc]"
+                }`}
+                title={`Art. ${node.number}: ${node.title} (${node.degree} links)`}
+              >
+                {node.number}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
