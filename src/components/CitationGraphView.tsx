@@ -44,6 +44,87 @@ export function CitationGraphView({
           setSelectedNode={setSelectedNode}
         />
       </div>
+
+      {/* Details sidebar drawer */}
+      {selectedNode && (
+        <div className="absolute right-0 top-0 w-96 bg-[#0d1527] border-l border-[#1e293b] flex flex-col h-full z-20 shadow-2xl transition-all duration-300">
+          <div className="p-6 border-b border-[#1e293b] relative flex flex-col gap-2">
+            <button 
+              onClick={() => setSelectedNode(null)}
+              className="absolute top-4 right-4 text-[#94a3b8] hover:text-[#f8fafc] text-xl"
+            >
+              &times;
+            </button>
+            <span className={`inline-flex items-center self-start px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+              selectedNode.doc === "control" ? "bg-[#3b82f6]/10 text-[#60a5fa] border border-[#3b82f6]/30" : "bg-[#10b981]/10 text-[#34d399] border border-[#10b981]/30"
+            }`}>
+              {selectedNode.doc === "control" ? "Ramme" : "Gennemførelse"}
+            </span>
+            <h2 className="text-lg font-bold">{selectedNode.label}</h2>
+            <p className="text-xs text-[#94a3b8] font-medium">{selectedNode.title || "(Ingen overskrift)"}</p>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="space-y-2">
+              <h3 className="text-xs uppercase font-bold text-[#94a3b8] tracking-wider">Kategori</h3>
+              <span className="inline-block px-2.5 py-1 rounded bg-[#1e293b] text-xs font-semibold text-[#f8fafc]">
+                {selectedNode.theme}
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-xs uppercase font-bold text-[#94a3b8] tracking-wider">Lovtekst</h3>
+              <div className="bg-[#070b13] border border-[#1e293b] p-4 rounded-lg text-sm leading-relaxed max-h-60 overflow-y-auto whitespace-pre-wrap">
+                {selectedNode.body}
+              </div>
+            </div>
+
+            {/* List connections */}
+            <div className="space-y-3">
+              <h3 className="text-xs uppercase font-bold text-[#94a3b8] tracking-wider">Forbindelser i grafen</h3>
+              <div className="space-y-2">
+                {data.links.filter(l => {
+                  const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+                  const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+                  return s === selectedNode.id || t === selectedNode.id;
+                }).map((l, i) => {
+                  const sId = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+                  const targetNodeId = sId === selectedNode.id 
+                    ? (typeof l.target === 'object' ? (l.target as GraphNode).id : l.target)
+                    : sId;
+                  
+                  const targetNode = data.nodes.find(n => n.id === targetNodeId);
+                  if (!targetNode) return null;
+
+                  return (
+                    <div 
+                      key={i}
+                      onClick={() => setSelectedNode(targetNode)}
+                      className="p-3 bg-[#070b13] border border-[#1e293b] rounded-lg hover:border-[#38bdf8]/40 cursor-pointer transition-all duration-200"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-[#38bdf8]">{targetNode.label}</span>
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                          l.modality === "Exception" ? "bg-[#ef4444]/10 text-[#f87171]" :
+                          l.modality === "Prohibition" ? "bg-[#ec4899]/10 text-[#f472b6]" :
+                          l.modality === "Permission" ? "bg-[#10b981]/10 text-[#34d399]" :
+                          "bg-[#3b82f6]/10 text-[#60a5fa]"
+                        }`}>
+                          {l.modality === "Exception" ? "Undtagelse" :
+                           l.modality === "Prohibition" ? "Forbud" :
+                           l.modality === "Permission" ? "Tilladelse" :
+                           "Forpligtelse"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#94a3b8] truncate mt-1">{targetNode.title || "(Uden titel)"}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
