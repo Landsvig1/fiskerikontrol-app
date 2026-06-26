@@ -1,37 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import * as d3 from "d3";
-import { Search, Layers, BookOpen, AlertTriangle } from "lucide-react";
-
-// Types matching page.tsx
-interface GraphNode extends d3.SimulationNodeDatum {
-  id: string;
-  number: number;
-  label: string;
-  title: string;
-  doc: "control" | "impl";
-  theme: string;
-  body: string;
-  is_subnode?: boolean;
-  parent_id?: string;
-  x?: number;
-  y?: number;
-}
-
-interface GraphLink {
-  source: string | GraphNode;
-  target: string | GraphNode;
-  type: string;
-  modality: string;
-  snippet: string;
-  context: string;
-}
-
-interface GraphData {
-  nodes: GraphNode[];
-  links: GraphLink[];
-  overlaps: any[];
-  conflicts: any[];
-}
+import { GraphNode, GraphLink, GraphData } from "@/app/page";
 
 interface CitationGraphViewProps {
   data: GraphData;

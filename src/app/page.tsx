@@ -18,7 +18,7 @@ import * as d3 from "d3";
 import { CitationGraphView } from "@/components/CitationGraphView";
 
 // Type definitions
-interface GraphNode extends d3.SimulationNodeDatum {
+export interface GraphNode extends d3.SimulationNodeDatum {
   id: string;
   number: number;
   label: string;
@@ -35,7 +35,7 @@ interface GraphNode extends d3.SimulationNodeDatum {
   vy?: number;
 }
 
-interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
+export interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
   source: string | GraphNode;
   target: string | GraphNode;
   type: string;
@@ -44,7 +44,7 @@ interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
   context: string;
 }
 
-interface OverlapRecord {
+export interface OverlapRecord {
   target: string;
   sources: string[];
   count: number;
@@ -55,7 +55,7 @@ interface OverlapRecord {
   }>;
 }
 
-interface ConflictRecord {
+export interface ConflictRecord {
   target: string;
   modalities: string[];
   description: string;
@@ -67,7 +67,7 @@ interface ConflictRecord {
   }>;
 }
 
-interface GraphData {
+export interface GraphData {
   nodes: GraphNode[];
   links: GraphLink[];
   overlaps: OverlapRecord[];
