@@ -15,6 +15,7 @@ import {
   CheckCircle
 } from "lucide-react";
 import * as d3 from "d3";
+import { CitationGraphView } from "@/components/CitationGraphView";
 
 // Type definitions
 interface GraphNode extends d3.SimulationNodeDatum {
@@ -73,7 +74,7 @@ interface GraphData {
   conflicts: ConflictRecord[];
 }
 
-type TabType = "dashboard" | "graph" | "overlaps" | "conflicts" | "browse";
+type TabType = "dashboard" | "citation" | "graph" | "overlaps" | "conflicts" | "browse";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
@@ -148,8 +149,8 @@ export default function Home() {
         </div>
         
         {/* Navigation Tabs */}
-        <nav className="flex gap-1 bg-[#131e35] p-1 rounded-lg border border-[#1e293b]">
-          {(["dashboard", "graph", "overlaps", "conflicts", "browse"] as const).map(tab => (
+        <nav className="flex gap-1 bg-[#131e35] p-1 rounded-lg border border-[#1e293b] flex-wrap">
+          {(["dashboard", "citation", "graph", "overlaps", "conflicts", "browse"] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -160,7 +161,8 @@ export default function Home() {
               }`}
             >
               {tab === "dashboard" && "Oversigt"}
-              {tab === "graph" && "Interaktiv Graf"}
+              {tab === "citation" && "Citation Graf"}
+              {tab === "graph" && "Node Graf (Fysik)"}
               {tab === "overlaps" && `Overlap (${data.overlaps.length})`}
               {tab === "conflicts" && `Konflikter (${data.conflicts.length})`}
               {tab === "browse" && "Søg & Slå Op"}
@@ -175,6 +177,16 @@ export default function Home() {
           <DashboardView 
             data={data} 
             setActiveTab={setActiveTab} 
+          />
+        )}
+        {activeTab === "citation" && (
+          <CitationGraphView 
+            data={data} 
+            selectedNode={selectedNode}
+            activeDocFilter={activeDocFilter}
+            activeCategoryFilter={activeCategoryFilter}
+            searchQuery={searchQuery}
+            setSelectedNode={setSelectedNode}
           />
         )}
         {activeTab === "graph" && (
@@ -247,10 +259,10 @@ function DashboardView({
         </p>
 
         <button
-          onClick={() => setActiveTab("graph")}
+          onClick={() => setActiveTab("citation")}
           className="w-full py-2.5 rounded-lg bg-[#38bdf8] text-[#070b13] font-semibold text-sm hover:bg-[#38bdf8]/90 transition-all flex items-center justify-center gap-2 shadow-md shadow-[#38bdf8]/15"
         >
-          Åbn Interaktiv Graf <ArrowRight className="w-4 h-4" />
+          Åbn Citation Graf <ArrowRight className="w-4 h-4" />
         </button>
       </div>
 
