@@ -73,7 +73,7 @@ interface GraphData {
   conflicts: ConflictRecord[];
 }
 
-type TabType = "dashboard" | "pipeline" | "graph" | "overlaps" | "conflicts" | "browse";
+type TabType = "dashboard" | "graph" | "overlaps" | "conflicts" | "browse";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
@@ -149,7 +149,7 @@ export default function Home() {
         
         {/* Navigation Tabs */}
         <nav className="flex gap-1 bg-[#131e35] p-1 rounded-lg border border-[#1e293b]">
-          {(["dashboard", "pipeline", "graph", "overlaps", "conflicts", "browse"] as const).map(tab => (
+          {(["dashboard", "graph", "overlaps", "conflicts", "browse"] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -159,8 +159,7 @@ export default function Home() {
                   : "text-[#94a3b8] hover:text-[#f8fafc] hover:bg-[#1e293b]"
               }`}
             >
-              {tab === "dashboard" && "Dashboard"}
-              {tab === "pipeline" && "AI Pipeline"}
+              {tab === "dashboard" && "Oversigt"}
               {tab === "graph" && "Interaktiv Graf"}
               {tab === "overlaps" && `Overlap (${data.overlaps.length})`}
               {tab === "conflicts" && `Konflikter (${data.conflicts.length})`}
@@ -177,9 +176,6 @@ export default function Home() {
             data={data} 
             setActiveTab={setActiveTab} 
           />
-        )}
-        {activeTab === "pipeline" && (
-          <PipelineView />
         )}
         {activeTab === "graph" && (
           <InteractiveGraphView 
@@ -236,26 +232,25 @@ function DashboardView({
 
   return (
     <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-gradient-to-b from-[#070b13] to-[#0a1122]">
-      {/* AI Pipeline Preview */}
+      {/* Citation Graph Preview */}
       <div className="bg-[#0d1527] border border-[#1e293b] p-6 rounded-xl space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm uppercase font-bold text-[#38bdf8] tracking-wider flex items-center gap-2">
-            <Database className="w-4 h-4" /> Compliance Pipeline Motor
+            <Database className="w-4 h-4" /> Citation Graph Oversigt
           </h3>
           <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#10b981]/15 text-[#34d399] border border-[#10b981]/30">
-            Aktiv
+            Klar
           </span>
         </div>
         <p className="text-sm text-[#94a3b8] leading-relaxed">
-          Systemet kører automatisk ingestion og semantisk parsing af EU&apos;s fiskeriregulativer.
-          Dette sikrer fuld sporbarhed fra lovtekst til softwareudviklings-krav (User Stories).
+          Grafen er genereret på baggrund af Rammeforordning 1224/2009 og Gennemførelsesforordning 2025/2196. Netværket kortlægger artiklerne som noder og modallogiske henvisninger som kanter.
         </p>
 
         <button
-          onClick={() => setActiveTab("pipeline")}
-          className="w-full py-2.5 rounded-lg bg-[#1e293b] text-[#f8fafc] font-semibold text-sm hover:bg-[#334155] border border-[#1e293b] hover:border-[#38bdf8]/40 transition-all flex items-center justify-center gap-2"
+          onClick={() => setActiveTab("graph")}
+          className="w-full py-2.5 rounded-lg bg-[#38bdf8] text-[#070b13] font-semibold text-sm hover:bg-[#38bdf8]/90 transition-all flex items-center justify-center gap-2 shadow-md shadow-[#38bdf8]/15"
         >
-          Se Pipeline & Arkitektur <ArrowRight className="w-4 h-4" />
+          Åbn Interaktiv Graf <ArrowRight className="w-4 h-4" />
         </button>
       </div>
 
@@ -1330,114 +1325,6 @@ function BrowseView({
               </div>
             </div>
           ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ----------------------------------------------------
-// VIEW 6: PIPELINE & ARCHITECTURE VIEW
-// ----------------------------------------------------
-function PipelineView() {
-  return (
-    <div className="flex-1 overflow-y-auto p-8 bg-gradient-to-b from-[#070b13] to-[#0a1122]">
-      <div className="max-w-5xl mx-auto space-y-12">
-        {/* Header */}
-        <div className="space-y-4 text-center max-w-3xl mx-auto">
-          <h2 className="text-3xl font-extrabold tracking-tight">AI Compliance Pipeline</h2>
-          <p className="text-base text-[#94a3b8] leading-relaxed">
-            Arkitekturen for hvordan komplekse EU-forordninger systematisk oversættes til 
-            udvikler-krav (User Stories) til kontrol af fiskefartøjer, med fuld juridisk sporbarhed.
-          </p>
-        </div>
-
-        {/* Pipeline Architecture Diagram */}
-        <div className="grid grid-cols-1 gap-6 relative">
-          <div className="absolute top-0 bottom-0 left-[27px] md:left-1/2 w-0.5 bg-gradient-to-b from-[#38bdf8]/50 via-[#10b981]/50 to-[#fbbf24]/50 -z-10 hidden md:block"></div>
-          
-          {/* Step 1 */}
-          <div className="flex flex-col md:flex-row items-center gap-6">
-            <div className="flex-1 w-full md:text-right">
-              <div className="bg-[#0d1527] p-6 rounded-xl border border-[#1e293b] inline-block w-full md:w-5/6 shadow-xl relative group hover:border-[#38bdf8]/40 transition-all">
-                <h3 className="text-lg font-bold text-[#f8fafc] mb-2 flex items-center md:justify-end gap-2">
-                  1. Ingestion & Semantisk Parsing <Database className="w-5 h-5 text-[#38bdf8]" />
-                </h3>
-                <p className="text-sm text-[#94a3b8] leading-relaxed mb-4">
-                  Pipeline trækker automatisk rå lovtekst fra EUR-Lex. I stedet for at læse flad tekst, bruger AI&apos;en semantisk gruppering til at samle regler på tværs af hierarkiet (fx alle regler for &quot;Logbog&quot; på tværs af ramme og implementering).
-                </p>
-                <div className="bg-[#070b13] p-3 rounded border border-[#1e293b] text-xs font-mono text-[#38bdf8] text-left overflow-x-auto">
-                  {`{\n  "doc": "impl",\n  "theme": "Logbog",\n  "modality": "Obligation"\n}`}
-                </div>
-              </div>
-            </div>
-            <div className="w-14 h-14 shrink-0 rounded-full bg-[#0d1527] border-4 border-[#38bdf8] flex items-center justify-center font-bold text-lg z-10 shadow-[0_0_15px_rgba(56,189,248,0.4)]">1</div>
-            <div className="flex-1 w-full hidden md:block"></div>
-          </div>
-
-          {/* Step 2 */}
-          <div className="flex flex-col md:flex-row items-center gap-6">
-            <div className="flex-1 w-full hidden md:block"></div>
-            <div className="w-14 h-14 shrink-0 rounded-full bg-[#0d1527] border-4 border-[#10b981] flex items-center justify-center font-bold text-lg z-10 shadow-[0_0_15px_rgba(16,185,129,0.4)]">2</div>
-            <div className="flex-1 w-full">
-              <div className="bg-[#0d1527] p-6 rounded-xl border border-[#1e293b] inline-block w-full md:w-5/6 shadow-xl relative group hover:border-[#10b981]/40 transition-all">
-                <h3 className="text-lg font-bold text-[#f8fafc] mb-2 flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-[#10b981]" /> 2. Hierarki & Konfliktopløsning
-                </h3>
-                <p className="text-sm text-[#94a3b8] leading-relaxed mb-4">
-                  Lovteksterne mappes som en relationsgraf. Engine&apos;en forstår, at Gennemførelsesforordningen er underlagt Rammeforordningen. Den detekterer automatisk retlige anomalier (fx hvis en underordnet regel fritager for en overordnet pligt uden delegation).
-                </p>
-                <div className="flex items-center gap-3 text-xs font-semibold">
-                  <span className="px-2 py-1 bg-[#ef4444]/10 text-[#f87171] rounded border border-[#ef4444]/20">Modstrid Detekteret</span>
-                  <span className="px-2 py-1 bg-[#10b981]/10 text-[#34d399] rounded border border-[#10b981]/20">Hierarki Valideret</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Step 3 */}
-          <div className="flex flex-col md:flex-row items-center gap-6">
-            <div className="flex-1 w-full md:text-right">
-              <div className="bg-[#0d1527] p-6 rounded-xl border border-[#1e293b] inline-block w-full md:w-5/6 shadow-xl relative group hover:border-[#fbbf24]/40 transition-all">
-                <h3 className="text-lg font-bold text-[#f8fafc] mb-2 flex items-center md:justify-end gap-2">
-                  3. User Stories & Syntese <Layers className="w-5 h-5 text-[#fbbf24]" />
-                </h3>
-                <p className="text-sm text-[#94a3b8] leading-relaxed mb-4">
-                  De hierarkisk validerede klynger omsættes til software-krav. Lovens modaliteter (Forpligtelser/Forbud) oversættes direkte til Acceptkriterier (Acceptance Criteria) for udviklingsteams, der bygger fiskerikontrolsystemerne.
-                </p>
-                <div className="bg-[#070b13] p-4 rounded border border-[#1e293b] text-left">
-                  <span className="text-[10px] text-[#fbbf24] font-bold uppercase tracking-wider block mb-2">Genereret User Story</span>
-                  <p className="text-sm text-[#f8fafc] italic leading-relaxed">
-                    &quot;Som fiskerikontrollør har jeg brug for, at systemet automatisk flager fartøjer over 12m, der ikke har indsendt e-logbog inden for 24 timer, så vi kan håndhæve Artikel 14 i EF 1224/2009.&quot;
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="w-14 h-14 shrink-0 rounded-full bg-[#0d1527] border-4 border-[#fbbf24] flex items-center justify-center font-bold text-lg z-10 shadow-[0_0_15px_rgba(251,191,36,0.4)]">3</div>
-            <div className="flex-1 w-full hidden md:block"></div>
-          </div>
-
-          {/* Step 4 */}
-          <div className="flex flex-col md:flex-row items-center gap-6">
-            <div className="flex-1 w-full hidden md:block"></div>
-            <div className="w-14 h-14 shrink-0 rounded-full bg-[#0d1527] border-4 border-[#a855f7] flex items-center justify-center font-bold text-lg z-10 shadow-[0_0_15px_rgba(168,85,247,0.4)]">4</div>
-            <div className="flex-1 w-full">
-              <div className="bg-[#0d1527] p-6 rounded-xl border border-[#1e293b] inline-block w-full md:w-5/6 shadow-xl relative group hover:border-[#a855f7]/40 transition-all">
-                <h3 className="text-lg font-bold text-[#f8fafc] mb-2 flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-[#a855f7]" /> 4. Sporbarhed & Audit (Dette App-interface)
-                </h3>
-                <p className="text-sm text-[#94a3b8] leading-relaxed mb-4">
-                  Dette Dashboard fungerer som det menneskelige valideringslag (HITL). Hver eneste User Story bærer et ID, der peger direkte tilbage til lovgrafen. Juraafdelingen kan her visuelt efterprøve, hvorfor systemet er bygget, som det er.
-                </p>
-                <div className="flex items-center gap-4 border-t border-[#1e293b]/50 pt-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-[#a855f7] animate-pulse"></div>
-                    <span className="text-xs font-semibold text-[#f8fafc]">Visuel Proof-of-Compliance</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
