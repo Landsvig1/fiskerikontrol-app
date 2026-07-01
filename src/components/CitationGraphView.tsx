@@ -2,6 +2,22 @@ import React, { useEffect, useRef, useMemo } from "react";
 import * as d3 from "d3";
 import { GraphNode, GraphLink, GraphData } from "@/app/page";
 
+import { TranslateFn, TranslationKey } from "@/lib/i18n";
+
+// Single source of truth for modality → color, shared between the legend and the link/path styling below.
+const MODALITY_COLORS: Record<GraphLink["modality"], string> = {
+  Obligation: "#3b82f6",
+  Exception: "#ef4444",
+  Prohibition: "#ec4899",
+  Permission: "#10b981",
+};
+const MODALITY_LEGEND: { modality: GraphLink["modality"]; color: string; dashed: boolean }[] =
+  (Object.keys(MODALITY_COLORS) as GraphLink["modality"][]).map(modality => ({
+    modality,
+    color: MODALITY_COLORS[modality],
+    dashed: modality === "Exception",
+  }));
+
 interface CitationGraphViewProps {
   data: GraphData;
   selectedNode: GraphNode | null;
@@ -9,6 +25,7 @@ interface CitationGraphViewProps {
   activeCategoryFilter: string;
   searchQuery: string;
   setSelectedNode: (node: GraphNode | null) => void;
+  t: TranslateFn;
 }
 
 export function CitationGraphView({
@@ -17,19 +34,24 @@ export function CitationGraphView({
   activeDocFilter,
   activeCategoryFilter,
   searchQuery,
-  setSelectedNode
+  setSelectedNode,
+  t
 }: CitationGraphViewProps) {
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-[#070b13] relative border border-[#1e293b] rounded-xl overflow-hidden shadow-2xl">
       <div className="absolute top-6 left-6 z-10 flex gap-4 pointer-events-none">
         <div className="bg-[#0f172a]/90 backdrop-blur-sm p-4 rounded-xl border border-[#1e293b] pointer-events-auto shadow-xl">
-          <h3 className="text-sm font-bold text-[#f8fafc] mb-2 uppercase tracking-wider">Citation Graph</h3>
+          <h3 className="text-sm font-bold text-[#f8fafc] mb-2 uppercase tracking-wider">{t("citationGraph")}</h3>
           <div className="space-y-2 text-xs text-[#94a3b8]">
-            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#3b82f6]"></div> Ramme (1224/2009)</div>
-            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#10b981]"></div> Regler (2025/2196)</div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#3b82f6]"></div> {data.labelA || t("docA")}</div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#10b981]"></div> {data.labelB || t("docB")}</div>
             <div className="border-t border-[#1e293b] pt-2 mt-2">
-              <div className="flex items-center gap-2"><div className="w-4 h-0.5 bg-[#3b82f6]"></div> Forpligtelse</div>
-              <div className="flex items-center gap-2 mt-1"><div className="w-4 h-0.5 bg-[#ef4444] border-dashed border-t border-[#ef4444]"></div> Undtagelse</div>
+              {MODALITY_LEGEND.map(({ modality, color, dashed }) => (
+                <div key={modality} className="flex items-center gap-2 mt-1 first:mt-0">
+                  <div className={`w-4 h-0.5 ${dashed ? "border-dashed border-t" : ""}`} style={{ backgroundColor: dashed ? undefined : color, borderColor: dashed ? color : undefined }}></div>
+                  {t(modality.toLowerCase() as TranslationKey)}
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -42,12 +64,13 @@ export function CitationGraphView({
           activeCategoryFilter={activeCategoryFilter}
           searchQuery={searchQuery}
           setSelectedNode={setSelectedNode}
+          t={t}
         />
       </div>
 
-      {/* Details sidebar drawer */}
+      {/* Details sidebar drawer — full-width overlay on small screens, fixed w-96 on sm+ */}
       {selectedNode && (
-        <div className="absolute right-0 top-0 w-96 bg-[#0d1527] border-l border-[#1e293b] flex flex-col h-full z-20 shadow-2xl transition-all duration-300">
+        <div className="absolute right-0 top-0 w-full sm:w-96 max-w-full bg-[#0d1527] border-l border-[#1e293b] flex flex-col h-full z-20 shadow-2xl transition-all duration-300">
           <div className="p-6 border-b border-[#1e293b] relative flex flex-col gap-2">
             <button 
               onClick={() => setSelectedNode(null)}
@@ -58,22 +81,22 @@ export function CitationGraphView({
             <span className={`inline-flex items-center self-start px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
               selectedNode.doc === "control" ? "bg-[#3b82f6]/10 text-[#60a5fa] border border-[#3b82f6]/30" : "bg-[#10b981]/10 text-[#34d399] border border-[#10b981]/30"
             }`}>
-              {selectedNode.doc === "control" ? "Ramme" : "Gennemførelse"}
+              {selectedNode.doc === "control" ? (data.labelA || t("docA")) : (data.labelB || t("docB"))}
             </span>
             <h2 className="text-lg font-bold">{selectedNode.label}</h2>
-            <p className="text-xs text-[#94a3b8] font-medium">{selectedNode.title || "(Ingen overskrift)"}</p>
+            <p className="text-xs text-[#94a3b8] font-medium">{selectedNode.title || t("noTitle")}</p>
           </div>
           
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             <div className="space-y-2">
-              <h3 className="text-xs uppercase font-bold text-[#94a3b8] tracking-wider">Kategori</h3>
+              <h3 className="text-xs uppercase font-bold text-[#94a3b8] tracking-wider">{t("category")}</h3>
               <span className="inline-block px-2.5 py-1 rounded bg-[#1e293b] text-xs font-semibold text-[#f8fafc]">
                 {selectedNode.theme}
               </span>
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-xs uppercase font-bold text-[#94a3b8] tracking-wider">Lovtekst</h3>
+              <h3 className="text-xs uppercase font-bold text-[#94a3b8] tracking-wider">{t("documentText")}</h3>
               <div className="bg-[#070b13] border border-[#1e293b] p-4 rounded-lg text-sm leading-relaxed max-h-60 overflow-y-auto whitespace-pre-wrap">
                 {selectedNode.body}
               </div>
@@ -81,7 +104,7 @@ export function CitationGraphView({
 
             {/* List connections */}
             <div className="space-y-3">
-              <h3 className="text-xs uppercase font-bold text-[#94a3b8] tracking-wider">Forbindelser i grafen</h3>
+              <h3 className="text-xs uppercase font-bold text-[#94a3b8] tracking-wider">{t("connections")}</h3>
               <div className="space-y-2">
                 {data.links.filter(l => {
                   const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
@@ -110,13 +133,10 @@ export function CitationGraphView({
                           l.modality === "Permission" ? "bg-[#10b981]/10 text-[#34d399]" :
                           "bg-[#3b82f6]/10 text-[#60a5fa]"
                         }`}>
-                          {l.modality === "Exception" ? "Undtagelse" :
-                           l.modality === "Prohibition" ? "Forbud" :
-                           l.modality === "Permission" ? "Tilladelse" :
-                           "Forpligtelse"}
+                          {t(l.modality.toLowerCase() as TranslationKey)}
                         </span>
                       </div>
-                      <p className="text-[11px] text-[#94a3b8] truncate mt-1">{targetNode.title || "(Uden titel)"}</p>
+                      <p className="text-[11px] text-[#94a3b8] truncate mt-1">{targetNode.title || t("noHeading")}</p>
                     </div>
                   );
                 })}
@@ -331,15 +351,13 @@ function CitationGraphCanvas({
         return `M${s.x},${s.y} C${s.x + cpOffset},${s.y} ${t.x - cpOffset},${t.y} ${t.x},${t.y}`;
       })
       .attr("fill", "none")
-      .attr("stroke", d => {
-        if (d.modality === "Exception") return "#ef4444";
-        if (d.modality === "Prohibition") return "#ec4899";
-        if (d.modality === "Permission") return "#10b981";
-        return "#3b82f6";
-      })
-      .attr("stroke-opacity", 0.4)
+      .attr("stroke", d => MODALITY_COLORS[d.modality])
+      .attr("stroke-opacity", 0)
       .attr("stroke-width", 1.5)
       .attr("stroke-dasharray", d => d.modality === "Exception" ? "4, 2" : "none");
+
+    // Fade links in smoothly on (re)draw, e.g. when filters change, rather than popping in instantly.
+    link.transition().duration(300).attr("stroke-opacity", 0.4);
 
     const node = g.append("g")
       .selectAll<SVGGElement, GraphNode>("g.node")
