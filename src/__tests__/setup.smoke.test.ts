@@ -1,11 +1,11 @@
 /**
- * Smoke test — verifies the Jest + fast-check setup is working correctly.
+ * Smoke test — verifies the Vitest + fast-check setup is working correctly.
  * This file can be removed once real tests exist.
  */
 import fc from "fast-check";
 
 describe("Test framework smoke test", () => {
-  it("jest is configured and running", () => {
+  it("vitest is configured and running", () => {
     expect(1 + 1).toBe(2);
   });
 

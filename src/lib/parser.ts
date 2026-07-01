@@ -228,6 +228,19 @@ export function parsePdfTextIntoSections(
     }
   }
 
+  // No pattern matched at all — dominantIdx is still -1, so there is no "dominant" pattern
+  // to report on. Handle this before indexing PATTERNS, which would otherwise throw a raw
+  // TypeError instead of the structured INSUFFICIENT_STRUCTURE error the caller expects.
+  if (dominantIdx < 0) {
+    const patternCounts = Object.fromEntries(PATTERNS.map((p, i) => [p.name, counts[i]]));
+    throw {
+      code: "INSUFFICIENT_STRUCTURE",
+      message: `No sections matched any known heading pattern. Detected pattern counts: ${JSON.stringify(patternCounts)}.`,
+      patternCounts,
+      docKey,
+    };
+  }
+
   const dominant = PATTERNS[dominantIdx];
 
   // Weak numeric-only patterns (no anchoring keyword) require at least 2 matches to
@@ -269,8 +282,11 @@ export function parsePdfTextIntoSections(
     const re = new RegExp(p.regex.source, p.regex.flags);
     let m: RegExpExecArray | null;
     while ((m = re.exec(cleanText)) !== null) {
-      const numStr = m[2];
-      const num = parseInt(numStr, 10);
+      // The "hierarchical" pattern captures decimal headings like "3.1": group 1 is the
+      // full "N.M" text, group 2 is just the major number N. Using group 2 alone would
+      // collapse "3.1", "3.2", "3.3" to the same section number and collide/dedup away
+      // all but one, so hierarchical headings are parsed as a float (3.1, 3.2, ...) instead.
+      const num = p.name === "hierarchical" ? parseFloat(m[1]) : parseInt(m[2], 10);
       matchList.push({ number: num, index: m.index, end: re.lastIndex, prefix: p.prefix });
     }
   }
@@ -434,8 +450,24 @@ function parseCitations(
     const proximityEnd = Math.min(body.length, matchIndex + matchLength + 150);
     const proximityText = body.substring(proximityStart, proximityEnd).toLowerCase();
 
-    const hasA = labelALower && proximityText.includes(labelALower);
-    const hasB = labelBLower && proximityText.includes(labelBLower);
+    // If one label is a substring of the other (common for base-act vs. implementing-act
+    // naming, e.g. "EU 1224/2009" vs. "EU 1224/2009 Gennemførelse"), a mention of the longer
+    // label would otherwise also register as a match for the shorter one. Strip occurrences
+    // of the longer label before searching for the shorter one so each check only counts a
+    // standalone mention.
+    let textForA = proximityText;
+    let textForB = proximityText;
+    if (labelALower && labelBLower && labelALower !== labelBLower) {
+      if (labelBLower.includes(labelALower)) {
+        textForA = proximityText.split(labelBLower).join(" ");
+      }
+      if (labelALower.includes(labelBLower)) {
+        textForB = proximityText.split(labelALower).join(" ");
+      }
+    }
+
+    const hasA = labelALower && textForA.includes(labelALower);
+    const hasB = labelBLower && textForB.includes(labelBLower);
 
     if (hasA && !hasB) {
       targetDoc = "control";
@@ -568,7 +600,7 @@ export function analyzeCitationsAndBuildGraph(controlText: string, implText: str
             number: targetSecNum,
             label: `External ref. ${targetSecNum}`,
             title: "Unresolved external reference",
-            doc: "control",  // placeholder discriminant
+            doc: cit.target_doc,
             theme: "General",
             body: "Referenced section not found in either document.",
             is_subnode: true,

@@ -43,6 +43,13 @@ export async function POST(request: Request) {
   let dataA, dataB;
   try {
     [dataA, dataB] = await Promise.all([parserA.getText(), parserB.getText()]);
+  } catch (e: unknown) {
+    console.error("Error extracting text from uploaded PDFs:", e);
+    const message = e instanceof Error ? e.message : String(e);
+    return NextResponse.json(
+      { error: `Could not read one of the PDF files. It may be corrupted, password-protected, or not a valid PDF: ${message}` },
+      { status: 422 }
+    );
   } finally {
     await Promise.all([parserA.destroy(), parserB.destroy()]);
   }
@@ -64,7 +71,9 @@ export async function POST(request: Request) {
         { status: 422 }
       );
     }
-    throw e;
+    console.error("Unexpected error building citation graph:", e);
+    const message = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ error: `Unexpected error: ${message}` }, { status: 500 });
   }
 
   return NextResponse.json({ ...graphData, labelA, labelB });

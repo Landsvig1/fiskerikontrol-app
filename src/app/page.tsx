@@ -18,6 +18,8 @@ import * as d3 from "d3";
 import { CitationGraphView } from "@/components/CitationGraphView";
 import { UploadScreen } from "@/components/UploadScreen";
 import { getT, Lang, TranslateFn, TranslationKey } from "@/lib/i18n";
+import { MODALITY_COLORS, modalityBadgeClasses, Modality } from "@/lib/graphColors";
+import { filterGraph, computeDegree } from "@/lib/graphFilter";
 
 // Type definitions
 export interface GraphNode extends d3.SimulationNodeDatum {
@@ -42,7 +44,7 @@ export interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
   source: string | GraphNode;
   target: string | GraphNode;
   type: string;
-  modality: string;
+  modality: Modality;
   snippet: string;
   context: string;
 }
@@ -488,32 +490,8 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       target: typeof l.target === 'object' ? l.target.id : l.target
     }));
 
-    const filteredNodes = nodes.filter(n => {
-      if (activeDocFilter !== "all" && n.doc !== activeDocFilter) return false;
-      if (activeCategoryFilter !== "all" && n.theme !== activeCategoryFilter) return false;
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        return n.label.toLowerCase().includes(query) || 
-               n.title.toLowerCase().includes(query) || 
-               n.body.toLowerCase().includes(query);
-      }
-      return true;
-    });
-
-    const filteredNodeIds = new Set(filteredNodes.map(n => n.id));
-    const filteredLinks = links.filter(l => {
-      const srcId = typeof l.source === 'object' ? l.source.id : l.source;
-      const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
-      return filteredNodeIds.has(srcId) && filteredNodeIds.has(tgtId);
-    });
-
-    const degree: Record<string, number> = {};
-    filteredLinks.forEach(l => {
-      const s = typeof l.source === 'object' ? l.source.id : l.source;
-      const t = typeof l.target === 'object' ? l.target.id : l.target;
-      degree[s] = (degree[s] || 0) + 1;
-      degree[t] = (degree[t] || 0) + 1;
-    });
+    const { filteredNodes, filteredLinks } = filterGraph(nodes, links, activeDocFilter, activeCategoryFilter, searchQuery);
+    const degree = computeDegree(filteredLinks);
 
     return filteredNodes
       .map(n => ({ ...n, degree: degree[n.id] || 0 }))
@@ -637,36 +615,10 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     }));
 
     // Filter nodes and links based on UI state
-    const filteredNodes = nodes.filter(n => {
-      // Doc filter
-      if (activeDocFilter !== "all" && n.doc !== activeDocFilter) return false;
-      // Category filter
-      if (activeCategoryFilter !== "all" && n.theme !== activeCategoryFilter) return false;
-      // Search filter
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        return n.label.toLowerCase().includes(query) || 
-               n.title.toLowerCase().includes(query) || 
-               n.body.toLowerCase().includes(query);
-      }
-      return true;
-    });
-
-    const filteredNodeIds = new Set(filteredNodes.map(n => n.id));
-    const filteredLinks = links.filter(l => {
-      const srcId = typeof l.source === 'object' ? l.source.id : l.source;
-      const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
-      return filteredNodeIds.has(srcId) && filteredNodeIds.has(tgtId);
-    });
+    const { filteredNodes, filteredLinks } = filterGraph(nodes, links, activeDocFilter, activeCategoryFilter, searchQuery);
 
     // Degree calculations for node sizing
-    const degree: Record<string, number> = {};
-    filteredLinks.forEach(l => {
-      const s = typeof l.source === 'object' ? l.source.id : l.source;
-      const t = typeof l.target === 'object' ? l.target.id : l.target;
-      degree[s] = (degree[s] || 0) + 1;
-      degree[t] = (degree[t] || 0) + 1;
-    });
+    const degree = computeDegree(filteredLinks);
 
     // Force simulation. Collision radius is degree-weighted so hub nodes (high citation
     // count) reserve enough space to avoid overlapping smaller leaf nodes in dense graphs.
@@ -685,12 +637,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       .selectAll("line")
       .data(filteredLinks)
       .join("line")
-      .attr("stroke", d => {
-        if (d.modality === "Exception") return "#ef4444";
-        if (d.modality === "Prohibition") return "#ec4899";
-        if (d.modality === "Permission") return "#10b981";
-        return "#3b82f6";
-      })
+      .attr("stroke", d => MODALITY_COLORS[d.modality])
       .attr("stroke-opacity", 0.4)
       .attr("stroke-width", 1.5)
       .attr("stroke-dasharray", d => d.modality === "Exception" ? "4, 2" : "none");
@@ -1102,12 +1049,7 @@ function InteractiveGraphView({
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-[#38bdf8]">{targetNode.label}</span>
-                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                          l.modality === "Exception" ? "bg-[#ef4444]/10 text-[#f87171]" :
-                          l.modality === "Prohibition" ? "bg-[#ec4899]/10 text-[#f472b6]" :
-                          l.modality === "Permission" ? "bg-[#10b981]/10 text-[#34d399]" :
-                          "bg-[#3b82f6]/10 text-[#60a5fa]"
-                        }`}>
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${modalityBadgeClasses(l.modality)}`}>
                           {t(l.modality.toLowerCase() as TranslationKey)}
                         </span>
                       </div>

@@ -3,20 +3,8 @@ import * as d3 from "d3";
 import { GraphNode, GraphLink, GraphData } from "@/app/page";
 
 import { TranslateFn, TranslationKey } from "@/lib/i18n";
-
-// Single source of truth for modality → color, shared between the legend and the link/path styling below.
-const MODALITY_COLORS: Record<GraphLink["modality"], string> = {
-  Obligation: "#3b82f6",
-  Exception: "#ef4444",
-  Prohibition: "#ec4899",
-  Permission: "#10b981",
-};
-const MODALITY_LEGEND: { modality: GraphLink["modality"]; color: string; dashed: boolean }[] =
-  (Object.keys(MODALITY_COLORS) as GraphLink["modality"][]).map(modality => ({
-    modality,
-    color: MODALITY_COLORS[modality],
-    dashed: modality === "Exception",
-  }));
+import { MODALITY_COLORS, MODALITY_LEGEND, modalityBadgeClasses } from "@/lib/graphColors";
+import { filterGraph, computeDegree } from "@/lib/graphFilter";
 
 interface CitationGraphViewProps {
   data: GraphData;
@@ -127,12 +115,7 @@ export function CitationGraphView({
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-[#38bdf8]">{targetNode.label}</span>
-                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                          l.modality === "Exception" ? "bg-[#ef4444]/10 text-[#f87171]" :
-                          l.modality === "Prohibition" ? "bg-[#ec4899]/10 text-[#f472b6]" :
-                          l.modality === "Permission" ? "bg-[#10b981]/10 text-[#34d399]" :
-                          "bg-[#3b82f6]/10 text-[#60a5fa]"
-                        }`}>
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${modalityBadgeClasses(l.modality)}`}>
                           {t(l.modality.toLowerCase() as TranslationKey)}
                         </span>
                       </div>
@@ -170,32 +153,8 @@ function CitationGraphCanvas({
       target: typeof l.target === 'object' ? l.target.id : l.target
     }));
 
-    const filteredNodes = nodes.filter(n => {
-      if (activeDocFilter !== "all" && n.doc !== activeDocFilter) return false;
-      if (activeCategoryFilter !== "all" && n.theme !== activeCategoryFilter) return false;
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        return n.label.toLowerCase().includes(query) || 
-               n.title.toLowerCase().includes(query) || 
-               n.body.toLowerCase().includes(query);
-      }
-      return true;
-    });
-
-    const filteredNodeIds = new Set(filteredNodes.map(n => n.id));
-    const filteredLinks = links.filter(l => {
-      const srcId = typeof l.source === 'object' ? l.source.id : l.source;
-      const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
-      return filteredNodeIds.has(srcId) && filteredNodeIds.has(tgtId);
-    });
-
-    const degree: Record<string, number> = {};
-    filteredLinks.forEach(l => {
-      const s = typeof l.source === 'object' ? l.source.id : l.source;
-      const t = typeof l.target === 'object' ? l.target.id : l.target;
-      degree[s] = (degree[s] || 0) + 1;
-      degree[t] = (degree[t] || 0) + 1;
-    });
+    const { filteredNodes, filteredLinks } = filterGraph(nodes, links, activeDocFilter, activeCategoryFilter, searchQuery);
+    const degree = computeDegree(filteredLinks);
 
     return filteredNodes
       .map(n => ({ ...n, degree: degree[n.id] || 0 }))
@@ -282,32 +241,8 @@ function CitationGraphCanvas({
       target: typeof l.target === 'object' ? l.target.id : l.target
     }));
 
-    const filteredNodes = nodes.filter(n => {
-      if (activeDocFilter !== "all" && n.doc !== activeDocFilter) return false;
-      if (activeCategoryFilter !== "all" && n.theme !== activeCategoryFilter) return false;
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        return n.label.toLowerCase().includes(query) || 
-               n.title.toLowerCase().includes(query) || 
-               n.body.toLowerCase().includes(query);
-      }
-      return true;
-    });
-
-    const filteredNodeIds = new Set(filteredNodes.map(n => n.id));
-    const filteredLinks = links.filter(l => {
-      const srcId = typeof l.source === 'object' ? l.source.id : l.source;
-      const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
-      return filteredNodeIds.has(srcId) && filteredNodeIds.has(tgtId);
-    });
-
-    const degree: Record<string, number> = {};
-    filteredLinks.forEach(l => {
-      const s = typeof l.source === 'object' ? l.source.id : l.source;
-      const t = typeof l.target === 'object' ? l.target.id : l.target;
-      degree[s] = (degree[s] || 0) + 1;
-      degree[t] = (degree[t] || 0) + 1;
-    });
+    const { filteredNodes, filteredLinks } = filterGraph(nodes, links, activeDocFilter, activeCategoryFilter, searchQuery);
+    const degree = computeDegree(filteredLinks);
 
     const controlNodes = filteredNodes.filter(n => n.doc === "control").sort((a, b) => a.number - b.number);
     const implNodes = filteredNodes.filter(n => n.doc === "impl").sort((a, b) => a.number - b.number);

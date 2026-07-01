@@ -127,4 +127,70 @@ describe("LexGraph Parser Accuracy & Citation Extraction", () => {
       expect(links.some(l => l.target === "docA_sec_9")).toBe(true);
     });
   });
+
+  describe("Regression fixes", () => {
+    it("should throw a structured INSUFFICIENT_STRUCTURE error, not crash, when no heading pattern matches at all", () => {
+      const text = "This document has no recognisable headings at all, just plain prose.";
+      expect(() => parsePdfTextIntoSections(text, "docA", "control", "Test Document")).toThrow(
+        expect.objectContaining({ code: "INSUFFICIENT_STRUCTURE" })
+      );
+    });
+
+    it("should not collapse decimal 'N.M' hierarchical headings into the same section number", () => {
+      const text = `
+        3.1
+        First subsection.
+
+        3.2
+        Second subsection.
+
+        3.3
+        Third subsection.
+      `;
+      const sections = parsePdfTextIntoSections(text, "docA", "control", "Test Document");
+      expect(sections.length).toBe(3);
+      const numbers = sections.map(s => s.number).sort((a, b) => a - b);
+      expect(numbers).toEqual([3.1, 3.2, 3.3]);
+    });
+
+    it("should tag external (unresolvable) citation subnodes with the citing document, not always 'control'", () => {
+      const docAText = `
+        Article 1
+        First article.
+      `;
+      const docBText = `
+        Article 1
+        See Article 99 for details.
+
+        Article 2
+        More content here.
+      `;
+
+      const result = analyzeCitationsAndBuildGraph(docAText, docBText, "Document A", "Document B");
+      const externalNode = result.nodes.find(n => n.id === "external_sec_99");
+      expect(externalNode).toBeDefined();
+      expect(externalNode?.external).toBe(true);
+      // The citation to the nonexistent section 99 originates in docB (impl), so the
+      // external node must be tagged "impl", not hardcoded to "control".
+      expect(externalNode?.doc).toBe("impl");
+    });
+
+    it("should not misresolve the target document when one label is a substring of the other", () => {
+      const docAText = `
+        Article 5
+        Base provision.
+      `;
+      const docBText = `
+        Article 1
+        Per EU 1224/2009 Gennemførelse Article 5, we must comply.
+      `;
+
+      const result = analyzeCitationsAndBuildGraph(docAText, docBText, "EU 1224/2009", "EU 1224/2009 Gennemførelse");
+      const link = result.links.find(l => l.source === "docB_sec_1");
+      expect(link).toBeDefined();
+      // Only "EU 1224/2009 Gennemførelse" (labelB) is actually mentioned near the citation,
+      // so it must resolve to docB (impl), not be misdetected as also mentioning labelA.
+      expect(link?.target).toBe("docB_sec_5");
+    });
+  });
 });
