@@ -19,7 +19,8 @@ export type TranslationKey =
   | "obligation" | "exception" | "prohibition" | "permission"
   | "noTitle" | "noHeading"
   | "showInGraph" | "viewAnalysis" | "viewConflicts"
-  | "docA" | "docB";          // dynamic fallbacks when labelA/labelB are blank
+  | "docA" | "docB"          // dynamic fallbacks when labelA/labelB are blank
+  | "aboutButton" | "backToApp";
 
 export type Translations = Record<TranslationKey, string>;
 
@@ -65,6 +66,8 @@ const da: Translations = {
   viewConflicts: "Vis konflikter",
   docA: "Dokument A",
   docB: "Dokument B",
+  aboutButton: "Hvad er LexGraph?",
+  backToApp: "Tilbage til appen",
 };
 
 const en: Translations = {
@@ -109,6 +112,8 @@ const en: Translations = {
   viewConflicts: "View conflicts",
   docA: "Document A",
   docB: "Document B",
+  aboutButton: "What is LexGraph?",
+  backToApp: "Back to the app",
 };
 
 export const translations: Record<Lang, Translations> = { da, en };
