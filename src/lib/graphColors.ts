@@ -23,6 +23,14 @@ const MODALITY_BADGE_CLASSES: Record<Modality, string> = {
   Obligation: "bg-[#3b82f6]/10 text-[#60a5fa]",
 };
 
+// The graph data comes from an untyped API JSON response cast to GraphData with no runtime
+// validation, so `modality` isn't actually guaranteed to be one of the 4 known literals at
+// runtime. Fall back to Obligation's styling (matching the old if/else chain's default
+// branch) instead of rendering an undefined color/class for an unrecognized value.
+export function modalityColor(modality: Modality): string {
+  return MODALITY_COLORS[modality] ?? MODALITY_COLORS.Obligation;
+}
+
 export function modalityBadgeClasses(modality: Modality): string {
-  return MODALITY_BADGE_CLASSES[modality];
+  return MODALITY_BADGE_CLASSES[modality] ?? MODALITY_BADGE_CLASSES.Obligation;
 }

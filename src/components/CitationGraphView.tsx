@@ -3,7 +3,7 @@ import * as d3 from "d3";
 import { GraphNode, GraphLink, GraphData } from "@/app/page";
 
 import { TranslateFn, TranslationKey } from "@/lib/i18n";
-import { MODALITY_COLORS, MODALITY_LEGEND, modalityBadgeClasses } from "@/lib/graphColors";
+import { MODALITY_LEGEND, modalityColor, modalityBadgeClasses } from "@/lib/graphColors";
 import { filterGraph, computeDegree } from "@/lib/graphFilter";
 
 interface CitationGraphViewProps {
@@ -286,7 +286,7 @@ function CitationGraphCanvas({
         return `M${s.x},${s.y} C${s.x + cpOffset},${s.y} ${t.x - cpOffset},${t.y} ${t.x},${t.y}`;
       })
       .attr("fill", "none")
-      .attr("stroke", d => MODALITY_COLORS[d.modality])
+      .attr("stroke", d => modalityColor(d.modality))
       .attr("stroke-opacity", 0)
       .attr("stroke-width", 1.5)
       .attr("stroke-dasharray", d => d.modality === "Exception" ? "4, 2" : "none");

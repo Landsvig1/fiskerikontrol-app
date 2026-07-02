@@ -277,17 +277,31 @@ export function parsePdfTextIntoSections(
     }
   }
 
-  const matchList: { number: number; index: number; end: number; prefix: string }[] = [];
+  const matchList: { number: number; displayNumber: string; index: number; end: number; prefix: string }[] = [];
   for (const p of selectedPatterns) {
     const re = new RegExp(p.regex.source, p.regex.flags);
     let m: RegExpExecArray | null;
     while ((m = re.exec(cleanText)) !== null) {
-      // The "hierarchical" pattern captures decimal headings like "3.1": group 1 is the
-      // full "N.M" text, group 2 is just the major number N. Using group 2 alone would
-      // collapse "3.1", "3.2", "3.3" to the same section number and collide/dedup away
-      // all but one, so hierarchical headings are parsed as a float (3.1, 3.2, ...) instead.
-      const num = p.name === "hierarchical" ? parseFloat(m[1]) : parseInt(m[2], 10);
-      matchList.push({ number: num, index: m.index, end: re.lastIndex, prefix: p.prefix });
+      let num: number;
+      let displayNumber: string;
+      if (p.name === "hierarchical") {
+        // The "hierarchical" pattern captures decimal headings like "3.1": group 1 is the
+        // full "N.M" text, group 2 the major number, group 3 the minor number. Using group 2
+        // alone would collapse "3.1", "3.2", "3.3" to the same section number. parseFloat(m[1])
+        // isn't safe either — it collides multi-digit minors sharing a prefix, e.g.
+        // parseFloat("3.1") === parseFloat("3.10") === 3.1. Encode major/minor into a single
+        // unique integer instead (minor capped far below 1000 for any realistic document),
+        // which also preserves numeric sort order across majors, but keep the original "N.M"
+        // text separately so the section label still displays "3.1", not the encoded integer.
+        const major = parseInt(m[2], 10);
+        const minor = parseInt(m[3], 10);
+        num = major * 1000 + minor;
+        displayNumber = m[1];
+      } else {
+        num = parseInt(m[2], 10);
+        displayNumber = m[2];
+      }
+      matchList.push({ number: num, displayNumber, index: m.index, end: re.lastIndex, prefix: p.prefix });
     }
   }
 
@@ -314,7 +328,7 @@ export function parsePdfTextIntoSections(
     sections.push({
       id: `${docKey}_sec_${curr.number}`,
       number: curr.number,
-      label: `${userLabel} ${curr.prefix} ${curr.number}`,
+      label: `${userLabel} ${curr.prefix} ${curr.displayNumber}`,
       title,
       body,
       doc: docRole,
@@ -592,8 +606,10 @@ export function analyzeCitationsAndBuildGraph(controlText: string, implText: str
       const isExternal = !existsInControl && !existsInImpl && !parentNode;
 
       if (isExternal) {
-        // Create external virtual subnode for unresolvable citations
-        const externalId = `external_sec_${targetSecNum}`;
+        // Create external virtual subnode for unresolvable citations. Qualified by target_doc
+        // so that docA and docB independently citing the same nonexistent section number don't
+        // collide into one node tagged with only the first citation's document.
+        const externalId = `external_${cit.target_doc}_sec_${targetSecNum}`;
         if (!nodeIds.has(externalId)) {
           nodes.push({
             id: externalId,

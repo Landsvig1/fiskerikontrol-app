@@ -149,8 +149,33 @@ describe("LexGraph Parser Accuracy & Citation Extraction", () => {
       `;
       const sections = parsePdfTextIntoSections(text, "docA", "control", "Test Document");
       expect(sections.length).toBe(3);
-      const numbers = sections.map(s => s.number).sort((a, b) => a - b);
-      expect(numbers).toEqual([3.1, 3.2, 3.3]);
+      // Section numbers are an internal encoding (major*1000+minor), not the literal decimal —
+      // what matters is they're distinct and the label still displays the original "N.M" text.
+      const numbers = sections.map(s => s.number);
+      expect(new Set(numbers).size).toBe(3);
+      expect(sections.map(s => s.label).sort()).toEqual([
+        "Test Document § 3.1",
+        "Test Document § 3.2",
+        "Test Document § 3.3",
+      ]);
+    });
+
+    it("should not collapse hierarchical headings whose minor numbers share a digit prefix (3.1 vs 3.10)", () => {
+      const text = `
+        3.1
+        First subsection.
+
+        3.10
+        Tenth subsection.
+      `;
+      const sections = parsePdfTextIntoSections(text, "docA", "control", "Test Document");
+      expect(sections.length).toBe(2);
+      const numbers = sections.map(s => s.number);
+      expect(new Set(numbers).size).toBe(2);
+      expect(sections.map(s => s.label).sort()).toEqual([
+        "Test Document § 3.1",
+        "Test Document § 3.10",
+      ]);
     });
 
     it("should tag external (unresolvable) citation subnodes with the citing document, not always 'control'", () => {
@@ -167,12 +192,31 @@ describe("LexGraph Parser Accuracy & Citation Extraction", () => {
       `;
 
       const result = analyzeCitationsAndBuildGraph(docAText, docBText, "Document A", "Document B");
-      const externalNode = result.nodes.find(n => n.id === "external_sec_99");
+      const externalNode = result.nodes.find(n => n.id === "external_impl_sec_99");
       expect(externalNode).toBeDefined();
       expect(externalNode?.external).toBe(true);
       // The citation to the nonexistent section 99 originates in docB (impl), so the
       // external node must be tagged "impl", not hardcoded to "control".
       expect(externalNode?.doc).toBe("impl");
+    });
+
+    it("should not collide external subnodes when both documents independently cite the same nonexistent section", () => {
+      const docAText = `
+        Article 1
+        See Article 42 elsewhere.
+      `;
+      const docBText = `
+        Article 1
+        Also see Article 42 elsewhere.
+      `;
+
+      const result = analyzeCitationsAndBuildGraph(docAText, docBText, "Document A", "Document B");
+      const controlExternal = result.nodes.find(n => n.id === "external_control_sec_42");
+      const implExternal = result.nodes.find(n => n.id === "external_impl_sec_42");
+      expect(controlExternal).toBeDefined();
+      expect(implExternal).toBeDefined();
+      expect(controlExternal?.doc).toBe("control");
+      expect(implExternal?.doc).toBe("impl");
     });
 
     it("should not misresolve the target document when one label is a substring of the other", () => {

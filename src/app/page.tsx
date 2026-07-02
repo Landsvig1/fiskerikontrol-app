@@ -18,7 +18,7 @@ import * as d3 from "d3";
 import { CitationGraphView } from "@/components/CitationGraphView";
 import { UploadScreen } from "@/components/UploadScreen";
 import { getT, Lang, TranslateFn, TranslationKey } from "@/lib/i18n";
-import { MODALITY_COLORS, modalityBadgeClasses, Modality } from "@/lib/graphColors";
+import { modalityColor, modalityBadgeClasses, Modality } from "@/lib/graphColors";
 import { filterGraph, computeDegree } from "@/lib/graphFilter";
 
 // Type definitions
@@ -637,7 +637,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       .selectAll("line")
       .data(filteredLinks)
       .join("line")
-      .attr("stroke", d => MODALITY_COLORS[d.modality])
+      .attr("stroke", d => modalityColor(d.modality))
       .attr("stroke-opacity", 0.4)
       .attr("stroke-width", 1.5)
       .attr("stroke-dasharray", d => d.modality === "Exception" ? "4, 2" : "none");
