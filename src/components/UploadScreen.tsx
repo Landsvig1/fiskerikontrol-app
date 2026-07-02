@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Database, Upload, FileText, AlertTriangle, RefreshCw } from "lucide-react";
+import Link from "next/link";
+import { Database, Upload, FileText, AlertTriangle, RefreshCw, Info } from "lucide-react";
 import { GraphData } from "@/app/page";
 import { TranslateFn } from "@/lib/i18n";
 
@@ -230,26 +231,37 @@ export function UploadScreen({
           </div>
         </div>
 
-        {/* Language Toggle */}
-        <div className="flex items-center gap-1 bg-[#131e35] p-1 rounded-lg border border-[#1e293b]">
-          <button
-            type="button"
-            onClick={() => setLang("da")}
-            className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-200 ${
-              lang === "da" ? "bg-[#38bdf8] text-[#070b13] shadow-md shadow-[#38bdf8]/10" : "text-[#94a3b8] hover:text-[#f8fafc]"
-            }`}
+        <div className="flex items-center gap-3">
+          {/* About link */}
+          <Link
+            href="/about"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#94a3b8] border border-[#1e293b] hover:text-[#38bdf8] hover:border-[#38bdf8]/40 transition-all duration-200"
           >
-            DA
-          </button>
-          <button
-            type="button"
-            onClick={() => setLang("en")}
-            className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-200 ${
-              lang === "en" ? "bg-[#38bdf8] text-[#070b13] shadow-md shadow-[#38bdf8]/10" : "text-[#94a3b8] hover:text-[#f8fafc]"
-            }`}
-          >
-            EN
-          </button>
+            <Info className="w-3.5 h-3.5" />
+            {t("aboutButton")}
+          </Link>
+
+          {/* Language Toggle */}
+          <div className="flex items-center gap-1 bg-[#131e35] p-1 rounded-lg border border-[#1e293b]">
+            <button
+              type="button"
+              onClick={() => setLang("da")}
+              className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-200 ${
+                lang === "da" ? "bg-[#38bdf8] text-[#070b13] shadow-md shadow-[#38bdf8]/10" : "text-[#94a3b8] hover:text-[#f8fafc]"
+              }`}
+            >
+              DA
+            </button>
+            <button
+              type="button"
+              onClick={() => setLang("en")}
+              className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-200 ${
+                lang === "en" ? "bg-[#38bdf8] text-[#070b13] shadow-md shadow-[#38bdf8]/10" : "text-[#94a3b8] hover:text-[#f8fafc]"
+              }`}
+            >
+              EN
+            </button>
+          </div>
         </div>
       </header>
 
