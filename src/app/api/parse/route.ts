@@ -1,50 +1,80 @@
 import { NextResponse } from "next/server";
-import { PDFParse } from "pdf-parse";
 import { analyzeCitationsAndBuildGraph } from "@/lib/parser";
 
 export async function POST(request: Request) {
-  try {
-    const formData = await request.formData();
-    const controlPdfFile = formData.get("controlPdf") as File | null;
-    const implPdfFile = formData.get("implPdf") as File | null;
+  const formData = await request.formData();
 
-    if (!controlPdfFile || !implPdfFile) {
-      return NextResponse.json(
-        { error: "Begge PDF-filer (Rammeforordning og Gennemførelsesforordning) skal uploades." },
-        { status: 400 }
-      );
-    }
+  const pdfA = formData.get("pdfA") as File | null;
+  const pdfB = formData.get("pdfB") as File | null;
+  const labelA = (formData.get("labelA") as string | null)?.trim() ?? "";
+  const labelB = (formData.get("labelB") as string | null)?.trim() ?? "";
 
-    // Convert Files to ArrayBuffers then Buffers
-    const controlArrayBuffer = await controlPdfFile.arrayBuffer();
-    const implArrayBuffer = await implPdfFile.arrayBuffer();
-
-    const controlBuffer = Buffer.from(controlArrayBuffer);
-    const implBuffer = Buffer.from(implArrayBuffer);
-
-    // Extract text using pdf-parse
-    console.log("Parsing Control PDF...");
-    const controlParser = new PDFParse({ data: controlBuffer });
-    const controlData = await controlParser.getText();
-    
-    console.log("Parsing Implementation PDF...");
-    const implParser = new PDFParse({ data: implBuffer });
-    const implData = await implParser.getText();
-
-    // Build the citation network graph
-    console.log("Running network analysis...");
-    const graphData = analyzeCitationsAndBuildGraph(
-      controlData.text,
-      implData.text
-    );
-
-    return NextResponse.json(graphData);
-  } catch (error: unknown) {
-    console.error("Error parsing PDFs on server:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
+  // Validate labels
+  if (!labelA || !labelB) {
     return NextResponse.json(
-      { error: `Fejl under parsing af PDF: ${errorMessage}` },
-      { status: 500 }
+      { error: "Both labelA and labelB must be non-empty strings." },
+      { status: 400 }
     );
   }
+
+  if (!pdfA || !pdfB) {
+    return NextResponse.json(
+      { error: "Both PDF files (pdfA and pdfB) are required." },
+      { status: 400 }
+    );
+  }
+
+  // Enforce 10 MB combined size limit
+  const totalBytes = pdfA.size + pdfB.size;
+  if (totalBytes > 10 * 1024 * 1024) {
+    return NextResponse.json(
+      { error: "Combined file size exceeds the 10 MB limit." },
+      { status: 413 }
+    );
+  }
+
+  const bufA = Buffer.from(await pdfA.arrayBuffer());
+  const bufB = Buffer.from(await pdfB.arrayBuffer());
+
+  // Extract text — pdf-parse v2: PDFParse is a class, getText().text holds the content
+  const { PDFParse } = await import("pdf-parse");
+  const parserA = new PDFParse({ data: bufA });
+  const parserB = new PDFParse({ data: bufB });
+  let dataA, dataB;
+  try {
+    [dataA, dataB] = await Promise.all([parserA.getText(), parserB.getText()]);
+  } catch (e: unknown) {
+    console.error("Error extracting text from uploaded PDFs:", e);
+    const message = e instanceof Error ? e.message : String(e);
+    return NextResponse.json(
+      { error: `Could not read one of the PDF files. It may be corrupted, password-protected, or not a valid PDF: ${message}` },
+      { status: 422 }
+    );
+  } finally {
+    await Promise.all([parserA.destroy(), parserB.destroy()]);
+  }
+
+  // Build graph — throws structured error if structure is insufficient
+  let graphData;
+  try {
+    graphData = analyzeCitationsAndBuildGraph(dataA.text, dataB.text, labelA, labelB);
+  } catch (e: unknown) {
+    if (e && typeof e === "object" && "code" in e) {
+      const err = e as { code: string; message: string; patternCounts?: Record<string, number>; docKey?: string };
+      return NextResponse.json(
+        {
+          error: err.message,
+          code: err.code,
+          ...(err.patternCounts ? { patternCounts: err.patternCounts } : {}),
+          ...(err.docKey ? { docKey: err.docKey } : {}),
+        },
+        { status: 422 }
+      );
+    }
+    console.error("Unexpected error building citation graph:", e);
+    const message = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ error: `Unexpected error: ${message}` }, { status: 500 });
+  }
+
+  return NextResponse.json({ ...graphData, labelA, labelB });
 }
