@@ -1,5 +1,13 @@
 import { NextResponse } from "next/server";
 import { analyzeCitationsAndBuildGraph } from "@/lib/parser";
+import DOMMatrixPolyfill from "dommatrix";
+
+// pdfjs-dist (bundled in pdf-parse) constructs a DOMMatrix at module load time
+// for its canvas module. Node has no DOMMatrix global, so importing pdf-parse
+// crashes for any PDF that pulls in that code path unless we polyfill it first.
+if (!("DOMMatrix" in globalThis)) {
+  (globalThis as unknown as { DOMMatrix: typeof DOMMatrixPolyfill }).DOMMatrix = DOMMatrixPolyfill;
+}
 
 function errorDetails(e: unknown) {
   if (e instanceof Error) {
