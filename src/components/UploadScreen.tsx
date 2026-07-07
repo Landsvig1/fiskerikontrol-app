@@ -142,6 +142,8 @@ export function UploadScreen({
   const [errorB, setErrorB] = useState<string | null>(null);
   const [sizeError, setSizeError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [errorReport, setErrorReport] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const inputRefA = useRef<HTMLInputElement | null>(null);
@@ -186,7 +188,23 @@ export function UploadScreen({
     if (!canSubmit || !fileA || !fileB) return;
 
     setSubmitError(null);
+    setErrorReport(null);
+    setCopied(false);
     setLoading(true);
+
+    const buildReport = (extra: Record<string, unknown>) =>
+      JSON.stringify(
+        {
+          timestamp: new Date().toISOString(),
+          url: window.location.href,
+          userAgent: navigator.userAgent,
+          fileA: { name: fileA.name, size: fileA.size, type: fileA.type },
+          fileB: { name: fileB.name, size: fileB.size, type: fileB.type },
+          ...extra,
+        },
+        null,
+        2
+      );
 
     try {
       const fd = new FormData();
@@ -198,24 +216,52 @@ export function UploadScreen({
       const res = await fetch("/api/parse", { method: "POST", body: fd });
 
       if (!res.ok) {
+        const rawBody = await res.text();
         let errorMsg = t("unknownError");
+        let parsedBody: unknown = null;
         try {
-          const body = await res.json();
+          parsedBody = JSON.parse(rawBody);
+          const body = parsedBody as { error?: string };
           if (body?.error) errorMsg = body.error;
         } catch {
           // ignore parse failure; use default message
         }
+        console.error("Upload failed:", res.status, rawBody);
         setSubmitError(errorMsg);
+        setErrorReport(
+          buildReport({
+            httpStatus: res.status,
+            httpStatusText: res.statusText,
+            responseBody: parsedBody ?? rawBody,
+          })
+        );
         setLoading(false);
         return;
       }
 
       const graphData: GraphData = await res.json();
       onSuccess(graphData, labelAInput.trim(), labelBInput.trim());
-    } catch {
+    } catch (err: unknown) {
+      console.error("Upload failed:", err);
       setSubmitError(t("unknownError"));
+      setErrorReport(
+        buildReport({
+          clientError: {
+            name: err instanceof Error ? err.name : "UnknownError",
+            message: err instanceof Error ? err.message : String(err),
+            stack: err instanceof Error ? err.stack : undefined,
+          },
+        })
+      );
       setLoading(false);
     }
+  };
+
+  const handleCopyReport = async () => {
+    if (!errorReport) return;
+    await navigator.clipboard.writeText(errorReport);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -349,9 +395,25 @@ export function UploadScreen({
 
               {/* Submit error */}
               {submitError && (
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-[#ef4444]/10 border border-[#ef4444]/25 text-sm text-[#f87171]">
-                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <span>{submitError}</span>
+                <div className="p-3 rounded-lg bg-[#ef4444]/10 border border-[#ef4444]/25 text-sm text-[#f87171] space-y-3">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{submitError}</span>
+                  </div>
+                  {errorReport && (
+                    <>
+                      <pre className="max-h-48 overflow-auto p-2 rounded bg-[#070b13] border border-[#1e293b] text-xs text-[#94a3b8] whitespace-pre-wrap break-all">
+                        {errorReport}
+                      </pre>
+                      <button
+                        type="button"
+                        onClick={handleCopyReport}
+                        className="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#1e293b] text-[#f8fafc] hover:bg-[#334155] transition-colors"
+                      >
+                        {copied ? t("copiedErrorDetails") : t("copyErrorDetails")}
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
 

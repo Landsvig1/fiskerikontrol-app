@@ -20,7 +20,8 @@ export type TranslationKey =
   | "noTitle" | "noHeading"
   | "showInGraph" | "viewAnalysis" | "viewConflicts"
   | "docA" | "docB"          // dynamic fallbacks when labelA/labelB are blank
-  | "aboutButton" | "backToApp";
+  | "aboutButton" | "backToApp"
+  | "copyErrorDetails" | "copiedErrorDetails";
 
 export type Translations = Record<TranslationKey, string>;
 
@@ -68,6 +69,8 @@ const da: Translations = {
   docB: "Dokument B",
   aboutButton: "Hvad er LexGraph?",
   backToApp: "Tilbage til appen",
+  copyErrorDetails: "Kopiér fejldetaljer",
+  copiedErrorDetails: "Kopieret!",
 };
 
 const en: Translations = {
@@ -114,6 +117,8 @@ const en: Translations = {
   docB: "Document B",
   aboutButton: "What is LexGraph?",
   backToApp: "Back to the app",
+  copyErrorDetails: "Copy error details",
+  copiedErrorDetails: "Copied!",
 };
 
 export const translations: Record<Lang, Translations> = { da, en };

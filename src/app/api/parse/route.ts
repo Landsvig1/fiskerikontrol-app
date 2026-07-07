@@ -1,7 +1,27 @@
 import { NextResponse } from "next/server";
 import { analyzeCitationsAndBuildGraph } from "@/lib/parser";
 
+function errorDetails(e: unknown) {
+  if (e instanceof Error) {
+    return { name: e.name, message: e.message, stack: e.stack };
+  }
+  return { name: "UnknownError", message: String(e), stack: undefined };
+}
+
 export async function POST(request: Request) {
+  try {
+    return await handleParse(request);
+  } catch (e: unknown) {
+    console.error("Unhandled error in /api/parse:", e);
+    const details = errorDetails(e);
+    return NextResponse.json(
+      { error: `Unhandled server error: ${details.message}`, details },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleParse(request: Request) {
   const formData = await request.formData();
 
   const pdfA = formData.get("pdfA") as File | null;
@@ -45,9 +65,12 @@ export async function POST(request: Request) {
     [dataA, dataB] = await Promise.all([parserA.getText(), parserB.getText()]);
   } catch (e: unknown) {
     console.error("Error extracting text from uploaded PDFs:", e);
-    const message = e instanceof Error ? e.message : String(e);
+    const details = errorDetails(e);
     return NextResponse.json(
-      { error: `Could not read one of the PDF files. It may be corrupted, password-protected, or not a valid PDF: ${message}` },
+      {
+        error: `Could not read one of the PDF files. It may be corrupted, password-protected, or not a valid PDF: ${details.message}`,
+        details,
+      },
       { status: 422 }
     );
   } finally {
@@ -72,8 +95,11 @@ export async function POST(request: Request) {
       );
     }
     console.error("Unexpected error building citation graph:", e);
-    const message = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: `Unexpected error: ${message}` }, { status: 500 });
+    const details = errorDetails(e);
+    return NextResponse.json(
+      { error: `Unexpected error: ${details.message}`, details },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ ...graphData, labelA, labelB });
