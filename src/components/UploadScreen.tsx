@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Database, Upload, FileText, AlertTriangle, RefreshCw, Info } from "lucide-react";
 import { GraphData } from "@/app/page";
 import { TranslateFn } from "@/lib/i18n";
+import { deriveLabelFromFilename } from "@/lib/labels";
 
 import { Lang } from "@/lib/i18n";
 
@@ -42,6 +43,7 @@ function FileSlot({ file, error, label, dropZoneText, onFile, inputRef }: FileSl
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
     const dropped = e.dataTransfer.files[0];
     if (dropped) onFile(dropped);
@@ -145,9 +147,14 @@ export function UploadScreen({
   const [errorReport, setErrorReport] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [labelATouched, setLabelATouched] = useState(false);
+  const [labelBTouched, setLabelBTouched] = useState(false);
+  const [multiDropNotice, setMultiDropNotice] = useState<string | null>(null);
+  const [isContainerDragging, setIsContainerDragging] = useState(false);
 
   const inputRefA = useRef<HTMLInputElement | null>(null);
   const inputRefB = useRef<HTMLInputElement | null>(null);
+  const autoTriggerArmedRef = useRef(false);
 
   // Combined size check
   useEffect(() => {
@@ -155,24 +162,87 @@ export function UploadScreen({
     setSizeError(combined > 10 * 1024 * 1024 ? t("sizeLimitError") : null);
   }, [fileA, fileB, t]);
 
+  const isSameFile = (a: File | null, b: File) =>
+    a !== null && a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
+
   const handleFileA = (file: File) => {
     if (file.type !== "application/pdf") {
       setErrorA(t("invalidPdfError"));
       setFileA(null);
-    } else {
-      setErrorA(null);
-      setFileA(file);
+      return;
     }
+    setErrorA(null);
+    const isNewFile = !isSameFile(fileA, file);
+    setFileA(file);
+    if (isNewFile) {
+      setLabelATouched(false);
+      setLabelAInput(deriveLabelFromFilename(file.name));
+    } else if (!labelATouched) {
+      setLabelAInput(deriveLabelFromFilename(file.name));
+    }
+    if (fileB) autoTriggerArmedRef.current = true;
   };
 
   const handleFileB = (file: File) => {
     if (file.type !== "application/pdf") {
       setErrorB(t("invalidPdfError"));
       setFileB(null);
-    } else {
-      setErrorB(null);
-      setFileB(file);
+      return;
     }
+    setErrorB(null);
+    const isNewFile = !isSameFile(fileB, file);
+    setFileB(file);
+    if (isNewFile) {
+      setLabelBTouched(false);
+      setLabelBInput(deriveLabelFromFilename(file.name));
+    } else if (!labelBTouched) {
+      setLabelBInput(deriveLabelFromFilename(file.name));
+    }
+    if (fileA) autoTriggerArmedRef.current = true;
+  };
+
+  const handleLabelAChange = (value: string) => {
+    setLabelATouched(true);
+    setLabelAInput(value);
+  };
+
+  const handleLabelBChange = (value: string) => {
+    setLabelBTouched(true);
+    setLabelBInput(value);
+  };
+
+  const handleContainerDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsContainerDragging(true);
+  };
+
+  const handleContainerDragLeave = () => {
+    setIsContainerDragging(false);
+  };
+
+  const handleContainerDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsContainerDragging(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+
+    if (files.length === 1) {
+      setMultiDropNotice(null);
+      if (!fileA) handleFileA(files[0]);
+      else if (!fileB) handleFileB(files[0]);
+      else handleFileA(files[0]);
+      return;
+    }
+
+    const pdfFiles = files.filter((f) => f.type === "application/pdf");
+    const [first, second] = pdfFiles;
+    if (first) handleFileA(first);
+    if (second) handleFileB(second);
+    if (first && second) autoTriggerArmedRef.current = true;
+
+    const usedCount = pdfFiles.slice(0, 2).length;
+    setMultiDropNotice(files.length > usedCount ? t("multiDropExtraFilesIgnored") : null);
   };
 
   const canSubmit =
@@ -183,8 +253,16 @@ export function UploadScreen({
     !sizeError &&
     !loading;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Auto-fire the analysis once both slots complete a valid pair for the first time.
+  useEffect(() => {
+    if (autoTriggerArmedRef.current && canSubmit) {
+      autoTriggerArmedRef.current = false;
+      void runAnalysis();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fileA, fileB, labelAInput, labelBInput, sizeError, loading]);
+
+  const runAnalysis = async () => {
     if (!canSubmit || !fileA || !fileB) return;
 
     setSubmitError(null);
@@ -257,6 +335,11 @@ export function UploadScreen({
     }
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    void runAnalysis();
+  };
+
   const handleCopyReport = async () => {
     if (!errorReport) return;
     await navigator.clipboard.writeText(errorReport);
@@ -315,7 +398,15 @@ export function UploadScreen({
       <main className="flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-2xl">
           {/* Card */}
-          <div className="bg-[#0d1527] border border-[#1e293b] rounded-2xl p-8 shadow-xl shadow-black/40">
+          <div
+            data-testid="upload-drop-zone"
+            onDragOver={handleContainerDragOver}
+            onDragLeave={handleContainerDragLeave}
+            onDrop={handleContainerDrop}
+            className={`bg-[#0d1527] border rounded-2xl p-8 shadow-xl shadow-black/40 transition-colors duration-200 ${
+              isContainerDragging ? "border-[#38bdf8]/60" : "border-[#1e293b]"
+            }`}
+          >
             {/* Title block */}
             <div className="mb-8 text-center">
               <h2 className="text-2xl font-extrabold tracking-tight text-[#f8fafc]">
@@ -327,6 +418,14 @@ export function UploadScreen({
             </div>
 
             <form onSubmit={handleSubmit} noValidate className="space-y-6">
+              {/* Multi-file drop notice */}
+              {multiDropNotice && (
+                <p className="flex items-center gap-1.5 text-xs text-[#f59e0b]">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  {multiDropNotice}
+                </p>
+              )}
+
               {/* File slots */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FileSlot
@@ -368,7 +467,7 @@ export function UploadScreen({
                     id="labelA"
                     type="text"
                     value={labelAInput}
-                    onChange={(e) => setLabelAInput(e.target.value)}
+                    onChange={(e) => handleLabelAChange(e.target.value)}
                     placeholder={t("labelA")}
                     className="px-3 py-2 rounded-lg bg-[#131e35] border border-[#1e293b] text-sm text-[#f8fafc] placeholder-[#4b5c75]
                                focus:outline-none focus:ring-2 focus:ring-[#38bdf8]/50 focus:border-[#38bdf8]/60 transition-colors"
@@ -385,7 +484,7 @@ export function UploadScreen({
                     id="labelB"
                     type="text"
                     value={labelBInput}
-                    onChange={(e) => setLabelBInput(e.target.value)}
+                    onChange={(e) => handleLabelBChange(e.target.value)}
                     placeholder={t("labelB")}
                     className="px-3 py-2 rounded-lg bg-[#131e35] border border-[#1e293b] text-sm text-[#f8fafc] placeholder-[#4b5c75]
                                focus:outline-none focus:ring-2 focus:ring-[#38bdf8]/50 focus:border-[#38bdf8]/60 transition-colors"

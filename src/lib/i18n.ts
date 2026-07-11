@@ -11,7 +11,7 @@ export type TranslationKey =
   | "dropZoneA" | "dropZoneB"
   | "labelA" | "labelB"
   | "analyseButton" | "analysing"
-  | "invalidPdfError" | "sizeLimitError" | "unknownError"
+  | "invalidPdfError" | "sizeLimitError" | "unknownError" | "multiDropExtraFilesIgnored"
   | "loadingGraph"
   | "allDocuments" | "allCategories"
   | "sectionCount" | "citationsCount" | "overlapsCount" | "conflictsCount"
@@ -46,6 +46,7 @@ const da: Translations = {
   invalidPdfError: "Kun PDF-filer accepteres.",
   sizeLimitError: "Samlet filstørrelse overstiger 10 MB.",
   unknownError: "Ukendt fejl. Prøv igen.",
+  multiDropExtraFilesIgnored: "Kun de første to PDF-filer blev brugt; øvrige filer blev ignoreret.",
   loadingGraph: "Analyserer dokumenter...",
   allDocuments: "Alle dokumenter",
   allCategories: "Alle kategorier",
@@ -94,6 +95,7 @@ const en: Translations = {
   invalidPdfError: "Only PDF files are accepted.",
   sizeLimitError: "Combined file size exceeds 10 MB.",
   unknownError: "Unknown error. Please try again.",
+  multiDropExtraFilesIgnored: "Only the first two PDF files were used; the rest were ignored.",
   loadingGraph: "Analysing documents...",
   allDocuments: "All documents",
   allCategories: "All categories",
