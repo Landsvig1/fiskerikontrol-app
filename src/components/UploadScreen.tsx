@@ -27,13 +27,16 @@ interface FileSlotProps {
   dropZoneText: string;
   onFile: (file: File) => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
+  disabled?: boolean;
+  onDropExtras: (fileCount: number) => void;
 }
 
-function FileSlot({ file, error, label, dropZoneText, onFile, inputRef }: FileSlotProps) {
+function FileSlot({ file, error, label, dropZoneText, onFile, inputRef, disabled, onDropExtras }: FileSlotProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    if (disabled) return;
     setIsDragging(true);
   };
 
@@ -45,11 +48,15 @@ function FileSlot({ file, error, label, dropZoneText, onFile, inputRef }: FileSl
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    const dropped = e.dataTransfer.files[0];
+    if (disabled) return;
+    const files = e.dataTransfer.files;
+    onDropExtras(files.length);
+    const dropped = files[0];
     if (dropped) onFile(dropped);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (disabled) return;
     const selected = e.target.files?.[0];
     if (selected) onFile(selected);
     // Reset so the same file can be re-selected after an error
@@ -57,6 +64,7 @@ function FileSlot({ file, error, label, dropZoneText, onFile, inputRef }: FileSl
   };
 
   const handleClick = () => {
+    if (disabled) return;
     inputRef.current?.click();
   };
 
@@ -68,23 +76,30 @@ function FileSlot({ file, error, label, dropZoneText, onFile, inputRef }: FileSl
 
       <div
         role="button"
-        tabIndex={0}
+        tabIndex={disabled ? -1 : 0}
         aria-label={label}
+        aria-disabled={disabled}
         onClick={handleClick}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleClick(); }}
+        onKeyDown={(e) => { if (disabled) return; if (e.key === "Enter" || e.key === " ") handleClick(); }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={`
           flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-dashed
-          cursor-pointer transition-all duration-200 min-h-[140px] select-none
-          ${isDragging
+          transition-all duration-200 min-h-[140px] select-none
+          ${disabled
+            ? "opacity-50 cursor-not-allowed pointer-events-none border-[#1e293b] bg-[#0d1527]"
+            : "cursor-pointer"
+          }
+          ${!disabled && isDragging
             ? "border-[#38bdf8] bg-[#38bdf8]/10"
-            : file && !error
+            : !disabled && file && !error
               ? "border-[#10b981]/60 bg-[#10b981]/5"
-              : error
+              : !disabled && error
                 ? "border-[#ef4444]/60 bg-[#ef4444]/5"
-                : "border-[#1e293b] bg-[#0d1527] hover:border-[#38bdf8]/50 hover:bg-[#38bdf8]/5"
+                : !disabled
+                  ? "border-[#1e293b] bg-[#0d1527] hover:border-[#38bdf8]/50 hover:bg-[#38bdf8]/5"
+                  : ""
           }
         `}
       >
@@ -215,11 +230,20 @@ export function UploadScreen({
 
   const handleContainerDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    if (loading) return;
     setIsContainerDragging(true);
   };
 
   const handleContainerDragLeave = () => {
     setIsContainerDragging(false);
+  };
+
+  // Shared by both FileSlots: a drop landing directly on a slot still needs to
+  // settle the container's transient state (drag highlight, stale multi-drop
+  // notice) since FileSlot.handleDrop stops the event from bubbling there.
+  const handleSlotDropExtras = (fileCount: number) => {
+    setIsContainerDragging(false);
+    setMultiDropNotice(fileCount > 1 ? t("multiDropExtraFilesIgnored") : null);
   };
 
   const handleContainerDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -244,8 +268,12 @@ export function UploadScreen({
     if (second) handleFileB(second);
     if (first && second) autoTriggerArmedRef.current = true;
 
-    const usedCount = pdfFiles.slice(0, 2).length;
-    setMultiDropNotice(files.length > usedCount ? t("multiDropExtraFilesIgnored") : null);
+    if (pdfFiles.length === 0) {
+      setMultiDropNotice(t("invalidPdfError"));
+    } else {
+      const usedCount = Math.min(2, pdfFiles.length);
+      setMultiDropNotice(files.length > usedCount ? t("multiDropExtraFilesIgnored") : null);
+    }
   };
 
   const canSubmit =
@@ -441,6 +469,8 @@ export function UploadScreen({
                   dropZoneText={t("dropZoneA")}
                   onFile={handleFileA}
                   inputRef={inputRefA}
+                  disabled={loading}
+                  onDropExtras={handleSlotDropExtras}
                 />
                 <FileSlot
                   file={fileB}
@@ -449,6 +479,8 @@ export function UploadScreen({
                   dropZoneText={t("dropZoneB")}
                   onFile={handleFileB}
                   inputRef={inputRefB}
+                  disabled={loading}
+                  onDropExtras={handleSlotDropExtras}
                 />
               </div>
 

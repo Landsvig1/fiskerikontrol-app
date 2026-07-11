@@ -193,6 +193,8 @@ describe("UploadScreen multi-file drop", () => {
     expect(await screen.findByText("original-a.pdf")).toBeInTheDocument();
 
     const slotA = screen.getByRole("button", { name: t("labelA") });
+    expect(slotA).toHaveAttribute("aria-disabled", "true");
+
     fireEvent.drop(slotA, { dataTransfer: { files: [pdf("replacement.pdf")] } });
 
     expect(screen.getByText("original-a.pdf")).toBeInTheDocument();
@@ -200,6 +202,55 @@ describe("UploadScreen multi-file drop", () => {
     expect(global.fetch).toHaveBeenCalledTimes(1);
 
     resolveFetch({ ok: true, json: async () => makeGraphData() });
+  });
+
+  it("shows the invalid-file notice, not the extra-files notice, when a multi-drop has zero valid PDFs", async () => {
+    renderUploadScreen();
+    const dropZone = screen.getByTestId("upload-drop-zone");
+
+    fireEvent.drop(dropZone, { dataTransfer: { files: [nonPdf("a.docx"), nonPdf("b.docx")] } });
+
+    expect(await screen.findByText(t("invalidPdfError"))).toBeInTheDocument();
+    expect(screen.queryByText(/only the first two/i)).not.toBeInTheDocument();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("clears a stale multi-drop notice once the user fixes the pair via a per-slot drop", async () => {
+    renderUploadScreen();
+    const dropZone = screen.getByTestId("upload-drop-zone");
+
+    fireEvent.drop(dropZone, { dataTransfer: { files: [pdf("one.pdf"), pdf("two.pdf"), pdf("three.pdf")] } });
+    expect(await screen.findByText(/only the first two/i)).toBeInTheDocument();
+
+    const slotA = screen.getByRole("button", { name: t("labelA") });
+    fireEvent.drop(slotA, { dataTransfer: { files: [pdf("corrected.pdf")] } });
+
+    expect(await screen.findByText("corrected.pdf")).toBeInTheDocument();
+    expect(screen.queryByText(/only the first two/i)).not.toBeInTheDocument();
+  });
+
+  it("shows the extra-files notice when multiple files are dropped directly on a single slot", async () => {
+    renderUploadScreen();
+    const slotA = screen.getByRole("button", { name: t("labelA") });
+
+    fireEvent.drop(slotA, { dataTransfer: { files: [pdf("first.pdf"), pdf("second.pdf")] } });
+
+    expect(await screen.findByText("first.pdf")).toBeInTheDocument();
+    expect(screen.getByText(/only the first two/i)).toBeInTheDocument();
+  });
+
+  it("resets the container drag highlight when a drop lands directly on a slot", async () => {
+    renderUploadScreen();
+    const dropZone = screen.getByTestId("upload-drop-zone");
+    const slotA = screen.getByRole("button", { name: t("labelA") });
+
+    fireEvent.dragOver(dropZone, { dataTransfer: { files: [] } });
+    expect(dropZone.className).toMatch(/border-\[#38bdf8\]\/60/);
+
+    fireEvent.drop(slotA, { dataTransfer: { files: [pdf("one.pdf")] } });
+
+    expect(await screen.findByText("one.pdf")).toBeInTheDocument();
+    expect(dropZone.className).not.toMatch(/border-\[#38bdf8\]\/60/);
   });
 
   it("does not auto-fire when an unrelated label edit happens to satisfy canSubmit after a prior file drop", async () => {
