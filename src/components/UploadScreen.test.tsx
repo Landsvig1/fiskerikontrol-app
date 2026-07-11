@@ -176,4 +176,43 @@ describe("UploadScreen multi-file drop", () => {
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
   });
+
+  it("ignores a file drop into a slot while a request is in flight", async () => {
+    let resolveFetch: (value: unknown) => void = () => {};
+    (global.fetch as ReturnType<typeof vi.fn>).mockReturnValue(
+      new Promise((resolve) => {
+        resolveFetch = resolve;
+      })
+    );
+
+    renderUploadScreen();
+    const dropZone = screen.getByTestId("upload-drop-zone");
+
+    fireEvent.drop(dropZone, { dataTransfer: { files: [pdf("original-a.pdf"), pdf("original-b.pdf")] } });
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("original-a.pdf")).toBeInTheDocument();
+
+    const slotA = screen.getByRole("button", { name: t("labelA") });
+    fireEvent.drop(slotA, { dataTransfer: { files: [pdf("replacement.pdf")] } });
+
+    expect(screen.getByText("original-a.pdf")).toBeInTheDocument();
+    expect(screen.queryByText("replacement.pdf")).not.toBeInTheDocument();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+
+    resolveFetch({ ok: true, json: async () => makeGraphData() });
+  });
+
+  it("does not auto-fire when an unrelated label edit happens to satisfy canSubmit after a prior file drop", async () => {
+    renderUploadScreen();
+    const dropZone = screen.getByTestId("upload-drop-zone");
+
+    // ".pdf" derives to an empty label, leaving canSubmit false even though both slots are filled.
+    fireEvent.drop(dropZone, { dataTransfer: { files: [pdf(".pdf"), pdf("valid-b.pdf")] } });
+    await screen.findByText(".pdf");
+    expect(global.fetch).not.toHaveBeenCalled();
+
+    fireEvent.change(document.getElementById("labelA") as HTMLInputElement, { target: { value: "X" } });
+
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
 });

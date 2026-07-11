@@ -142,7 +142,6 @@ export function UploadScreen({
   const [fileB, setFileB] = useState<File | null>(null);
   const [errorA, setErrorA] = useState<string | null>(null);
   const [errorB, setErrorB] = useState<string | null>(null);
-  const [sizeError, setSizeError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [errorReport, setErrorReport] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -156,16 +155,16 @@ export function UploadScreen({
   const inputRefB = useRef<HTMLInputElement | null>(null);
   const autoTriggerArmedRef = useRef(false);
 
-  // Combined size check
-  useEffect(() => {
-    const combined = (fileA?.size ?? 0) + (fileB?.size ?? 0);
-    setSizeError(combined > 10 * 1024 * 1024 ? t("sizeLimitError") : null);
-  }, [fileA, fileB, t]);
+  // Derived (not effect-driven) so it's always in sync with fileA/fileB in the
+  // same render — the auto-trigger effect below reads it in that same render.
+  const combinedSize = (fileA?.size ?? 0) + (fileB?.size ?? 0);
+  const sizeError = combinedSize > 10 * 1024 * 1024 ? t("sizeLimitError") : null;
 
   const isSameFile = (a: File | null, b: File) =>
     a !== null && a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
 
   const handleFileA = (file: File) => {
+    if (loading) return;
     if (file.type !== "application/pdf") {
       setErrorA(t("invalidPdfError"));
       setFileA(null);
@@ -184,6 +183,7 @@ export function UploadScreen({
   };
 
   const handleFileB = (file: File) => {
+    if (loading) return;
     if (file.type !== "application/pdf") {
       setErrorB(t("invalidPdfError"));
       setFileB(null);
@@ -202,11 +202,13 @@ export function UploadScreen({
   };
 
   const handleLabelAChange = (value: string) => {
+    autoTriggerArmedRef.current = false;
     setLabelATouched(true);
     setLabelAInput(value);
   };
 
   const handleLabelBChange = (value: string) => {
+    autoTriggerArmedRef.current = false;
     setLabelBTouched(true);
     setLabelBInput(value);
   };
@@ -223,6 +225,7 @@ export function UploadScreen({
   const handleContainerDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsContainerDragging(false);
+    if (loading) return;
 
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
@@ -254,6 +257,9 @@ export function UploadScreen({
     !loading;
 
   // Auto-fire the analysis once both slots complete a valid pair for the first time.
+  // `runAnalysis` is intentionally omitted from deps: it's redefined every render and
+  // isn't itself the trigger condition — including it would re-run this effect on every
+  // keystroke/render without changing when armedRef is actually set.
   useEffect(() => {
     if (autoTriggerArmedRef.current && canSubmit) {
       autoTriggerArmedRef.current = false;
