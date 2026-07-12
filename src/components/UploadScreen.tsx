@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Database, Upload, FileText, AlertTriangle, RefreshCw, Info } from "lucide-react";
 import { GraphData } from "@/app/page";
 import { TranslateFn } from "@/lib/i18n";
+import { deriveLabelFromFilename } from "@/lib/labels";
 
 import { Lang } from "@/lib/i18n";
 
@@ -26,13 +27,16 @@ interface FileSlotProps {
   dropZoneText: string;
   onFile: (file: File) => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
+  disabled?: boolean;
+  onDropExtras: (fileCount: number) => void;
 }
 
-function FileSlot({ file, error, label, dropZoneText, onFile, inputRef }: FileSlotProps) {
+function FileSlot({ file, error, label, dropZoneText, onFile, inputRef, disabled, onDropExtras }: FileSlotProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    if (disabled) return;
     setIsDragging(true);
   };
 
@@ -42,12 +46,17 @@ function FileSlot({ file, error, label, dropZoneText, onFile, inputRef }: FileSl
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
-    const dropped = e.dataTransfer.files[0];
+    if (disabled) return;
+    const files = e.dataTransfer.files;
+    onDropExtras(files.length);
+    const dropped = files[0];
     if (dropped) onFile(dropped);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (disabled) return;
     const selected = e.target.files?.[0];
     if (selected) onFile(selected);
     // Reset so the same file can be re-selected after an error
@@ -55,6 +64,7 @@ function FileSlot({ file, error, label, dropZoneText, onFile, inputRef }: FileSl
   };
 
   const handleClick = () => {
+    if (disabled) return;
     inputRef.current?.click();
   };
 
@@ -66,23 +76,30 @@ function FileSlot({ file, error, label, dropZoneText, onFile, inputRef }: FileSl
 
       <div
         role="button"
-        tabIndex={0}
+        tabIndex={disabled ? -1 : 0}
         aria-label={label}
+        aria-disabled={disabled}
         onClick={handleClick}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleClick(); }}
+        onKeyDown={(e) => { if (disabled) return; if (e.key === "Enter" || e.key === " ") handleClick(); }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={`
           flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-dashed
-          cursor-pointer transition-all duration-200 min-h-[140px] select-none
-          ${isDragging
+          transition-all duration-200 min-h-[140px] select-none
+          ${disabled
+            ? "opacity-50 cursor-not-allowed pointer-events-none border-[#1e293b] bg-[#0d1527]"
+            : "cursor-pointer"
+          }
+          ${!disabled && isDragging
             ? "border-[#38bdf8] bg-[#38bdf8]/10"
-            : file && !error
+            : !disabled && file && !error
               ? "border-[#10b981]/60 bg-[#10b981]/5"
-              : error
+              : !disabled && error
                 ? "border-[#ef4444]/60 bg-[#ef4444]/5"
-                : "border-[#1e293b] bg-[#0d1527] hover:border-[#38bdf8]/50 hover:bg-[#38bdf8]/5"
+                : !disabled
+                  ? "border-[#1e293b] bg-[#0d1527] hover:border-[#38bdf8]/50 hover:bg-[#38bdf8]/5"
+                  : ""
           }
         `}
       >
@@ -140,38 +157,122 @@ export function UploadScreen({
   const [fileB, setFileB] = useState<File | null>(null);
   const [errorA, setErrorA] = useState<string | null>(null);
   const [errorB, setErrorB] = useState<string | null>(null);
-  const [sizeError, setSizeError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [errorReport, setErrorReport] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [labelATouched, setLabelATouched] = useState(false);
+  const [labelBTouched, setLabelBTouched] = useState(false);
+  const [multiDropNotice, setMultiDropNotice] = useState<string | null>(null);
+  const [isContainerDragging, setIsContainerDragging] = useState(false);
 
   const inputRefA = useRef<HTMLInputElement | null>(null);
   const inputRefB = useRef<HTMLInputElement | null>(null);
+  const autoTriggerArmedRef = useRef(false);
 
-  // Combined size check
-  useEffect(() => {
-    const combined = (fileA?.size ?? 0) + (fileB?.size ?? 0);
-    setSizeError(combined > 10 * 1024 * 1024 ? t("sizeLimitError") : null);
-  }, [fileA, fileB, t]);
+  // Derived (not effect-driven) so it's always in sync with fileA/fileB in the
+  // same render — the auto-trigger effect below reads it in that same render.
+  const combinedSize = (fileA?.size ?? 0) + (fileB?.size ?? 0);
+  const sizeError = combinedSize > 10 * 1024 * 1024 ? t("sizeLimitError") : null;
+
+  const isSameFile = (a: File | null, b: File) =>
+    a !== null && a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
 
   const handleFileA = (file: File) => {
+    if (loading) return;
     if (file.type !== "application/pdf") {
       setErrorA(t("invalidPdfError"));
       setFileA(null);
-    } else {
-      setErrorA(null);
-      setFileA(file);
+      return;
     }
+    setErrorA(null);
+    const isNewFile = !isSameFile(fileA, file);
+    setFileA(file);
+    if (isNewFile) {
+      setLabelATouched(false);
+      setLabelAInput(deriveLabelFromFilename(file.name));
+    } else if (!labelATouched) {
+      setLabelAInput(deriveLabelFromFilename(file.name));
+    }
+    if (fileB) autoTriggerArmedRef.current = true;
   };
 
   const handleFileB = (file: File) => {
+    if (loading) return;
     if (file.type !== "application/pdf") {
       setErrorB(t("invalidPdfError"));
       setFileB(null);
+      return;
+    }
+    setErrorB(null);
+    const isNewFile = !isSameFile(fileB, file);
+    setFileB(file);
+    if (isNewFile) {
+      setLabelBTouched(false);
+      setLabelBInput(deriveLabelFromFilename(file.name));
+    } else if (!labelBTouched) {
+      setLabelBInput(deriveLabelFromFilename(file.name));
+    }
+    if (fileA) autoTriggerArmedRef.current = true;
+  };
+
+  const handleLabelAChange = (value: string) => {
+    autoTriggerArmedRef.current = false;
+    setLabelATouched(true);
+    setLabelAInput(value);
+  };
+
+  const handleLabelBChange = (value: string) => {
+    autoTriggerArmedRef.current = false;
+    setLabelBTouched(true);
+    setLabelBInput(value);
+  };
+
+  const handleContainerDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (loading) return;
+    setIsContainerDragging(true);
+  };
+
+  const handleContainerDragLeave = () => {
+    setIsContainerDragging(false);
+  };
+
+  // Shared by both FileSlots: a drop landing directly on a slot still needs to
+  // settle the container's transient state (drag highlight, stale multi-drop
+  // notice) since FileSlot.handleDrop stops the event from bubbling there.
+  const handleSlotDropExtras = (fileCount: number) => {
+    setIsContainerDragging(false);
+    setMultiDropNotice(fileCount > 1 ? t("multiDropExtraFilesIgnored") : null);
+  };
+
+  const handleContainerDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsContainerDragging(false);
+    if (loading) return;
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+
+    if (files.length === 1) {
+      setMultiDropNotice(null);
+      if (!fileA) handleFileA(files[0]);
+      else if (!fileB) handleFileB(files[0]);
+      else handleFileA(files[0]);
+      return;
+    }
+
+    const pdfFiles = files.filter((f) => f.type === "application/pdf");
+    const [first, second] = pdfFiles;
+    if (first) handleFileA(first);
+    if (second) handleFileB(second);
+    if (first && second) autoTriggerArmedRef.current = true;
+
+    if (pdfFiles.length === 0) {
+      setMultiDropNotice(t("invalidPdfError"));
     } else {
-      setErrorB(null);
-      setFileB(file);
+      const usedCount = Math.min(2, pdfFiles.length);
+      setMultiDropNotice(files.length > usedCount ? t("multiDropExtraFilesIgnored") : null);
     }
   };
 
@@ -183,8 +284,19 @@ export function UploadScreen({
     !sizeError &&
     !loading;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Auto-fire the analysis once both slots complete a valid pair for the first time.
+  // `runAnalysis` is intentionally omitted from deps: it's redefined every render and
+  // isn't itself the trigger condition — including it would re-run this effect on every
+  // keystroke/render without changing when armedRef is actually set.
+  useEffect(() => {
+    if (autoTriggerArmedRef.current && canSubmit) {
+      autoTriggerArmedRef.current = false;
+      void runAnalysis();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fileA, fileB, labelAInput, labelBInput, sizeError, loading]);
+
+  const runAnalysis = async () => {
     if (!canSubmit || !fileA || !fileB) return;
 
     setSubmitError(null);
@@ -257,6 +369,11 @@ export function UploadScreen({
     }
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    void runAnalysis();
+  };
+
   const handleCopyReport = async () => {
     if (!errorReport) return;
     await navigator.clipboard.writeText(errorReport);
@@ -315,7 +432,15 @@ export function UploadScreen({
       <main className="flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-2xl">
           {/* Card */}
-          <div className="bg-[#0d1527] border border-[#1e293b] rounded-2xl p-8 shadow-xl shadow-black/40">
+          <div
+            data-testid="upload-drop-zone"
+            onDragOver={handleContainerDragOver}
+            onDragLeave={handleContainerDragLeave}
+            onDrop={handleContainerDrop}
+            className={`bg-[#0d1527] border rounded-2xl p-8 shadow-xl shadow-black/40 transition-colors duration-200 ${
+              isContainerDragging ? "border-[#38bdf8]/60" : "border-[#1e293b]"
+            }`}
+          >
             {/* Title block */}
             <div className="mb-8 text-center">
               <h2 className="text-2xl font-extrabold tracking-tight text-[#f8fafc]">
@@ -327,6 +452,14 @@ export function UploadScreen({
             </div>
 
             <form onSubmit={handleSubmit} noValidate className="space-y-6">
+              {/* Multi-file drop notice */}
+              {multiDropNotice && (
+                <p className="flex items-center gap-1.5 text-xs text-[#f59e0b]">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  {multiDropNotice}
+                </p>
+              )}
+
               {/* File slots */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FileSlot
@@ -336,6 +469,8 @@ export function UploadScreen({
                   dropZoneText={t("dropZoneA")}
                   onFile={handleFileA}
                   inputRef={inputRefA}
+                  disabled={loading}
+                  onDropExtras={handleSlotDropExtras}
                 />
                 <FileSlot
                   file={fileB}
@@ -344,6 +479,8 @@ export function UploadScreen({
                   dropZoneText={t("dropZoneB")}
                   onFile={handleFileB}
                   inputRef={inputRefB}
+                  disabled={loading}
+                  onDropExtras={handleSlotDropExtras}
                 />
               </div>
 
@@ -368,7 +505,7 @@ export function UploadScreen({
                     id="labelA"
                     type="text"
                     value={labelAInput}
-                    onChange={(e) => setLabelAInput(e.target.value)}
+                    onChange={(e) => handleLabelAChange(e.target.value)}
                     placeholder={t("labelA")}
                     className="px-3 py-2 rounded-lg bg-[#131e35] border border-[#1e293b] text-sm text-[#f8fafc] placeholder-[#4b5c75]
                                focus:outline-none focus:ring-2 focus:ring-[#38bdf8]/50 focus:border-[#38bdf8]/60 transition-colors"
@@ -385,7 +522,7 @@ export function UploadScreen({
                     id="labelB"
                     type="text"
                     value={labelBInput}
-                    onChange={(e) => setLabelBInput(e.target.value)}
+                    onChange={(e) => handleLabelBChange(e.target.value)}
                     placeholder={t("labelB")}
                     className="px-3 py-2 rounded-lg bg-[#131e35] border border-[#1e293b] text-sm text-[#f8fafc] placeholder-[#4b5c75]
                                focus:outline-none focus:ring-2 focus:ring-[#38bdf8]/50 focus:border-[#38bdf8]/60 transition-colors"
