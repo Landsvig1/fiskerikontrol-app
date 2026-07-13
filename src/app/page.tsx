@@ -20,7 +20,7 @@ import { UploadScreen } from "@/components/UploadScreen";
 import { getT, Lang, TranslateFn, TranslationKey } from "@/lib/i18n";
 import { modalityColor, modalityBadgeClasses, Modality } from "@/lib/graphColors";
 import { filterGraph, computeDegree } from "@/lib/graphFilter";
-import { docLabel, docColorFor, DocRef } from "@/lib/docDisplay";
+import { docLabel, docColorFor, docBadgeStyle, DocRef } from "@/lib/docDisplay";
 
 export type { DocRef };
 
@@ -308,12 +308,7 @@ function DashboardView({
   const totalPrimaryNodes = data.nodes.filter(n => !n.is_subnode).length;
   const totalCitations = data.links.length;
   const docLabels = data.docs.map(d => d.label);
-  const joinWithAnd = (labels: string[], lang: Lang): string => {
-    if (labels.length === 0) return "";
-    if (labels.length === 1) return labels[0];
-    const sep = lang === "da" ? " og " : " and ";
-    return labels.slice(0, -1).join(", ") + sep + labels[labels.length - 1];
-  };
+  const docLabelList = new Intl.ListFormat(lang, { style: "long", type: "conjunction" }).format(docLabels);
 
   return (
     <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-gradient-to-b from-[#070b13] to-[#0a1122]">
@@ -329,8 +324,8 @@ function DashboardView({
         </div>
         <p className="text-sm text-[#94a3b8] leading-relaxed">
           {lang === "da"
-            ? `Grafen er genereret på baggrund af de uploadede dokumenter: ${joinWithAnd(docLabels, lang)}. Netværket kortlægger sektionerne som noder og de modallogiske henvisninger som kanter.`
-            : `The graph is generated based on the uploaded documents: ${joinWithAnd(docLabels, lang)}. The network maps sections as nodes and modal logic references as edges.`
+            ? `Grafen er genereret på baggrund af de uploadede dokumenter: ${docLabelList}. Netværket kortlægger sektionerne som noder og de modallogiske henvisninger som kanter.`
+            : `The graph is generated based on the uploaded documents: ${docLabelList}. The network maps sections as nodes and modal logic references as edges.`
           }
         </p>
 
@@ -1005,11 +1000,7 @@ function InteractiveGraphView({
             </button>
             <span
               className="inline-flex items-center self-start px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border"
-              style={{
-                backgroundColor: `${docColorFor(data.docs, selectedNode.doc)}1a`,
-                color: docColorFor(data.docs, selectedNode.doc),
-                borderColor: `${docColorFor(data.docs, selectedNode.doc)}4d`,
-              }}
+              style={docBadgeStyle(data.docs, selectedNode.doc, { borderAlpha: "4d" })}
             >
               {docLabel(data.docs, selectedNode.doc, t)}
             </span>
@@ -1124,11 +1115,7 @@ function OverlapsView({
                       </span>
                       <span
                         className="text-[10px] font-bold px-2 py-0.5 rounded border"
-                        style={{
-                          backgroundColor: `${docColorFor(data.docs, targetNode.doc)}1a`,
-                          color: docColorFor(data.docs, targetNode.doc),
-                          borderColor: `${docColorFor(data.docs, targetNode.doc)}33`,
-                        }}
+                        style={docBadgeStyle(data.docs, targetNode.doc, { borderAlpha: "33" })}
                       >
                         {docLabel(data.docs, targetNode.doc, t)}
                       </span>
@@ -1165,11 +1152,7 @@ function OverlapsView({
                                 {sourceNode && (
                                   <span
                                     className="text-[9px] font-bold px-1.5 py-0.2 rounded border"
-                                    style={{
-                                      backgroundColor: `${docColorFor(data.docs, sourceNode.doc)}1a`,
-                                      color: docColorFor(data.docs, sourceNode.doc),
-                                      borderColor: `${docColorFor(data.docs, sourceNode.doc)}33`,
-                                    }}
+                                    style={docBadgeStyle(data.docs, sourceNode.doc, { borderAlpha: "33" })}
                                   >
                                     {docLabel(data.docs, sourceNode.doc, t)}
                                   </span>
@@ -1245,11 +1228,7 @@ function ConflictsView({
                       </span>
                       <span
                         className="text-[10px] font-bold px-2 py-0.5 rounded border"
-                        style={{
-                          backgroundColor: `${docColorFor(data.docs, targetNode.doc)}1a`,
-                          color: docColorFor(data.docs, targetNode.doc),
-                          borderColor: `${docColorFor(data.docs, targetNode.doc)}33`,
-                        }}
+                        style={docBadgeStyle(data.docs, targetNode.doc, { borderAlpha: "33" })}
                       >
                         {docLabel(data.docs, targetNode.doc, t)}
                       </span>
@@ -1286,11 +1265,7 @@ function ConflictsView({
                               {sourceNode && (
                                 <span
                                   className="text-[9px] font-bold px-1.5 py-0.2 rounded border"
-                                  style={{
-                                    backgroundColor: `${docColorFor(data.docs, sourceNode.doc)}1a`,
-                                    color: docColorFor(data.docs, sourceNode.doc),
-                                    borderColor: `${docColorFor(data.docs, sourceNode.doc)}33`,
-                                  }}
+                                  style={docBadgeStyle(data.docs, sourceNode.doc, { borderAlpha: "33" })}
                                 >
                                   {docLabel(data.docs, sourceNode.doc, t)}
                                 </span>
@@ -1406,10 +1381,7 @@ function BrowseView({
                 <div className="flex justify-between items-start">
                   <span
                     className="text-[10px] font-bold px-2 py-0.5 rounded truncate max-w-[180px]"
-                    style={{
-                      backgroundColor: `${docColorFor(data.docs, node.doc)}26`,
-                      color: docColorFor(data.docs, node.doc),
-                    }}
+                    style={docBadgeStyle(data.docs, node.doc, { bgAlpha: "26" })}
                     title={docLabel(data.docs, node.doc, t)}
                   >
                     {docLabel(data.docs, node.doc, t)}

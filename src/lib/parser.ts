@@ -174,7 +174,7 @@ export function parsePdfTextIntoSections(
   userLabel: string
 ): RawSection[] {
   // Normalize text
-  let cleanText = text.replace(/ /g, " ");
+  let cleanText = text.replace(/\u00a0/g, " ");
   cleanText = cleanText.replace(/\r\n/g, "\n");
 
   // Pass 1 — count matches per pattern (reset regex lastIndex before each count)
@@ -356,6 +356,29 @@ function parseCitations(
 ): CitationRecord[] {
   const citations: CitationRecord[] = [];
 
+  // Precompute once per call, not once per citation match: each label's lowercased form,
+  // and which other labels are strict supersets of it (used below to strip a superstring
+  // label before checking a substring label, e.g. "EU 1224/2009" vs. "EU 1224/2009
+  // Gennemførelse"). This relationship only depends on `labels`, not on where in the body
+  // the current match is, so recomputing it per match was O(numDocs^2) wasted work per
+  // citation occurrence.
+  const lowerById = new Map(labels.map(l => [l.id, l.label.toLowerCase()]));
+  const supersetsOf = new Map<string, string[]>();
+  for (const l of labels) {
+    const lLower = lowerById.get(l.id)!;
+    const supersets: string[] = [];
+    if (lLower) {
+      for (const other of labels) {
+        if (other.id === l.id) continue;
+        const oLower = lowerById.get(other.id)!;
+        if (oLower && oLower !== lLower && oLower.includes(lLower)) {
+          supersets.push(oLower);
+        }
+      }
+    }
+    supersetsOf.set(l.id, supersets);
+  }
+
   // Reset regex state before each use
   const pattern = new RegExp(CITATION_RE.source, CITATION_RE.flags);
   let match: RegExpExecArray | null;
@@ -395,15 +418,11 @@ function parseCitations(
     // a standalone mention.
     const proximityMatches: string[] = [];
     for (const l of labels) {
-      const lLower = l.label.toLowerCase();
+      const lLower = lowerById.get(l.id)!;
       if (!lLower) continue;
       let text = proximityText;
-      for (const other of labels) {
-        if (other.id === l.id) continue;
-        const oLower = other.label.toLowerCase();
-        if (oLower && oLower !== lLower && oLower.includes(lLower)) {
-          text = text.split(oLower).join(" ");
-        }
+      for (const oLower of supersetsOf.get(l.id)!) {
+        text = text.split(oLower).join(" ");
       }
       if (text.includes(lLower)) proximityMatches.push(l.id);
     }

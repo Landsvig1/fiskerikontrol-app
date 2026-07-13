@@ -5,7 +5,7 @@ import { GraphNode, GraphLink, GraphData } from "@/app/page";
 import { TranslateFn, TranslationKey } from "@/lib/i18n";
 import { MODALITY_LEGEND, modalityColor, modalityBadgeClasses } from "@/lib/graphColors";
 import { filterGraph, computeDegree } from "@/lib/graphFilter";
-import { docLabel, docColorFor } from "@/lib/docDisplay";
+import { docLabel, docColorFor, docBadgeStyle } from "@/lib/docDisplay";
 
 interface CitationGraphViewProps {
   data: GraphData;
@@ -73,11 +73,7 @@ export function CitationGraphView({
             </button>
             <span
               className="inline-flex items-center self-start px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border"
-              style={{
-                backgroundColor: `${docColorFor(data.docs, selectedNode.doc)}1a`,
-                color: docColorFor(data.docs, selectedNode.doc),
-                borderColor: `${docColorFor(data.docs, selectedNode.doc)}4d`,
-              }}
+              style={docBadgeStyle(data.docs, selectedNode.doc, { borderAlpha: "4d" })}
             >
               {docLabel(data.docs, selectedNode.doc, t)}
             </span>
