@@ -320,10 +320,10 @@ export function UploadScreen({
 
     try {
       const fd = new FormData();
-      fd.append("pdfA", fileA);
-      fd.append("pdfB", fileB);
-      fd.append("labelA", labelAInput.trim());
-      fd.append("labelB", labelBInput.trim());
+      fd.append("pdf0", fileA);
+      fd.append("pdf1", fileB);
+      fd.append("label0", labelAInput.trim());
+      fd.append("label1", labelBInput.trim());
 
       const res = await fetch("/api/parse", { method: "POST", body: fd });
 

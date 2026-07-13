@@ -20,6 +20,7 @@ export type TranslationKey =
   | "noTitle" | "noHeading"
   | "showInGraph" | "viewAnalysis" | "viewConflicts"
   | "docA" | "docB"          // dynamic fallbacks when labelA/labelB are blank
+  | "docFallback"            // generic per-index fallback, used as "${docFallback} ${i+1}"
   | "aboutButton" | "backToApp"
   | "copyErrorDetails" | "copiedErrorDetails";
 
@@ -68,6 +69,7 @@ const da: Translations = {
   viewConflicts: "Vis konflikter",
   docA: "Dokument A",
   docB: "Dokument B",
+  docFallback: "Dokument",
   aboutButton: "Hvad er LexGraph?",
   backToApp: "Tilbage til appen",
   copyErrorDetails: "Kopiér fejldetaljer",
@@ -117,6 +119,7 @@ const en: Translations = {
   viewConflicts: "View conflicts",
   docA: "Document A",
   docB: "Document B",
+  docFallback: "Document",
   aboutButton: "What is LexGraph?",
   backToApp: "Back to the app",
   copyErrorDetails: "Copy error details",

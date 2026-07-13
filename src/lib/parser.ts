@@ -1,15 +1,8 @@
 // Helper library for parsing and analyzing citations
 
-/**
- * @deprecated Use RawSection instead. RawArticle will be removed in a future refactor step.
- */
-export interface RawArticle {
-  id: string;
-  number: number;
+export interface DocRef {
+  id: string;      // stable per-document key, e.g. "doc0", "doc1", ... — assigned by upload order
   label: string;
-  title: string;
-  body: string;
-  doc: "control" | "impl";
 }
 
 /** Internal type — describes a heading pattern used for multi-pattern section detection. */
@@ -20,14 +13,14 @@ interface HeadingPattern {
   priority: number;   // tiebreaker: lower = higher priority
 }
 
-/** Internal type — a parsed document section (replaces RawArticle internally). */
+/** Internal type — a parsed document section. */
 interface RawSection {
-  id: string;         // {docKey}_sec_{number}
+  id: string;         // {docId}_sec_{number}
   number: number;
   label: string;      // "{userLabel} {prefix} {number}"
   title: string;
   body: string;
-  doc: "control" | "impl";
+  doc: string;         // docId
 }
 
 export interface GraphNode {
@@ -35,7 +28,7 @@ export interface GraphNode {
   number: number;
   label: string;
   title: string;
-  doc: "control" | "impl";
+  doc: string;          // docId
   theme: string;
   body: string;
   is_subnode?: boolean;
@@ -80,8 +73,7 @@ export interface ParseResult {
   links: GraphLink[];
   overlaps: OverlapRecord[];
   conflicts: ConflictRecord[];
-  labelA: string;
-  labelB: string;
+  docs: DocRef[];
 }
 
 const THEMES: Record<string, { da: string[]; en: string[] }> = {
@@ -153,24 +145,6 @@ const PATTERNS: HeadingPattern[] = [
   },
 ];
 
-function cleanArticles(articles: RawArticle[]): RawArticle[] {
-  const byNum: Record<number, RawArticle> = {};
-  for (const art of articles) {
-    const num = art.number;
-    if (!byNum[num]) {
-      byNum[num] = art;
-    } else {
-      if (art.body.length > byNum[num].body.length) {
-        byNum[num] = art;
-      }
-    }
-  }
-  return Object.keys(byNum)
-    .map(Number)
-    .sort((a, b) => a - b)
-    .map(num => byNum[num]);
-}
-
 function detectTheme(title: string, body: string): string {
   const combined = (title + " " + body).toLowerCase();
   let bestTheme = "General";
@@ -196,12 +170,11 @@ function detectTheme(title: string, body: string): string {
 
 export function parsePdfTextIntoSections(
   text: string,
-  docKey: "docA" | "docB",
-  docRole: "control" | "impl",
+  docId: string,
   userLabel: string
 ): RawSection[] {
   // Normalize text
-  let cleanText = text.replace(/\u00a0/g, " ");
+  let cleanText = text.replace(/ /g, " ");
   cleanText = cleanText.replace(/\r\n/g, "\n");
 
   // Pass 1 — count matches per pattern (reset regex lastIndex before each count)
@@ -237,7 +210,7 @@ export function parsePdfTextIntoSections(
       code: "INSUFFICIENT_STRUCTURE",
       message: `No sections matched any known heading pattern. Detected pattern counts: ${JSON.stringify(patternCounts)}.`,
       patternCounts,
-      docKey,
+      docKey: docId,
     };
   }
 
@@ -259,7 +232,7 @@ export function parsePdfTextIntoSections(
         ? `No sections matched the primary pattern: ${primaryLabel}. Detected pattern counts: ${JSON.stringify(patternCounts)}.`
         : `Document contains fewer than ${minRequired} detected section(s) (found ${dominantCount} matching "${primaryLabel}"). Detected pattern counts: ${JSON.stringify(patternCounts)}.`,
       patternCounts,
-      docKey,
+      docKey: docId,
     };
   }
 
@@ -326,12 +299,12 @@ export function parsePdfTextIntoSections(
     const body = bodyLines.join("\n");
 
     sections.push({
-      id: `${docKey}_sec_${curr.number}`,
+      id: `${docId}_sec_${curr.number}`,
       number: curr.number,
       label: `${userLabel} ${curr.prefix} ${curr.displayNumber}`,
       title,
       body,
-      doc: docRole,
+      doc: docId,
     });
   }
 
@@ -351,56 +324,6 @@ export function parsePdfTextIntoSections(
     .map(num => byNum[num]);
 }
 
-export function parsePdfTextIntoArticles(text: string, docName: "control" | "impl"): RawArticle[] {
-  // Normalize whitespace
-  let cleanText = text.replace(/\u00a0/g, " ");
-  cleanText = cleanText.replace(/\r\n/g, "\n");
-
-  const pattern = /(?:\n|^)\s*(Artikel\s+(\d+))\b/g;
-  const matches: { label: string; number: number; index: number; end: number }[] = [];
-  
-  let match;
-  while ((match = pattern.exec(cleanText)) !== null) {
-    matches.push({
-      label: match[1],
-      number: parseInt(match[2], 10),
-      index: match.index,
-      end: pattern.lastIndex
-    });
-  }
-
-  const articles: RawArticle[] = [];
-  for (let i = 0; i < matches.length; i++) {
-    const m = matches[i];
-    const startIdx = m.end;
-    const endIdx = (i + 1 < matches.length) ? matches[i + 1].index : cleanText.length;
-
-    const content = cleanText.substring(startIdx, endIdx).trim();
-    const lines = content.split("\n").map(l => l.trim()).filter(Boolean);
-    
-    let title = "";
-    let bodyLines = lines;
-    if (lines.length > 0) {
-      if (lines[0].length < 120) {
-        title = lines[0];
-        bodyLines = lines.slice(1);
-      }
-    }
-    const body = bodyLines.join("\n");
-
-    articles.push({
-      id: `${docName}_art_${m.number}`,
-      number: m.number,
-      label: `${docName === "control" ? "Ramme" : "Regler"} Art. ${m.number}`,
-      title,
-      body,
-      doc: docName
-    });
-  }
-
-  return cleanArticles(articles);
-}
-
 // Bilingual citation regex: matches article/artikel/section/§/clause/klausul/chapter/kapitel/annex/bilag/schedule + number + optional paragraph + optional sub-references (litra/point/lit.)
 // The § symbol is punctuation, not a word character, so \b never matches immediately before it
 // when preceded by whitespace (the common case) — it is given its own boundary-free alternative below.
@@ -415,7 +338,7 @@ interface CitationRecord {
   source: string;
   target: string;
   target_art: string;
-  target_doc: "control" | "impl";
+  target_doc: string;
   target_art_num: number;
   target_stk: string | null;
   target_litra: string | null;
@@ -427,10 +350,9 @@ interface CitationRecord {
 function parseCitations(
   sourceSection: RawSection,
   body: string,
-  docType: "control" | "impl",
-  controlMap: Record<number, RawSection>,
-  labelA: string,
-  labelB: string
+  sourceDocId: string,
+  sectionMaps: Record<string, Record<number, RawSection>>,
+  labels: DocRef[]
 ): CitationRecord[] {
   const citations: CitationRecord[] = [];
 
@@ -455,46 +377,45 @@ function parseCitations(
     const snippetEnd = Math.min(body.length, matchIndex + matchLength + 20);
     const snippet = body.substring(snippetStart, snippetEnd).trim();
 
-    // Determine target document using proximity context signals (within 150 chars), then structural fallback
-    let targetDoc: "control" | "impl" = "impl";
-    const labelALower = labelA.toLowerCase();
-    const labelBLower = labelB.toLowerCase();
-
+    // Determine target document. Step 1: proximity context signal (within 150 chars) — if
+    // exactly one document's label is mentioned nearby, that's an unambiguous, explicit
+    // signal and wins outright. Step 2 (structural fallback, only reached when zero or 2+
+    // labels matched nearby): check which *other* documents define a section numbered
+    // artNum. Exactly one candidate wins by elimination; zero or 2+ candidates fall back to
+    // self-reference — guessing wrong among ambiguous candidates would fabricate a specific
+    // incorrect cross-reference, while self-reference never actively misleads.
     const proximityStart = Math.max(0, matchIndex - 150);
     const proximityEnd = Math.min(body.length, matchIndex + matchLength + 150);
     const proximityText = body.substring(proximityStart, proximityEnd).toLowerCase();
 
-    // If one label is a substring of the other (common for base-act vs. implementing-act
+    // If one label is a substring of another (common for base-act vs. implementing-act
     // naming, e.g. "EU 1224/2009" vs. "EU 1224/2009 Gennemførelse"), a mention of the longer
     // label would otherwise also register as a match for the shorter one. Strip occurrences
-    // of the longer label before searching for the shorter one so each check only counts a
-    // standalone mention.
-    let textForA = proximityText;
-    let textForB = proximityText;
-    if (labelALower && labelBLower && labelALower !== labelBLower) {
-      if (labelBLower.includes(labelALower)) {
-        textForA = proximityText.split(labelBLower).join(" ");
+    // of any superstring label before searching for a given label so each check only counts
+    // a standalone mention.
+    const proximityMatches: string[] = [];
+    for (const l of labels) {
+      const lLower = l.label.toLowerCase();
+      if (!lLower) continue;
+      let text = proximityText;
+      for (const other of labels) {
+        if (other.id === l.id) continue;
+        const oLower = other.label.toLowerCase();
+        if (oLower && oLower !== lLower && oLower.includes(lLower)) {
+          text = text.split(oLower).join(" ");
+        }
       }
-      if (labelALower.includes(labelBLower)) {
-        textForB = proximityText.split(labelALower).join(" ");
-      }
+      if (text.includes(lLower)) proximityMatches.push(l.id);
     }
 
-    const hasA = labelALower && textForA.includes(labelALower);
-    const hasB = labelBLower && textForB.includes(labelBLower);
-
-    if (hasA && !hasB) {
-      targetDoc = "control";
-    } else if (hasB && !hasA) {
-      targetDoc = "impl";
-    } else if (docType === "impl") {
-      if (controlMap[artNum]) {
-        targetDoc = "control";
-      } else {
-        targetDoc = "impl";
-      }
+    let targetDoc: string;
+    if (proximityMatches.length === 1) {
+      targetDoc = proximityMatches[0];
     } else {
-      targetDoc = "control";
+      const candidateDocIds = labels
+        .map(l => l.id)
+        .filter(id => id !== sourceDocId && !!sectionMaps[id]?.[artNum]);
+      targetDoc = candidateDocIds.length === 1 ? candidateDocIds[0] : sourceDocId;
     }
 
     // Determine modality — evaluate in priority order: Exception → Prohibition → Permission → Obligation
@@ -508,7 +429,7 @@ function parseCitations(
     }
 
     // Build target IDs using the new _sec_ format
-    let targetSecId = `${targetDoc === "control" ? "docA" : "docB"}_sec_${artNum}`;
+    let targetSecId = `${targetDoc}_sec_${artNum}`;
     if (suffix) {
       targetSecId += `_${suffix}`;
     }
@@ -538,59 +459,62 @@ function parseCitations(
   return citations;
 }
 
-export function analyzeCitationsAndBuildGraph(controlText: string, implText: string, labelA: string, labelB: string): ParseResult {
-  const control = parsePdfTextIntoSections(controlText, "docA", "control", labelA);
-  const impl = parsePdfTextIntoSections(implText, "docB", "impl", labelB);
-
-  const controlMap: Record<number, RawSection> = {};
-  for (const sec of control) {
-    controlMap[sec.number] = sec;
+export function analyzeCitationsAndBuildGraph(docs: { text: string; label: string }[]): ParseResult {
+  if (docs.length < 2) {
+    throw {
+      code: "TOO_FEW_DOCUMENTS",
+      message: `At least 2 documents are required to build a citation graph (received ${docs.length}).`,
+    };
   }
 
-  const implMap: Record<number, RawSection> = {};
-  for (const sec of impl) {
-    implMap[sec.number] = sec;
-  }
+  const docRefs: DocRef[] = docs.map((d, i) => ({ id: `doc${i}`, label: d.label }));
+
+  const sectionsByDoc: RawSection[][] = docs.map((d, i) =>
+    parsePdfTextIntoSections(d.text, docRefs[i].id, d.label)
+  );
+
+  const sectionMaps: Record<string, Record<number, RawSection>> = {};
+  sectionsByDoc.forEach((sections, i) => {
+    const map: Record<number, RawSection> = {};
+    for (const sec of sections) {
+      map[sec.number] = sec;
+    }
+    sectionMaps[docRefs[i].id] = map;
+  });
 
   const nodes: GraphNode[] = [];
   const links: GraphLink[] = [];
 
   // Add primary sections as nodes
-  for (const sec of control) {
-    nodes.push({
-      id: sec.id,
-      number: sec.number,
-      label: sec.label,
-      title: sec.title,
-      doc: "control",
-      theme: detectTheme(sec.title, sec.body),
-      body: sec.body
-    });
-  }
-
-  for (const sec of impl) {
-    nodes.push({
-      id: sec.id,
-      number: sec.number,
-      label: sec.label,
-      title: sec.title,
-      doc: "impl",
-      theme: detectTheme(sec.title, sec.body),
-      body: sec.body
-    });
+  for (const sections of sectionsByDoc) {
+    for (const sec of sections) {
+      nodes.push({
+        id: sec.id,
+        number: sec.number,
+        label: sec.label,
+        title: sec.title,
+        doc: sec.doc,
+        theme: detectTheme(sec.title, sec.body),
+        body: sec.body
+      });
+    }
   }
 
   // Parse citations from all sections. Scan title+body together: short single-line
   // sections get their entire content classified as "title" by the heading splitter,
   // which would otherwise leave citations embedded in that text undetected.
   const citationRecords: CitationRecord[] = [];
-  for (const sec of control) {
-    const fullText = [sec.title, sec.body].filter(Boolean).join("\n");
-    citationRecords.push(...parseCitations(sec, fullText, "control", controlMap, labelA, labelB));
-  }
-  for (const sec of impl) {
-    const fullText = [sec.title, sec.body].filter(Boolean).join("\n");
-    citationRecords.push(...parseCitations(sec, fullText, "impl", controlMap, labelA, labelB));
+  sectionsByDoc.forEach((sections, i) => {
+    const docId = docRefs[i].id;
+    for (const sec of sections) {
+      const fullText = [sec.title, sec.body].filter(Boolean).join("\n");
+      citationRecords.push(...parseCitations(sec, fullText, docId, sectionMaps, docRefs));
+    }
+  });
+
+  const docLabelById: Record<string, string> = {};
+  for (const d of docRefs) {
+    docLabelById[d.id] = d.label;
   }
 
   // Add virtual subnodes for paragraphs (stk./litra) and external references
@@ -599,16 +523,15 @@ export function analyzeCitationsAndBuildGraph(controlText: string, implText: str
     if (!nodeIds.has(cit.target)) {
       const parentNode = nodes.find(n => n.id === cit.target_art);
 
-      // Check if the target section exists in either document
+      // Check if the target section exists in any document
       const targetSecNum = cit.target_art_num;
-      const existsInControl = !!controlMap[targetSecNum];
-      const existsInImpl = !!(implMap[targetSecNum]);
-      const isExternal = !existsInControl && !existsInImpl && !parentNode;
+      const existsSomewhere = docRefs.some(d => !!sectionMaps[d.id][targetSecNum]);
+      const isExternal = !existsSomewhere && !parentNode;
 
       if (isExternal) {
         // Create external virtual subnode for unresolvable citations. Qualified by target_doc
-        // so that docA and docB independently citing the same nonexistent section number don't
-        // collide into one node tagged with only the first citation's document.
+        // so that different documents independently citing the same nonexistent section number
+        // don't collide into one node tagged with only the first citation's document.
         const externalId = `external_${cit.target_doc}_sec_${targetSecNum}`;
         if (!nodeIds.has(externalId)) {
           nodes.push({
@@ -618,7 +541,7 @@ export function analyzeCitationsAndBuildGraph(controlText: string, implText: str
             title: "Unresolved external reference",
             doc: cit.target_doc,
             theme: "General",
-            body: "Referenced section not found in either document.",
+            body: "Referenced section not found in any document.",
             is_subnode: true,
             parent_id: undefined,
             external: true,
@@ -630,7 +553,7 @@ export function analyzeCitationsAndBuildGraph(controlText: string, implText: str
         cit.target_art = externalId;
       } else {
         // Regular subnode (stk./litra reference)
-        let label = parentNode ? parentNode.label : `${cit.target_doc === "control" ? labelA : labelB} sec. ${targetSecNum}`;
+        let label = parentNode ? parentNode.label : `${docLabelById[cit.target_doc] ?? cit.target_doc} sec. ${targetSecNum}`;
         if (cit.target_stk) {
           label += `, stk. ${cit.target_stk}`;
           if (cit.target_litra) {
@@ -670,7 +593,8 @@ export function analyzeCitationsAndBuildGraph(controlText: string, implText: str
     });
   }
 
-  // Detect overlaps and conflicts
+  // Detect overlaps and conflicts — already N-agnostic: groups by target, sources/citations
+  // are plain arrays with no assumption about how many distinct documents they span.
   const targetCitations: Record<string, CitationRecord[]> = {};
   for (const cit of citationRecords) {
     if (!targetCitations[cit.target]) {
@@ -718,7 +642,6 @@ export function analyzeCitationsAndBuildGraph(controlText: string, implText: str
     links,
     overlaps,
     conflicts,
-    labelA,
-    labelB
+    docs: docRefs
   };
 }

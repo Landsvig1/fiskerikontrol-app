@@ -17,7 +17,7 @@ function nonPdf(name: string): File {
 }
 
 function makeGraphData(): GraphData {
-  return { nodes: [], links: [], overlaps: [], conflicts: [], labelA: "A", labelB: "B" };
+  return { nodes: [], links: [], overlaps: [], conflicts: [], docs: [{ id: "doc0", label: "A" }, { id: "doc1", label: "B" }] };
 }
 
 function renderUploadScreen(onSuccess = vi.fn()) {
@@ -71,10 +71,10 @@ describe("UploadScreen multi-file drop", () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
     const [, options] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     const body = options.body as FormData;
-    expect(body.get("pdfA")).toBeTruthy();
-    expect(body.get("pdfB")).toBeTruthy();
-    expect(body.get("labelA")).toBe("Regulation 2024");
-    expect(body.get("labelB")).toBe("Implementation Decision");
+    expect(body.get("pdf0")).toBeTruthy();
+    expect(body.get("pdf1")).toBeTruthy();
+    expect(body.get("label0")).toBe("Regulation 2024");
+    expect(body.get("label1")).toBe("Implementation Decision");
 
     await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1));
   });

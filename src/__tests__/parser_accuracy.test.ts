@@ -6,18 +6,18 @@ describe("LexGraph Parser Accuracy & Citation Extraction", () => {
       const text = `
         Article 1
         This is the first article. It establishes scope.
-        
+
         Article 2
         This is the second article.
-        
+
         § 3
         This is the third section, using a section symbol.
-        
+
         § 4
         This is the fourth section.
       `;
-      
-      const sections = parsePdfTextIntoSections(text, "docA", "control", "Test Document");
+
+      const sections = parsePdfTextIntoSections(text, "doc0", "Test Document");
       expect(sections.length).toBe(4);
       expect(sections[0].label).toBe("Test Document Art. 1");
       expect(sections[2].label).toBe("Test Document § 3");
@@ -30,25 +30,28 @@ describe("LexGraph Parser Accuracy & Citation Extraction", () => {
         Article 1
         This defines something.
       `;
-      
+
       const docBText = `
         Article 1
         According to Document A Article 1, paragraph 2, lit. b, we must proceed.
       `;
 
-      const result = analyzeCitationsAndBuildGraph(docAText, docBText, "Document A", "Document B");
-      
+      const result = analyzeCitationsAndBuildGraph([
+        { text: docAText, label: "Document A" },
+        { text: docBText, label: "Document B" },
+      ]);
+
       // The citation target node should be created as a virtual subnode
-      const subnode = result.nodes.find(n => n.id === "docA_sec_1_stk_2_litra_b");
+      const subnode = result.nodes.find(n => n.id === "doc0_sec_1_stk_2_litra_b");
       expect(subnode).toBeDefined();
       expect(subnode?.label).toContain("Document A Art. 1");
       expect(subnode?.label).toContain("stk. 2");
       expect(subnode?.label).toContain("litra b");
 
       // Verify the link
-      const link = result.links.find(l => l.source === "docB_sec_1");
+      const link = result.links.find(l => l.source === "doc1_sec_1");
       expect(link).toBeDefined();
-      expect(link?.target).toBe("docA_sec_1_stk_2_litra_b");
+      expect(link?.target).toBe("doc0_sec_1_stk_2_litra_b");
       expect(link?.modality).toBe("Obligation");
     });
 
@@ -63,23 +66,26 @@ describe("LexGraph Parser Accuracy & Citation Extraction", () => {
         Reference to Document A Article 5 is made here.
         Article 2
         Reference to Document B Article 5 is made here.
-        
+
         Article 5
         This is implementation article 5.
       `;
 
-      const result = analyzeCitationsAndBuildGraph(docAText, docBText, "Document A", "Document B");
+      const result = analyzeCitationsAndBuildGraph([
+        { text: docAText, label: "Document A" },
+        { text: docBText, label: "Document B" },
+      ]);
 
       // We expect two links
-      // The reference in Article 1 (Document A Article 5) should point to docA
-      const link1 = result.links.find(l => l.source === "docB_sec_1");
+      // The reference in Article 1 (Document A Article 5) should point to doc0
+      const link1 = result.links.find(l => l.source === "doc1_sec_1");
       expect(link1).toBeDefined();
-      expect(link1?.target).toBe("docA_sec_5");
+      expect(link1?.target).toBe("doc0_sec_5");
 
-      // The reference in Article 2 (Document B Article 5) should point to docB
-      const link2 = result.links.find(l => l.source === "docB_sec_2");
+      // The reference in Article 2 (Document B Article 5) should point to doc1
+      const link2 = result.links.find(l => l.source === "doc1_sec_2");
       expect(link2).toBeDefined();
-      expect(link2?.target).toBe("docB_sec_5");
+      expect(link2?.target).toBe("doc1_sec_5");
     });
 
     it("should resolve § citations even when preceded by whitespace", () => {
@@ -96,11 +102,14 @@ describe("LexGraph Parser Accuracy & Citation Extraction", () => {
         See § 7 of Document A for details.
       `;
 
-      const result = analyzeCitationsAndBuildGraph(docAText, docBText, "Document A", "Document B");
+      const result = analyzeCitationsAndBuildGraph([
+        { text: docAText, label: "Document A" },
+        { text: docBText, label: "Document B" },
+      ]);
 
-      const link = result.links.find(l => l.source === "docB_sec_1");
+      const link = result.links.find(l => l.source === "doc1_sec_1");
       expect(link).toBeDefined();
-      expect(link?.target).toBe("docA_sec_7");
+      expect(link?.target).toBe("doc0_sec_7");
     });
 
     it("should match extended citation variants: Chapter, Annex, Schedule, point", () => {
@@ -120,18 +129,21 @@ describe("LexGraph Parser Accuracy & Citation Extraction", () => {
         See Chapter 3 and Annex 9 of Document A, point (b), for details.
       `;
 
-      const result = analyzeCitationsAndBuildGraph(docAText, docBText, "Document A", "Document B");
+      const result = analyzeCitationsAndBuildGraph([
+        { text: docAText, label: "Document A" },
+        { text: docBText, label: "Document B" },
+      ]);
 
-      const links = result.links.filter(l => l.source === "docB_sec_1");
-      expect(links.some(l => l.target === "docA_sec_3")).toBe(true);
-      expect(links.some(l => l.target === "docA_sec_9")).toBe(true);
+      const links = result.links.filter(l => l.source === "doc1_sec_1");
+      expect(links.some(l => l.target === "doc0_sec_3")).toBe(true);
+      expect(links.some(l => l.target === "doc0_sec_9")).toBe(true);
     });
   });
 
   describe("Regression fixes", () => {
     it("should throw a structured INSUFFICIENT_STRUCTURE error, not crash, when no heading pattern matches at all", () => {
       const text = "This document has no recognisable headings at all, just plain prose.";
-      expect(() => parsePdfTextIntoSections(text, "docA", "control", "Test Document")).toThrow(
+      expect(() => parsePdfTextIntoSections(text, "doc0", "Test Document")).toThrow(
         expect.objectContaining({ code: "INSUFFICIENT_STRUCTURE" })
       );
     });
@@ -147,7 +159,7 @@ describe("LexGraph Parser Accuracy & Citation Extraction", () => {
         3.3
         Third subsection.
       `;
-      const sections = parsePdfTextIntoSections(text, "docA", "control", "Test Document");
+      const sections = parsePdfTextIntoSections(text, "doc0", "Test Document");
       expect(sections.length).toBe(3);
       // Section numbers are an internal encoding (major*1000+minor), not the literal decimal —
       // what matters is they're distinct and the label still displays the original "N.M" text.
@@ -168,7 +180,7 @@ describe("LexGraph Parser Accuracy & Citation Extraction", () => {
         3.10
         Tenth subsection.
       `;
-      const sections = parsePdfTextIntoSections(text, "docA", "control", "Test Document");
+      const sections = parsePdfTextIntoSections(text, "doc0", "Test Document");
       expect(sections.length).toBe(2);
       const numbers = sections.map(s => s.number);
       expect(new Set(numbers).size).toBe(2);
@@ -178,7 +190,7 @@ describe("LexGraph Parser Accuracy & Citation Extraction", () => {
       ]);
     });
 
-    it("should tag external (unresolvable) citation subnodes with the citing document, not always 'control'", () => {
+    it("should tag external (unresolvable) citation subnodes with the citing document, not always the first document", () => {
       const docAText = `
         Article 1
         First article.
@@ -191,13 +203,16 @@ describe("LexGraph Parser Accuracy & Citation Extraction", () => {
         More content here.
       `;
 
-      const result = analyzeCitationsAndBuildGraph(docAText, docBText, "Document A", "Document B");
-      const externalNode = result.nodes.find(n => n.id === "external_impl_sec_99");
+      const result = analyzeCitationsAndBuildGraph([
+        { text: docAText, label: "Document A" },
+        { text: docBText, label: "Document B" },
+      ]);
+      const externalNode = result.nodes.find(n => n.id === "external_doc1_sec_99");
       expect(externalNode).toBeDefined();
       expect(externalNode?.external).toBe(true);
-      // The citation to the nonexistent section 99 originates in docB (impl), so the
-      // external node must be tagged "impl", not hardcoded to "control".
-      expect(externalNode?.doc).toBe("impl");
+      // The citation to the nonexistent section 99 originates in doc1, so the
+      // external node must be tagged "doc1", not hardcoded to "doc0".
+      expect(externalNode?.doc).toBe("doc1");
     });
 
     it("should not collide external subnodes when both documents independently cite the same nonexistent section", () => {
@@ -210,13 +225,16 @@ describe("LexGraph Parser Accuracy & Citation Extraction", () => {
         Also see Article 42 elsewhere.
       `;
 
-      const result = analyzeCitationsAndBuildGraph(docAText, docBText, "Document A", "Document B");
-      const controlExternal = result.nodes.find(n => n.id === "external_control_sec_42");
-      const implExternal = result.nodes.find(n => n.id === "external_impl_sec_42");
-      expect(controlExternal).toBeDefined();
-      expect(implExternal).toBeDefined();
-      expect(controlExternal?.doc).toBe("control");
-      expect(implExternal?.doc).toBe("impl");
+      const result = analyzeCitationsAndBuildGraph([
+        { text: docAText, label: "Document A" },
+        { text: docBText, label: "Document B" },
+      ]);
+      const doc0External = result.nodes.find(n => n.id === "external_doc0_sec_42");
+      const doc1External = result.nodes.find(n => n.id === "external_doc1_sec_42");
+      expect(doc0External).toBeDefined();
+      expect(doc1External).toBeDefined();
+      expect(doc0External?.doc).toBe("doc0");
+      expect(doc1External?.doc).toBe("doc1");
     });
 
     it("should not misresolve the target document when one label is a substring of the other", () => {
@@ -229,12 +247,103 @@ describe("LexGraph Parser Accuracy & Citation Extraction", () => {
         Per EU 1224/2009 Gennemførelse Article 5, we must comply.
       `;
 
-      const result = analyzeCitationsAndBuildGraph(docAText, docBText, "EU 1224/2009", "EU 1224/2009 Gennemførelse");
-      const link = result.links.find(l => l.source === "docB_sec_1");
+      const result = analyzeCitationsAndBuildGraph([
+        { text: docAText, label: "EU 1224/2009" },
+        { text: docBText, label: "EU 1224/2009 Gennemførelse" },
+      ]);
+      const link = result.links.find(l => l.source === "doc1_sec_1");
       expect(link).toBeDefined();
-      // Only "EU 1224/2009 Gennemførelse" (labelB) is actually mentioned near the citation,
-      // so it must resolve to docB (impl), not be misdetected as also mentioning labelA.
-      expect(link?.target).toBe("docB_sec_5");
+      // Only "EU 1224/2009 Gennemførelse" (doc1's label) is actually mentioned near the
+      // citation, so it must resolve to doc1, not be misdetected as also mentioning doc0's label.
+      expect(link?.target).toBe("doc1_sec_5");
+    });
+  });
+
+  describe("N-document citation resolution", () => {
+    it("resolves an ambiguous article-number citation across 3 documents to self-reference when 2+ other docs define it and no proximity label matches", () => {
+      const doc0 = `
+        Article 5
+        Some baseline text.
+      `;
+      const doc1 = `
+        Article 5
+        Also has article 5.
+
+        Article 9
+        See Article 5 for details.
+      `;
+      const doc2 = `
+        Article 5
+        Defines something else.
+      `;
+
+      const result = analyzeCitationsAndBuildGraph([
+        { text: doc0, label: "Base Act" },
+        { text: doc1, label: "Impl A" },
+        { text: doc2, label: "Impl B" },
+      ]);
+
+      const link = result.links.find(l => l.source === "doc1_sec_9");
+      expect(link).toBeDefined();
+      // doc0 and doc2 both independently define Article 5 — ambiguous, so the citation
+      // in doc1 (which also has its own Article 5) falls back to self-reference.
+      expect(link?.target).toBe("doc1_sec_5");
+    });
+
+    it("resolves unambiguously to the single other document that defines the cited article number", () => {
+      const doc0 = `
+        Article 1
+        Baseline.
+      `;
+      const doc1 = `
+        Article 1
+        Refers to article 7 for the exception.
+      `;
+      const doc2 = `
+        Article 7
+        The exception provision.
+      `;
+
+      const result = analyzeCitationsAndBuildGraph([
+        { text: doc0, label: "Base Act" },
+        { text: doc1, label: "Impl A" },
+        { text: doc2, label: "Impl B" },
+      ]);
+
+      const link = result.links.find(l => l.source === "doc1_sec_1");
+      expect(link).toBeDefined();
+      // Only doc2 defines Article 7 among the other documents — unambiguous by elimination.
+      expect(link?.target).toBe("doc2_sec_7");
+    });
+
+    it("still resolves via proximity label match when one of 3+ document names is mentioned near the citation", () => {
+      const doc0 = `
+        Article 5
+        This is article 5.
+      `;
+      const doc1 = `
+        Article 1
+        Reference to Base Act Article 5 is made here.
+
+        Article 5
+        This is implementation article 5.
+      `;
+      const doc2 = `
+        Article 1
+        Unrelated third document, not involved in the citation above.
+      `;
+
+      const result = analyzeCitationsAndBuildGraph([
+        { text: doc0, label: "Base Act" },
+        { text: doc1, label: "Impl A" },
+        { text: doc2, label: "Impl B" },
+      ]);
+
+      const link = result.links.find(l => l.source === "doc1_sec_1");
+      expect(link).toBeDefined();
+      // "Base Act" (doc0's label) is mentioned nearby, so the proximity match wins outright
+      // even though doc1 also independently defines its own Article 5.
+      expect(link?.target).toBe("doc0_sec_5");
     });
   });
 });
