@@ -34,3 +34,16 @@ export function modalityColor(modality: Modality): string {
 export function modalityBadgeClasses(modality: Modality): string {
   return MODALITY_BADGE_CLASSES[modality] ?? MODALITY_BADGE_CLASSES.Obligation;
 }
+
+// Ordered fallback palette for an arbitrary number of documents. The first two entries
+// intentionally match the historical control/impl colors (blue/green) so existing 2-document
+// graphs render unchanged. Sized to MAX_SLOTS (UploadScreen.tsx) so no two documents in a
+// single upload ever wrap around to the same color.
+export const DOC_COLOR_PALETTE: string[] = [
+  "#3b82f6", "#10b981", "#f59e0b", "#a855f7", "#ec4899", "#14b8a6", "#f97316", "#6366f1",
+  "#84cc16", "#06b6d4", "#d946ef", "#eab308",
+];
+
+export function docColor(docIndex: number): string {
+  return DOC_COLOR_PALETTE[docIndex % DOC_COLOR_PALETTE.length];
+}

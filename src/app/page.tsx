@@ -20,14 +20,17 @@ import { UploadScreen } from "@/components/UploadScreen";
 import { getT, Lang, TranslateFn, TranslationKey } from "@/lib/i18n";
 import { modalityColor, modalityBadgeClasses, Modality } from "@/lib/graphColors";
 import { filterGraph, computeDegree } from "@/lib/graphFilter";
+import { docLabel, docColorFor, docBadgeStyle, DocRef } from "@/lib/docDisplay";
+
+export type { DocRef };
 
 // Type definitions
 export interface GraphNode extends d3.SimulationNodeDatum {
-  id: string;           // format: {docKey}_sec_{n}  e.g. "docA_sec_12"
+  id: string;           // format: {docId}_sec_{n}  e.g. "doc0_sec_12"
   number: number;
   label: string;
   title: string;
-  doc: "control" | "impl";
+  doc: string;           // docId
   theme: string;
   body: string;
   is_subnode?: boolean;
@@ -77,8 +80,7 @@ export interface GraphData {
   links: GraphLink[];
   overlaps: OverlapRecord[];
   conflicts: ConflictRecord[];
-  labelA: string;   // echoed from the API request
-  labelB: string;
+  docs: DocRef[];
 }
 
 type TabType = "dashboard" | "citation" | "graph" | "overlaps" | "conflicts" | "browse";
@@ -89,12 +91,10 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
-  const [activeDocFilter, setActiveDocFilter] = useState<"all" | "control" | "impl">("all");
+  const [activeDocFilter, setActiveDocFilter] = useState<"all" | string>("all");
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>("all");
   
   const [lang, setLang] = useState<Lang>("da");
-  const [labelAInput, setLabelAInput] = useState("");
-  const [labelBInput, setLabelBInput] = useState("");
 
   // Load language preference from localStorage on mount
   useEffect(() => {
@@ -143,10 +143,6 @@ export default function Home() {
         t={t}
         lang={lang}
         setLang={changeLang}
-        labelAInput={labelAInput}
-        setLabelAInput={setLabelAInput}
-        labelBInput={labelBInput}
-        setLabelBInput={setLabelBInput}
       />
     );
   }
@@ -305,9 +301,14 @@ function DashboardView({
   t: TranslateFn;
   lang: Lang;
 }) {
-  const controlCount = data.nodes.filter(n => n.doc === "control" && !n.is_subnode).length;
-  const implCount = data.nodes.filter(n => n.doc === "impl" && !n.is_subnode).length;
+  const countsByDoc = data.docs.map(d => ({
+    ...d,
+    count: data.nodes.filter(n => n.doc === d.id && !n.is_subnode).length,
+  }));
+  const totalPrimaryNodes = data.nodes.filter(n => !n.is_subnode).length;
   const totalCitations = data.links.length;
+  const docLabels = data.docs.map(d => d.label);
+  const docLabelList = new Intl.ListFormat(lang, { style: "long", type: "conjunction" }).format(docLabels);
 
   return (
     <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-gradient-to-b from-[#070b13] to-[#0a1122]">
@@ -322,9 +323,9 @@ function DashboardView({
           </span>
         </div>
         <p className="text-sm text-[#94a3b8] leading-relaxed">
-          {lang === "da" 
-            ? `Grafen er genereret på baggrund af de uploadede dokumenter: ${data.labelA} og ${data.labelB}. Netværket kortlægger sektionerne som noder og de modallogiske henvisninger som kanter.`
-            : `The graph is generated based on the uploaded documents: ${data.labelA} and ${data.labelB}. The network maps sections as nodes and modal logic references as edges.`
+          {lang === "da"
+            ? `Grafen er genereret på baggrund af de uploadede dokumenter: ${docLabelList}. Netværket kortlægger sektionerne som noder og de modallogiske henvisninger som kanter.`
+            : `The graph is generated based on the uploaded documents: ${docLabelList}. The network maps sections as nodes and modal logic references as edges.`
           }
         </p>
 
@@ -350,18 +351,17 @@ function DashboardView({
       </div>
 
       {/* Metric Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-[#0f172a] border border-[#1e293b] p-6 rounded-xl hover:border-[#38bdf8]/40 transition-all duration-300">
-          <BookOpen className="w-8 h-8 text-[#38bdf8] mb-4" />
-          <h3 className="text-xs uppercase font-semibold text-[#94a3b8] tracking-wider truncate">{data.labelA}</h3>
-          <p className="text-4xl font-extrabold text-[#f8fafc] mt-2">{controlCount}</p>
-        </div>
-
-        <div className="bg-[#0f172a] border border-[#1e293b] p-6 rounded-xl hover:border-[#10b981]/40 transition-all duration-300">
-          <Layers className="w-8 h-8 text-[#10b981] mb-4" />
-          <h3 className="text-xs uppercase font-semibold text-[#94a3b8] tracking-wider truncate">{data.labelB}</h3>
-          <p className="text-4xl font-extrabold text-[#f8fafc] mt-2">{implCount}</p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-6">
+        {countsByDoc.map(d => (
+          <div
+            key={d.id}
+            className="bg-[#0f172a] border border-[#1e293b] p-6 rounded-xl hover:border-[#38bdf8]/40 transition-all duration-300"
+          >
+            <BookOpen className="w-8 h-8 mb-4" style={{ color: docColorFor(data.docs, d.id) }} />
+            <h3 className="text-xs uppercase font-semibold text-[#94a3b8] tracking-wider truncate">{docLabel(data.docs, d.id, t)}</h3>
+            <p className="text-4xl font-extrabold text-[#f8fafc] mt-2">{d.count}</p>
+          </div>
+        ))}
 
         <div className="bg-[#0f172a] border border-[#1e293b] p-6 rounded-xl hover:border-[#fbbf24]/40 transition-all duration-300 cursor-pointer" onClick={() => setActiveTab("overlaps")}>
           <GitBranch className="w-8 h-8 text-[#fbbf24] mb-4" />
@@ -398,7 +398,7 @@ function DashboardView({
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-[#1e293b]/40 p-4 rounded-lg">
                 <span className="text-xs text-[#94a3b8]">{lang === "da" ? "Gennemsnitlige referencer pr. sektion" : "Average references per section"}</span>
-                <p className="text-2xl font-bold mt-1">{(totalCitations / Math.max(1, controlCount + implCount)).toFixed(2)}</p>
+                <p className="text-2xl font-bold mt-1">{(totalCitations / Math.max(1, totalPrimaryNodes)).toFixed(2)}</p>
               </div>
               <div className="bg-[#1e293b]/40 p-4 rounded-lg">
                 <span className="text-xs text-[#94a3b8]">{lang === "da" ? "Modallogiske krydsreferencer" : "Modal logic cross-references"}</span>
@@ -460,7 +460,7 @@ function DashboardView({
 interface D3GraphCanvasProps {
   data: GraphData;
   selectedNode: GraphNode | null;
-  activeDocFilter: "all" | "control" | "impl";
+  activeDocFilter: "all" | string;
   activeCategoryFilter: string;
   searchQuery: string;
   setSelectedNode: (node: GraphNode | null) => void;
@@ -651,7 +651,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
         const deg = degree[d.id] || 0;
         return 6 + Math.min(deg * 0.8, 18);
       })
-      .attr("fill", d => d.doc === "control" ? "#3b82f6" : "#10b981")
+      .attr("fill", d => docColorFor(data.docs, d.doc))
       .attr("stroke", "#0d1527")
       .attr("stroke-width", 1.5)
       .style("cursor", "pointer")
@@ -867,8 +867,8 @@ interface InteractiveGraphViewProps {
   data: GraphData;
   selectedNode: GraphNode | null;
   setSelectedNode: (node: GraphNode | null) => void;
-  activeDocFilter: "all" | "control" | "impl";
-  setActiveDocFilter: (val: "all" | "control" | "impl") => void;
+  activeDocFilter: "all" | string;
+  setActiveDocFilter: (val: "all" | string) => void;
   activeCategoryFilter: string;
   setActiveCategoryFilter: (val: string) => void;
   t: TranslateFn;
@@ -938,18 +938,16 @@ function InteractiveGraphView({
             >
               {t("allDocuments")}
             </button>
-            <button
-              onClick={() => setActiveDocFilter("control")}
-              className={`text-left px-3 py-2 rounded-lg text-xs font-semibold uppercase flex items-center gap-2 ${activeDocFilter === "control" ? "bg-[#38bdf8]/10 border border-[#38bdf8]/20 text-[#38bdf8]" : "text-[#94a3b8] hover:bg-[#1e293b]"}`}
-            >
-              <span className="w-2.5 h-2.5 rounded-full bg-[#3b82f6]" /> <span className="truncate">{data.labelA || t("docA")}</span>
-            </button>
-            <button
-              onClick={() => setActiveDocFilter("impl")}
-              className={`text-left px-3 py-2 rounded-lg text-xs font-semibold uppercase flex items-center gap-2 ${activeDocFilter === "impl" ? "bg-[#38bdf8]/10 border border-[#38bdf8]/20 text-[#38bdf8]" : "text-[#94a3b8] hover:bg-[#1e293b]"}`}
-            >
-              <span className="w-2.5 h-2.5 rounded-full bg-[#10b981]" /> <span className="truncate">{data.labelB || t("docB")}</span>
-            </button>
+            {data.docs.map(d => (
+              <button
+                key={d.id}
+                onClick={() => setActiveDocFilter(d.id)}
+                className={`text-left px-3 py-2 rounded-lg text-xs font-semibold uppercase flex items-center gap-2 ${activeDocFilter === d.id ? "bg-[#38bdf8]/10 border border-[#38bdf8]/20 text-[#38bdf8]" : "text-[#94a3b8] hover:bg-[#1e293b]"}`}
+              >
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: docColorFor(data.docs, d.id) }} />
+                <span className="truncate">{docLabel(data.docs, d.id, t)}</span>
+              </button>
+            ))}
           </div>
         </div>
 
@@ -1000,10 +998,11 @@ function InteractiveGraphView({
             >
               &times;
             </button>
-            <span className={`inline-flex items-center self-start px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-              selectedNode.doc === "control" ? "bg-[#3b82f6]/10 text-[#60a5fa] border border-[#3b82f6]/30" : "bg-[#10b981]/10 text-[#34d399] border border-[#10b981]/30"
-            }`}>
-              {selectedNode.doc === "control" ? (data.labelA || t("docA")) : (data.labelB || t("docB"))}
+            <span
+              className="inline-flex items-center self-start px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border"
+              style={docBadgeStyle(data.docs, selectedNode.doc, { borderAlpha: "4d" })}
+            >
+              {docLabel(data.docs, selectedNode.doc, t)}
             </span>
             <h2 className="text-lg font-bold">{selectedNode.label}</h2>
             <p className="text-xs text-[#94a3b8] font-medium">{selectedNode.title || t("noTitle")}</p>
@@ -1114,12 +1113,11 @@ function OverlapsView({
                       <span className="text-[10px] font-bold uppercase text-[#fbbf24] bg-[#fbbf24]/10 border border-[#fbbf24]/30 px-2 py-0.5 rounded">
                         {t("noTitle") === "(No heading)" ? `Overlap (${record.count} references)` : `Overlap (${record.count} referencer)`}
                       </span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                        targetNode.doc === "control" 
-                          ? "bg-[#3b82f6]/10 text-[#60a5fa] border-[#3b82f6]/20" 
-                          : "bg-[#10b981]/10 text-[#34d399] border-[#10b981]/20"
-                      }`}>
-                        {targetNode.doc === "control" ? (data.labelA || t("docA")) : (data.labelB || t("docB"))}
+                      <span
+                        className="text-[10px] font-bold px-2 py-0.5 rounded border"
+                        style={docBadgeStyle(data.docs, targetNode.doc, { borderAlpha: "33" })}
+                      >
+                        {docLabel(data.docs, targetNode.doc, t)}
                       </span>
                     </div>
                     <h3 className="text-base font-bold mt-2">
@@ -1151,13 +1149,14 @@ function OverlapsView({
                             <div className="flex justify-between items-center gap-2 mb-2">
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-semibold text-[#38bdf8]">{sourceNode?.label}</span>
-                                <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
-                                  sourceNode?.doc === "control" 
-                                    ? "bg-[#3b82f6]/10 text-[#60a5fa] border-[#3b82f6]/20" 
-                                    : "bg-[#10b981]/10 text-[#34d399] border-[#10b981]/20"
-                                }`}>
-                                  {sourceNode?.doc === "control" ? (data.labelA || t("docA")) : (data.labelB || t("docB"))}
-                                </span>
+                                {sourceNode && (
+                                  <span
+                                    className="text-[9px] font-bold px-1.5 py-0.2 rounded border"
+                                    style={docBadgeStyle(data.docs, sourceNode.doc, { borderAlpha: "33" })}
+                                  >
+                                    {docLabel(data.docs, sourceNode.doc, t)}
+                                  </span>
+                                )}
                               </div>
                               <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1e293b] text-[#94a3b8] font-medium">
                                 {t(c.modality.toLowerCase() as TranslationKey)}
@@ -1225,14 +1224,13 @@ function ConflictsView({
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[10px] font-bold uppercase text-[#f87171] bg-[#ef4444]/10 border border-[#ef4444]/30 px-2 py-0.5 rounded">
-                        {t("noTitle") === "(No heading)" ? "Conflict Detected" : "Modstrid detekteret"} ({record.modalities.map(m => t(m.toLowerCase() as TranslationKey)).join(" ↔ ")})
+                        {t("noTitle") === "(No heading)" ? "Conflict Detected" : "Modstrid detekteret"} ({record.modalities.map(m => t(m.toLowerCase() as TranslationKey)).join(" / ")})
                       </span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                        targetNode.doc === "control" 
-                          ? "bg-[#3b82f6]/10 text-[#60a5fa] border-[#3b82f6]/20" 
-                          : "bg-[#10b981]/10 text-[#34d399] border-[#10b981]/20"
-                      }`}>
-                        {targetNode.doc === "control" ? (data.labelA || t("docA")) : (data.labelB || t("docB"))}
+                      <span
+                        className="text-[10px] font-bold px-2 py-0.5 rounded border"
+                        style={docBadgeStyle(data.docs, targetNode.doc, { borderAlpha: "33" })}
+                      >
+                        {docLabel(data.docs, targetNode.doc, t)}
                       </span>
                     </div>
                     <h3 className="text-lg font-bold mt-2">
@@ -1264,13 +1262,14 @@ function ConflictsView({
                           <div className="flex justify-between items-center gap-2 mb-2 flex-wrap">
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-bold text-[#38bdf8]">{sourceNode?.label}</span>
-                              <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
-                                sourceNode?.doc === "control" 
-                                  ? "bg-[#3b82f6]/10 text-[#60a5fa] border-[#3b82f6]/20" 
-                                  : "bg-[#10b981]/10 text-[#34d399] border-[#10b981]/20"
-                              }`}>
-                                {sourceNode?.doc === "control" ? (data.labelA || t("docA")) : (data.labelB || t("docB"))}
-                              </span>
+                              {sourceNode && (
+                                <span
+                                  className="text-[9px] font-bold px-1.5 py-0.2 rounded border"
+                                  style={docBadgeStyle(data.docs, sourceNode.doc, { borderAlpha: "33" })}
+                                >
+                                  {docLabel(data.docs, sourceNode.doc, t)}
+                                </span>
+                              )}
                             </div>
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                               c.modality === "Exception" ? "bg-[#ef4444]/20 text-[#f87171]" : "bg-[#3b82f6]/20 text-[#60a5fa]"
@@ -1380,10 +1379,12 @@ function BrowseView({
             >
               <div>
                 <div className="flex justify-between items-start">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded truncate max-w-[180px] ${
-                    node.doc === "control" ? "bg-[#3b82f6]/15 text-[#60a5fa]" : "bg-[#10b981]/15 text-[#34d399]"
-                  }`} title={node.doc === "control" ? (data.labelA || t("docA")) : (data.labelB || t("docB"))}>
-                    {node.doc === "control" ? (data.labelA || t("docA")) : (data.labelB || t("docB"))}
+                  <span
+                    className="text-[10px] font-bold px-2 py-0.5 rounded truncate max-w-[180px]"
+                    style={docBadgeStyle(data.docs, node.doc, { bgAlpha: "26" })}
+                    title={docLabel(data.docs, node.doc, t)}
+                  >
+                    {docLabel(data.docs, node.doc, t)}
                   </span>
                   <span className="text-[10px] font-semibold text-[#94a3b8] bg-[#1e293b] px-2 py-0.5 rounded truncate max-w-[140px]" title={node.theme}>
                     {node.theme}

@@ -8,10 +8,11 @@ export type TranslationKey =
   | "newAnalysis" | "dashboard" | "citationGraph" | "nodeGraph"
   | "overlaps" | "conflicts" | "browse"
   | "uploadTitle" | "uploadSubtitle"
-  | "dropZoneA" | "dropZoneB"
-  | "labelA" | "labelB"
+  | "dropZoneSlot"
   | "analyseButton" | "analysing"
-  | "invalidPdfError" | "sizeLimitError" | "unknownError" | "multiDropExtraFilesIgnored"
+  | "invalidPdfError" | "sizeLimitError" | "unknownError"
+  | "multiDropNonPdfIgnored" | "multiDropCapReached"
+  | "uploadModeBulk" | "uploadModeIndividual" | "addDocument" | "removeDocument"
   | "loadingGraph"
   | "allDocuments" | "allCategories"
   | "sectionCount" | "citationsCount" | "overlapsCount" | "conflictsCount"
@@ -19,7 +20,7 @@ export type TranslationKey =
   | "obligation" | "exception" | "prohibition" | "permission"
   | "noTitle" | "noHeading"
   | "showInGraph" | "viewAnalysis" | "viewConflicts"
-  | "docA" | "docB"          // dynamic fallbacks when labelA/labelB are blank
+  | "docFallback"            // generic per-index fallback, used as "${docFallback} ${i+1}"
   | "aboutButton" | "backToApp"
   | "copyErrorDetails" | "copiedErrorDetails";
 
@@ -36,17 +37,19 @@ const da: Translations = {
   conflicts: "Konflikter",
   browse: "Søg & Slå Op",
   uploadTitle: "Start ny analyse",
-  uploadSubtitle: "Upload to PDF-dokumenter og angiv navne for at kortlægge citationer og konflikter.",
-  dropZoneA: "Træk og slip Dokument A her, eller klik for at vælge",
-  dropZoneB: "Træk og slip Dokument B her, eller klik for at vælge",
-  labelA: "Navn på Dokument A",
-  labelB: "Navn på Dokument B",
+  uploadSubtitle: "Upload dine PDF-dokumenter og angiv navne for at kortlægge citationer og konflikter.",
+  dropZoneSlot: "Træk og slip en PDF her, eller klik for at vælge",
   analyseButton: "Analysér",
   analysing: "Analyserer...",
   invalidPdfError: "Kun PDF-filer accepteres.",
   sizeLimitError: "Samlet filstørrelse overstiger 10 MB.",
   unknownError: "Ukendt fejl. Prøv igen.",
-  multiDropExtraFilesIgnored: "Kun de første to PDF-filer blev brugt; øvrige filer blev ignoreret.",
+  multiDropNonPdfIgnored: "Ikke-PDF-filer blev ignoreret.",
+  multiDropCapReached: "Kun de første {max} PDF-filer blev brugt; øvrige filer blev ignoreret.",
+  uploadModeBulk: "Slip alle på én gang",
+  uploadModeIndividual: "Tilføj ét ad gangen",
+  addDocument: "Tilføj dokument",
+  removeDocument: "Fjern dokument",
   loadingGraph: "Analyserer dokumenter...",
   allDocuments: "Alle dokumenter",
   allCategories: "Alle kategorier",
@@ -66,8 +69,7 @@ const da: Translations = {
   showInGraph: "Vis i graf",
   viewAnalysis: "Vis analyse",
   viewConflicts: "Vis konflikter",
-  docA: "Dokument A",
-  docB: "Dokument B",
+  docFallback: "Dokument",
   aboutButton: "Hvad er LexGraph?",
   backToApp: "Tilbage til appen",
   copyErrorDetails: "Kopiér fejldetaljer",
@@ -85,17 +87,19 @@ const en: Translations = {
   conflicts: "Conflicts",
   browse: "Search & Browse",
   uploadTitle: "Start a new analysis",
-  uploadSubtitle: "Upload two PDF documents and provide names to map citations and conflicts.",
-  dropZoneA: "Drag and drop Document A here, or click to select",
-  dropZoneB: "Drag and drop Document B here, or click to select",
-  labelA: "Document A name",
-  labelB: "Document B name",
+  uploadSubtitle: "Upload your PDF documents and provide names to map citations and conflicts.",
+  dropZoneSlot: "Drag and drop a PDF here, or click to select",
   analyseButton: "Analyse",
   analysing: "Analysing...",
   invalidPdfError: "Only PDF files are accepted.",
   sizeLimitError: "Combined file size exceeds 10 MB.",
   unknownError: "Unknown error. Please try again.",
-  multiDropExtraFilesIgnored: "Only the first two PDF files were used; the rest were ignored.",
+  multiDropNonPdfIgnored: "Non-PDF files were ignored.",
+  multiDropCapReached: "Only the first {max} PDF files were used; the rest were ignored.",
+  uploadModeBulk: "Drop all at once",
+  uploadModeIndividual: "Add one at a time",
+  addDocument: "Add document",
+  removeDocument: "Remove document",
   loadingGraph: "Analysing documents...",
   allDocuments: "All documents",
   allCategories: "All categories",
@@ -115,8 +119,7 @@ const en: Translations = {
   showInGraph: "Show in graph",
   viewAnalysis: "View analysis",
   viewConflicts: "View conflicts",
-  docA: "Document A",
-  docB: "Document B",
+  docFallback: "Document",
   aboutButton: "What is LexGraph?",
   backToApp: "Back to the app",
   copyErrorDetails: "Copy error details",

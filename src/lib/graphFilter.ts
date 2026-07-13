@@ -10,7 +10,7 @@ export function linkEndpointId(endpoint: string | GraphNode): string {
 export function filterGraph(
   nodes: GraphNode[],
   links: GraphLink[],
-  activeDocFilter: "all" | "control" | "impl",
+  activeDocFilter: "all" | string,
   activeCategoryFilter: string,
   searchQuery: string
 ): { filteredNodes: GraphNode[]; filteredLinks: GraphLink[] } {

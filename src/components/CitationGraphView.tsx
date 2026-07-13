@@ -5,11 +5,12 @@ import { GraphNode, GraphLink, GraphData } from "@/app/page";
 import { TranslateFn, TranslationKey } from "@/lib/i18n";
 import { MODALITY_LEGEND, modalityColor, modalityBadgeClasses } from "@/lib/graphColors";
 import { filterGraph, computeDegree } from "@/lib/graphFilter";
+import { docLabel, docColorFor, docBadgeStyle } from "@/lib/docDisplay";
 
 interface CitationGraphViewProps {
   data: GraphData;
   selectedNode: GraphNode | null;
-  activeDocFilter: "all" | "control" | "impl";
+  activeDocFilter: "all" | string;
   activeCategoryFilter: string;
   searchQuery: string;
   setSelectedNode: (node: GraphNode | null) => void;
@@ -31,8 +32,12 @@ export function CitationGraphView({
         <div className="bg-[#0f172a]/90 backdrop-blur-sm p-4 rounded-xl border border-[#1e293b] pointer-events-auto shadow-xl">
           <h3 className="text-sm font-bold text-[#f8fafc] mb-2 uppercase tracking-wider">{t("citationGraph")}</h3>
           <div className="space-y-2 text-xs text-[#94a3b8]">
-            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#3b82f6]"></div> {data.labelA || t("docA")}</div>
-            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#10b981]"></div> {data.labelB || t("docB")}</div>
+            {data.docs.map(d => (
+              <div key={d.id} className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: docColorFor(data.docs, d.id) }}></div>
+                {docLabel(data.docs, d.id, t)}
+              </div>
+            ))}
             <div className="border-t border-[#1e293b] pt-2 mt-2">
               {MODALITY_LEGEND.map(({ modality, color, dashed }) => (
                 <div key={modality} className="flex items-center gap-2 mt-1 first:mt-0">
@@ -66,10 +71,11 @@ export function CitationGraphView({
             >
               &times;
             </button>
-            <span className={`inline-flex items-center self-start px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-              selectedNode.doc === "control" ? "bg-[#3b82f6]/10 text-[#60a5fa] border border-[#3b82f6]/30" : "bg-[#10b981]/10 text-[#34d399] border border-[#10b981]/30"
-            }`}>
-              {selectedNode.doc === "control" ? (data.labelA || t("docA")) : (data.labelB || t("docB"))}
+            <span
+              className="inline-flex items-center self-start px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border"
+              style={docBadgeStyle(data.docs, selectedNode.doc, { borderAlpha: "4d" })}
+            >
+              {docLabel(data.docs, selectedNode.doc, t)}
             </span>
             <h2 className="text-lg font-bold">{selectedNode.label}</h2>
             <p className="text-xs text-[#94a3b8] font-medium">{selectedNode.title || t("noTitle")}</p>
@@ -244,20 +250,19 @@ function CitationGraphCanvas({
     const { filteredNodes, filteredLinks } = filterGraph(nodes, links, activeDocFilter, activeCategoryFilter, searchQuery);
     const degree = computeDegree(filteredLinks);
 
-    const controlNodes = filteredNodes.filter(n => n.doc === "control").sort((a, b) => a.number - b.number);
-    const implNodes = filteredNodes.filter(n => n.doc === "impl").sort((a, b) => a.number - b.number);
-
     const padding = 60;
     const nodeHeightSpacing = 25;
-    
-    controlNodes.forEach((n, i) => {
-      n.x = width * 0.25;
-      n.y = padding + i * nodeHeightSpacing;
-    });
+    const numDocs = data.docs.length;
 
-    implNodes.forEach((n, i) => {
-      n.x = width * 0.75;
-      n.y = padding + i * nodeHeightSpacing;
+    const nodesByDoc = d3.group(filteredNodes, n => n.doc);
+    data.docs.forEach((docRef, docIndex) => {
+      const x = width * (docIndex + 1) / (numDocs + 1);
+      (nodesByDoc.get(docRef.id) ?? [])
+        .sort((a, b) => a.number - b.number)
+        .forEach((n, i) => {
+          n.x = x;
+          n.y = padding + i * nodeHeightSpacing;
+        });
     });
 
     const nodeMap = new Map<string, GraphNode>();
@@ -307,15 +312,21 @@ function CitationGraphCanvas({
         const deg = degree[d.id] || 0;
         return 6 + Math.min(deg * 0.8, 18);
       })
-      .attr("fill", d => d.doc === "control" ? "#3b82f6" : "#10b981")
+      .attr("fill", d => docColorFor(data.docs, d.doc))
       .attr("stroke", "#0d1527")
       .attr("stroke-width", 1.5);
-      
+
+    // Docs in the left half of the column order label to the left (anchor-end), the right
+    // half label to the right (anchor-start) — the natural N-way generalization of the old
+    // binary control=left/impl=right split. Odd numDocs: the middle column labels right.
+    const docIndexOf = new Map(data.docs.map((d, i) => [d.id, i]));
+    const isLeftHalf = (docId: string) => (docIndexOf.get(docId) ?? 0) < numDocs / 2;
+
     node.append("text")
       .text(d => d.label)
-      .attr("x", d => d.doc === "control" ? -15 : 15)
+      .attr("x", d => isLeftHalf(d.doc) ? -15 : 15)
       .attr("y", 4)
-      .attr("text-anchor", d => d.doc === "control" ? "end" : "start")
+      .attr("text-anchor", d => isLeftHalf(d.doc) ? "end" : "start")
       .attr("fill", "#94a3b8")
       .attr("font-size", "11px")
       .attr("font-weight", "500");
