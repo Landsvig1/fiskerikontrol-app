@@ -1,5 +1,4 @@
 import "@testing-library/jest-dom/vitest";
-import { useState } from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { UploadScreen } from "./UploadScreen";
@@ -20,28 +19,16 @@ function makeGraphData(): GraphData {
   return { nodes: [], links: [], overlaps: [], conflicts: [], docs: [{ id: "doc0", label: "A" }, { id: "doc1", label: "B" }] };
 }
 
+function slotName(index: number): string {
+  return `${t("docFallback")} ${index + 1}`;
+}
+
 function renderUploadScreen(onSuccess = vi.fn()) {
-  function Wrapper() {
-    const [labelAInput, setLabelAInput] = useState("");
-    const [labelBInput, setLabelBInput] = useState("");
-    return (
-      <UploadScreen
-        onSuccess={onSuccess}
-        t={t}
-        lang="en"
-        setLang={() => {}}
-        labelAInput={labelAInput}
-        setLabelAInput={setLabelAInput}
-        labelBInput={labelBInput}
-        setLabelBInput={setLabelBInput}
-      />
-    );
-  }
-  render(<Wrapper />);
+  render(<UploadScreen onSuccess={onSuccess} t={t} lang="en" setLang={() => {}} />);
   return { onSuccess };
 }
 
-describe("UploadScreen multi-file drop", () => {
+describe("UploadScreen bulk mode (default)", () => {
   beforeEach(() => {
     global.fetch = vi.fn();
   });
@@ -50,7 +37,7 @@ describe("UploadScreen multi-file drop", () => {
     vi.restoreAllMocks();
   });
 
-  it("assigns two dropped PDFs to slot A and B in order, auto-filling labels, and auto-triggers analysis", async () => {
+  it("assigns two dropped PDFs to the first two slots in order, auto-filling labels, and auto-triggers analysis", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: async () => makeGraphData(),
@@ -66,7 +53,7 @@ describe("UploadScreen multi-file drop", () => {
     expect(screen.getByText("Implementation-Decision.pdf")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Regulation 2024")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Implementation Decision")).toBeInTheDocument();
-    expect(screen.queryByText(/only the first two/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(t("multiDropNonPdfIgnored"))).not.toBeInTheDocument();
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
     const [, options] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
@@ -77,9 +64,10 @@ describe("UploadScreen multi-file drop", () => {
     expect(body.get("label1")).toBe("Implementation Decision");
 
     await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1));
+    expect(onSuccess).toHaveBeenCalledWith(expect.objectContaining({ docs: expect.any(Array) }));
   });
 
-  it("assigns only the first two PDFs when 3 files are dropped together, and shows a notice", async () => {
+  it("assigns all dropped PDFs when 3+ are dropped together, appending beyond the initial two slots", async () => {
     renderUploadScreen();
     const dropZone = screen.getByTestId("upload-drop-zone");
 
@@ -89,8 +77,20 @@ describe("UploadScreen multi-file drop", () => {
 
     expect(await screen.findByText("one.pdf")).toBeInTheDocument();
     expect(screen.getByText("two.pdf")).toBeInTheDocument();
-    expect(screen.queryByText("three.pdf")).not.toBeInTheDocument();
-    expect(screen.getByText(/only the first two/i)).toBeInTheDocument();
+    expect(screen.getByText("three.pdf")).toBeInTheDocument();
+    expect(screen.queryByText(t("multiDropNonPdfIgnored"))).not.toBeInTheDocument();
+  });
+
+  it("truncates to the 12-slot soft cap and shows a notice when a bulk drop would exceed it", async () => {
+    renderUploadScreen();
+    const dropZone = screen.getByTestId("upload-drop-zone");
+
+    const files = Array.from({ length: 13 }, (_, i) => pdf(`doc${i}.pdf`));
+    fireEvent.drop(dropZone, { dataTransfer: { files } });
+
+    expect(await screen.findByText("doc11.pdf")).toBeInTheDocument();
+    expect(screen.queryByText("doc12.pdf")).not.toBeInTheDocument();
+    expect(screen.getByText(t("multiDropCapReached").replace("{max}", "12"))).toBeInTheDocument();
   });
 
   it("ignores a non-PDF file dropped alongside a PDF and shows a notice", async () => {
@@ -102,7 +102,7 @@ describe("UploadScreen multi-file drop", () => {
     });
 
     expect(await screen.findByText("valid.pdf")).toBeInTheDocument();
-    expect(screen.getByText(/only the first two/i)).toBeInTheDocument();
+    expect(screen.getByText(t("multiDropNonPdfIgnored"))).toBeInTheDocument();
   });
 
   it("auto-fires analysis when files are dropped into slots sequentially", async () => {
@@ -112,14 +112,14 @@ describe("UploadScreen multi-file drop", () => {
     });
     renderUploadScreen();
 
-    const slotA = screen.getByRole("button", { name: t("labelA") });
-    const slotB = screen.getByRole("button", { name: t("labelB") });
+    const slot0 = screen.getByRole("button", { name: slotName(0) });
+    const slot1 = screen.getByRole("button", { name: slotName(1) });
 
-    fireEvent.drop(slotA, { dataTransfer: { files: [pdf("first.pdf")] } });
+    fireEvent.drop(slot0, { dataTransfer: { files: [pdf("first.pdf")] } });
     expect(await screen.findByText("first.pdf")).toBeInTheDocument();
     expect(global.fetch).not.toHaveBeenCalled();
 
-    fireEvent.drop(slotB, { dataTransfer: { files: [pdf("second.pdf")] } });
+    fireEvent.drop(slot1, { dataTransfer: { files: [pdf("second.pdf")] } });
     expect(await screen.findByText("second.pdf")).toBeInTheDocument();
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
@@ -127,29 +127,29 @@ describe("UploadScreen multi-file drop", () => {
 
   it("does not overwrite a manually-edited label when the same file is re-dropped", async () => {
     renderUploadScreen();
-    const slotA = screen.getByRole("button", { name: t("labelA") });
+    const slot0 = screen.getByRole("button", { name: slotName(0) });
 
     const file = pdf("original-name.pdf");
-    fireEvent.drop(slotA, { dataTransfer: { files: [file] } });
+    fireEvent.drop(slot0, { dataTransfer: { files: [file] } });
     expect(await screen.findByDisplayValue("Original Name")).toBeInTheDocument();
 
-    fireEvent.change(document.getElementById("labelA") as HTMLInputElement, { target: { value: "Custom Label" } });
+    fireEvent.change(screen.getByPlaceholderText(slotName(0)), { target: { value: "Custom Label" } });
     expect(screen.getByDisplayValue("Custom Label")).toBeInTheDocument();
 
-    fireEvent.drop(slotA, { dataTransfer: { files: [file] } });
+    fireEvent.drop(slot0, { dataTransfer: { files: [file] } });
     expect(screen.getByDisplayValue("Custom Label")).toBeInTheDocument();
   });
 
   it("re-derives the label when a different file replaces the slot after a manual edit", async () => {
     renderUploadScreen();
-    const slotA = screen.getByRole("button", { name: t("labelA") });
+    const slot0 = screen.getByRole("button", { name: slotName(0) });
 
-    fireEvent.drop(slotA, { dataTransfer: { files: [pdf("first-doc.pdf")] } });
+    fireEvent.drop(slot0, { dataTransfer: { files: [pdf("first-doc.pdf")] } });
     await screen.findByDisplayValue("First Doc");
 
-    fireEvent.change(document.getElementById("labelA") as HTMLInputElement, { target: { value: "Custom Label" } });
+    fireEvent.change(screen.getByPlaceholderText(slotName(0)), { target: { value: "Custom Label" } });
 
-    fireEvent.drop(slotA, { dataTransfer: { files: [pdf("second-doc.pdf")] } });
+    fireEvent.drop(slot0, { dataTransfer: { files: [pdf("second-doc.pdf")] } });
     expect(await screen.findByDisplayValue("Second Doc")).toBeInTheDocument();
   });
 
@@ -192,10 +192,10 @@ describe("UploadScreen multi-file drop", () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("original-a.pdf")).toBeInTheDocument();
 
-    const slotA = screen.getByRole("button", { name: t("labelA") });
-    expect(slotA).toHaveAttribute("aria-disabled", "true");
+    const slot0 = screen.getByRole("button", { name: slotName(0) });
+    expect(slot0).toHaveAttribute("aria-disabled", "true");
 
-    fireEvent.drop(slotA, { dataTransfer: { files: [pdf("replacement.pdf")] } });
+    fireEvent.drop(slot0, { dataTransfer: { files: [pdf("replacement.pdf")] } });
 
     expect(screen.getByText("original-a.pdf")).toBeInTheDocument();
     expect(screen.queryByText("replacement.pdf")).not.toBeInTheDocument();
@@ -204,50 +204,50 @@ describe("UploadScreen multi-file drop", () => {
     resolveFetch({ ok: true, json: async () => makeGraphData() });
   });
 
-  it("shows the invalid-file notice, not the extra-files notice, when a multi-drop has zero valid PDFs", async () => {
+  it("shows the invalid-file notice, not the ignored-files notice, when a multi-drop has zero valid PDFs", async () => {
     renderUploadScreen();
     const dropZone = screen.getByTestId("upload-drop-zone");
 
     fireEvent.drop(dropZone, { dataTransfer: { files: [nonPdf("a.docx"), nonPdf("b.docx")] } });
 
     expect(await screen.findByText(t("invalidPdfError"))).toBeInTheDocument();
-    expect(screen.queryByText(/only the first two/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(t("multiDropNonPdfIgnored"))).not.toBeInTheDocument();
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it("clears a stale multi-drop notice once the user fixes the pair via a per-slot drop", async () => {
+  it("clears a stale multi-drop notice once the user fixes it via a per-slot drop", async () => {
     renderUploadScreen();
     const dropZone = screen.getByTestId("upload-drop-zone");
 
-    fireEvent.drop(dropZone, { dataTransfer: { files: [pdf("one.pdf"), pdf("two.pdf"), pdf("three.pdf")] } });
-    expect(await screen.findByText(/only the first two/i)).toBeInTheDocument();
+    fireEvent.drop(dropZone, { dataTransfer: { files: [pdf("one.pdf"), nonPdf("bad.docx")] } });
+    expect(await screen.findByText(t("multiDropNonPdfIgnored"))).toBeInTheDocument();
 
-    const slotA = screen.getByRole("button", { name: t("labelA") });
-    fireEvent.drop(slotA, { dataTransfer: { files: [pdf("corrected.pdf")] } });
+    const slot1 = screen.getByRole("button", { name: slotName(1) });
+    fireEvent.drop(slot1, { dataTransfer: { files: [pdf("corrected.pdf")] } });
 
     expect(await screen.findByText("corrected.pdf")).toBeInTheDocument();
-    expect(screen.queryByText(/only the first two/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(t("multiDropNonPdfIgnored"))).not.toBeInTheDocument();
   });
 
-  it("shows the extra-files notice when multiple files are dropped directly on a single slot", async () => {
+  it("shows the ignored-files notice when multiple files are dropped directly on a single slot", async () => {
     renderUploadScreen();
-    const slotA = screen.getByRole("button", { name: t("labelA") });
+    const slot0 = screen.getByRole("button", { name: slotName(0) });
 
-    fireEvent.drop(slotA, { dataTransfer: { files: [pdf("first.pdf"), pdf("second.pdf")] } });
+    fireEvent.drop(slot0, { dataTransfer: { files: [pdf("first.pdf"), pdf("second.pdf")] } });
 
     expect(await screen.findByText("first.pdf")).toBeInTheDocument();
-    expect(screen.getByText(/only the first two/i)).toBeInTheDocument();
+    expect(screen.getByText(t("multiDropNonPdfIgnored"))).toBeInTheDocument();
   });
 
   it("resets the container drag highlight when a drop lands directly on a slot", async () => {
     renderUploadScreen();
     const dropZone = screen.getByTestId("upload-drop-zone");
-    const slotA = screen.getByRole("button", { name: t("labelA") });
+    const slot0 = screen.getByRole("button", { name: slotName(0) });
 
     fireEvent.dragOver(dropZone, { dataTransfer: { files: [] } });
     expect(dropZone.className).toMatch(/border-\[#38bdf8\]\/60/);
 
-    fireEvent.drop(slotA, { dataTransfer: { files: [pdf("one.pdf")] } });
+    fireEvent.drop(slot0, { dataTransfer: { files: [pdf("one.pdf")] } });
 
     expect(await screen.findByText("one.pdf")).toBeInTheDocument();
     expect(dropZone.className).not.toMatch(/border-\[#38bdf8\]\/60/);
@@ -262,8 +262,124 @@ describe("UploadScreen multi-file drop", () => {
     await screen.findByText(".pdf");
     expect(global.fetch).not.toHaveBeenCalled();
 
-    fireEvent.change(document.getElementById("labelA") as HTMLInputElement, { target: { value: "X" } });
+    fireEvent.change(screen.getByPlaceholderText(slotName(0)), { target: { value: "X" } });
 
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("UploadScreen mode toggle and individual mode", () => {
+  beforeEach(() => {
+    global.fetch = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("preserves slot state when toggling between bulk and individual mode", async () => {
+    renderUploadScreen();
+    const dropZone = screen.getByTestId("upload-drop-zone");
+
+    fireEvent.drop(dropZone, { dataTransfer: { files: [pdf("one.pdf"), pdf("two.pdf"), pdf("three.pdf")] } });
+    await screen.findByText("three.pdf");
+
+    fireEvent.click(screen.getByRole("tab", { name: t("uploadModeIndividual") }));
+    expect(screen.getByText("one.pdf")).toBeInTheDocument();
+    expect(screen.getByText("two.pdf")).toBeInTheDocument();
+    expect(screen.getByText("three.pdf")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: t("uploadModeBulk") }));
+    expect(screen.getByText("one.pdf")).toBeInTheDocument();
+    expect(screen.getByText("two.pdf")).toBeInTheDocument();
+    expect(screen.getByText("three.pdf")).toBeInTheDocument();
+  });
+
+  it("does not render a remove control at exactly 2 slots, but does once a 3rd slot is added", async () => {
+    renderUploadScreen();
+    fireEvent.click(screen.getByRole("tab", { name: t("uploadModeIndividual") }));
+
+    expect(screen.queryByRole("button", { name: `${t("removeDocument")} 1` })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: t("addDocument") }));
+    expect(screen.getByRole("button", { name: `${t("removeDocument")} 3` })).toBeInTheDocument();
+  });
+
+  it("removes the correct slot and shifts subsequent slots down", async () => {
+    renderUploadScreen();
+    fireEvent.click(screen.getByRole("tab", { name: t("uploadModeIndividual") }));
+
+    const slot0 = screen.getByRole("button", { name: slotName(0) });
+    const slot1 = screen.getByRole("button", { name: slotName(1) });
+    fireEvent.drop(slot0, { dataTransfer: { files: [pdf("first.pdf")] } });
+    fireEvent.drop(slot1, { dataTransfer: { files: [pdf("second.pdf")] } });
+    await screen.findByText("second.pdf");
+
+    fireEvent.click(screen.getByRole("button", { name: t("addDocument") }));
+    const slot2 = screen.getByRole("button", { name: slotName(2) });
+    fireEvent.drop(slot2, { dataTransfer: { files: [pdf("third.pdf")] } });
+    await screen.findByText("third.pdf");
+
+    fireEvent.click(screen.getByRole("button", { name: `${t("removeDocument")} 1` }));
+
+    expect(screen.queryByText("first.pdf")).not.toBeInTheDocument();
+    expect(screen.getByText("second.pdf")).toBeInTheDocument();
+    expect(screen.getByText("third.pdf")).toBeInTheDocument();
+  });
+
+  it("disables 'Add document' once the 12-slot cap is reached", async () => {
+    renderUploadScreen();
+    fireEvent.click(screen.getByRole("tab", { name: t("uploadModeIndividual") }));
+
+    const addButton = screen.getByRole("button", { name: t("addDocument") });
+    for (let i = 0; i < 10; i++) {
+      fireEvent.click(addButton);
+    }
+
+    expect(addButton).toBeDisabled();
+  });
+
+  it("does not auto-fire merely from switching modes, even when the array already satisfies canSubmit", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => makeGraphData(),
+    });
+    renderUploadScreen();
+    const dropZone = screen.getByTestId("upload-drop-zone");
+
+    // The drop itself already satisfies canSubmit and auto-fires once — that's expected,
+    // existing behavior. This test isolates whether a *subsequent* mode toggle fires again.
+    fireEvent.drop(dropZone, { dataTransfer: { files: [pdf("a.pdf"), pdf("b.pdf")] } });
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+    (global.fetch as ReturnType<typeof vi.fn>).mockClear();
+
+    fireEvent.click(screen.getByRole("tab", { name: t("uploadModeIndividual") }));
+    fireEvent.click(screen.getByRole("tab", { name: t("uploadModeBulk") }));
+
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("disables add/remove/mode-toggle controls while a request is in flight", async () => {
+    let resolveFetch: (value: unknown) => void = () => {};
+    (global.fetch as ReturnType<typeof vi.fn>).mockReturnValue(
+      new Promise((resolve) => {
+        resolveFetch = resolve;
+      })
+    );
+
+    renderUploadScreen();
+    fireEvent.click(screen.getByRole("tab", { name: t("uploadModeIndividual") }));
+    fireEvent.click(screen.getByRole("button", { name: t("addDocument") }));
+
+    fireEvent.drop(screen.getByRole("button", { name: slotName(0) }), { dataTransfer: { files: [pdf("a.pdf")] } });
+    fireEvent.drop(screen.getByRole("button", { name: slotName(1) }), { dataTransfer: { files: [pdf("b.pdf")] } });
+    fireEvent.drop(screen.getByRole("button", { name: slotName(2) }), { dataTransfer: { files: [pdf("c.pdf")] } });
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+
+    expect(screen.getByRole("button", { name: t("addDocument") })).toBeDisabled();
+    expect(screen.getByRole("button", { name: `${t("removeDocument")} 1` })).toBeDisabled();
+    expect(screen.getByRole("tab", { name: t("uploadModeBulk") })).toBeDisabled();
+
+    resolveFetch({ ok: true, json: async () => makeGraphData() });
   });
 });

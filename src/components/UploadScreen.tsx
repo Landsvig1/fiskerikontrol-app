@@ -2,22 +2,32 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Database, Upload, FileText, AlertTriangle, RefreshCw, Info } from "lucide-react";
+import { Database, Upload, FileText, AlertTriangle, RefreshCw, Info, Plus, X } from "lucide-react";
 import { GraphData } from "@/app/page";
 import { TranslateFn } from "@/lib/i18n";
 import { deriveLabelFromFilename } from "@/lib/labels";
 
 import { Lang } from "@/lib/i18n";
 
+const MIN_SLOTS = 2;
+const MAX_SLOTS = 12;
+
+interface SlotState {
+  file: File | null;
+  label: string;
+  labelTouched: boolean;
+  error: string | null;
+}
+
+function emptySlot(): SlotState {
+  return { file: null, label: "", labelTouched: false, error: null };
+}
+
 interface UploadScreenProps {
-  onSuccess: (data: GraphData, labelA: string, labelB: string) => void;
+  onSuccess: (data: GraphData) => void;
   t: TranslateFn;
   lang: Lang;
   setLang: (lang: Lang) => void;
-  labelAInput: string;
-  setLabelAInput: (val: string) => void;
-  labelBInput: string;
-  setLabelBInput: (val: string) => void;
 }
 
 interface FileSlotProps {
@@ -148,84 +158,77 @@ export function UploadScreen({
   t,
   lang,
   setLang,
-  labelAInput,
-  setLabelAInput,
-  labelBInput,
-  setLabelBInput,
 }: UploadScreenProps) {
-  const [fileA, setFileA] = useState<File | null>(null);
-  const [fileB, setFileB] = useState<File | null>(null);
-  const [errorA, setErrorA] = useState<string | null>(null);
-  const [errorB, setErrorB] = useState<string | null>(null);
+  const [mode, setMode] = useState<"bulk" | "individual">("bulk");
+  const [slots, setSlots] = useState<SlotState[]>([emptySlot(), emptySlot()]);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [errorReport, setErrorReport] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [labelATouched, setLabelATouched] = useState(false);
-  const [labelBTouched, setLabelBTouched] = useState(false);
   const [multiDropNotice, setMultiDropNotice] = useState<string | null>(null);
   const [isContainerDragging, setIsContainerDragging] = useState(false);
 
-  const inputRefA = useRef<HTMLInputElement | null>(null);
-  const inputRefB = useRef<HTMLInputElement | null>(null);
+  const inputRefsRef = useRef<Map<number, React.RefObject<HTMLInputElement | null>>>(new Map());
   const autoTriggerArmedRef = useRef(false);
 
-  // Derived (not effect-driven) so it's always in sync with fileA/fileB in the
-  // same render — the auto-trigger effect below reads it in that same render.
-  const combinedSize = (fileA?.size ?? 0) + (fileB?.size ?? 0);
+  const getInputRef = (index: number): React.RefObject<HTMLInputElement | null> => {
+    if (!inputRefsRef.current.has(index)) {
+      inputRefsRef.current.set(index, React.createRef<HTMLInputElement | null>());
+    }
+    return inputRefsRef.current.get(index)!;
+  };
+
+  // Derived (not effect-driven) so it's always in sync with slots in the same
+  // render — the auto-trigger effect below reads it in that same render.
+  const combinedSize = slots.reduce((sum, s) => sum + (s.file?.size ?? 0), 0);
   const sizeError = combinedSize > 10 * 1024 * 1024 ? t("sizeLimitError") : null;
 
   const isSameFile = (a: File | null, b: File) =>
     a !== null && a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
 
-  const handleFileA = (file: File) => {
+  const handleSlotFile = (index: number, file: File) => {
     if (loading) return;
     if (file.type !== "application/pdf") {
-      setErrorA(t("invalidPdfError"));
-      setFileA(null);
+      setSlots(prev => prev.map((s, i) => i === index ? { ...s, error: t("invalidPdfError"), file: null } : s));
       return;
     }
-    setErrorA(null);
-    const isNewFile = !isSameFile(fileA, file);
-    setFileA(file);
-    if (isNewFile) {
-      setLabelATouched(false);
-      setLabelAInput(deriveLabelFromFilename(file.name));
-    } else if (!labelATouched) {
-      setLabelAInput(deriveLabelFromFilename(file.name));
-    }
-    if (fileB) autoTriggerArmedRef.current = true;
+    setSlots(prev => {
+      const next = prev.map((s, i) => {
+        if (i !== index) return s;
+        const isNewFile = !isSameFile(s.file, file);
+        if (isNewFile) {
+          return { file, error: null, label: deriveLabelFromFilename(file.name), labelTouched: false };
+        }
+        return { ...s, file, error: null, label: s.labelTouched ? s.label : deriveLabelFromFilename(file.name) };
+      });
+      if (next.filter(s => s.file !== null).length >= 2) {
+        autoTriggerArmedRef.current = true;
+      }
+      return next;
+    });
   };
 
-  const handleFileB = (file: File) => {
+  const handleLabelChange = (index: number, value: string) => {
+    autoTriggerArmedRef.current = false;
+    setSlots(prev => prev.map((s, i) => i === index ? { ...s, label: value, labelTouched: true } : s));
+  };
+
+  const handleAddSlot = () => {
+    if (loading || slots.length >= MAX_SLOTS) return;
+    autoTriggerArmedRef.current = false;
+    setSlots(prev => [...prev, emptySlot()]);
+  };
+
+  const handleRemoveSlot = (index: number) => {
+    if (loading || slots.length <= MIN_SLOTS) return;
+    autoTriggerArmedRef.current = false;
+    setSlots(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleModeToggle = (next: "bulk" | "individual") => {
     if (loading) return;
-    if (file.type !== "application/pdf") {
-      setErrorB(t("invalidPdfError"));
-      setFileB(null);
-      return;
-    }
-    setErrorB(null);
-    const isNewFile = !isSameFile(fileB, file);
-    setFileB(file);
-    if (isNewFile) {
-      setLabelBTouched(false);
-      setLabelBInput(deriveLabelFromFilename(file.name));
-    } else if (!labelBTouched) {
-      setLabelBInput(deriveLabelFromFilename(file.name));
-    }
-    if (fileA) autoTriggerArmedRef.current = true;
-  };
-
-  const handleLabelAChange = (value: string) => {
     autoTriggerArmedRef.current = false;
-    setLabelATouched(true);
-    setLabelAInput(value);
-  };
-
-  const handleLabelBChange = (value: string) => {
-    autoTriggerArmedRef.current = false;
-    setLabelBTouched(true);
-    setLabelBInput(value);
+    setMode(next);
   };
 
   const handleContainerDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -243,9 +246,12 @@ export function UploadScreen({
   // notice) since FileSlot.handleDrop stops the event from bubbling there.
   const handleSlotDropExtras = (fileCount: number) => {
     setIsContainerDragging(false);
-    setMultiDropNotice(fileCount > 1 ? t("multiDropExtraFilesIgnored") : null);
+    setMultiDropNotice(fileCount > 1 ? t("multiDropNonPdfIgnored") : null);
   };
 
+  // Bulk-mode drop: fill existing empty slots first (in drop order), then
+  // append any remaining PDFs as new slots up to MAX_SLOTS. Existing filled
+  // slots are never overwritten or reordered.
   const handleContainerDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsContainerDragging(false);
@@ -254,37 +260,58 @@ export function UploadScreen({
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
 
-    if (files.length === 1) {
-      setMultiDropNotice(null);
-      if (!fileA) handleFileA(files[0]);
-      else if (!fileB) handleFileB(files[0]);
-      else handleFileA(files[0]);
-      return;
-    }
-
     const pdfFiles = files.filter((f) => f.type === "application/pdf");
-    const [first, second] = pdfFiles;
-    if (first) handleFileA(first);
-    if (second) handleFileB(second);
-    if (first && second) autoTriggerArmedRef.current = true;
 
     if (pdfFiles.length === 0) {
       setMultiDropNotice(t("invalidPdfError"));
-    } else {
-      const usedCount = Math.min(2, pdfFiles.length);
-      setMultiDropNotice(files.length > usedCount ? t("multiDropExtraFilesIgnored") : null);
+      return;
     }
+
+    setSlots(prev => {
+      const next = [...prev];
+      let capped = false;
+      let pdfIndex = 0;
+
+      for (let i = 0; i < next.length && pdfIndex < pdfFiles.length; i++) {
+        if (next[i].file === null) {
+          const f = pdfFiles[pdfIndex++];
+          next[i] = { file: f, error: null, label: deriveLabelFromFilename(f.name), labelTouched: false };
+        }
+      }
+
+      while (pdfIndex < pdfFiles.length) {
+        if (next.length >= MAX_SLOTS) {
+          capped = true;
+          break;
+        }
+        const f = pdfFiles[pdfIndex++];
+        next.push({ file: f, error: null, label: deriveLabelFromFilename(f.name), labelTouched: false });
+      }
+
+      const usedCount = next.filter(s => s.file !== null).length - prev.filter(s => s.file !== null).length;
+      if (capped) {
+        setMultiDropNotice(t("multiDropCapReached").replace("{max}", String(MAX_SLOTS)));
+      } else if (pdfFiles.length < files.length) {
+        setMultiDropNotice(t("multiDropNonPdfIgnored"));
+      } else {
+        setMultiDropNotice(null);
+      }
+
+      if (usedCount > 0 && next.filter(s => s.file !== null).length >= 2) {
+        autoTriggerArmedRef.current = true;
+      }
+
+      return next;
+    });
   };
 
   const canSubmit =
-    fileA !== null &&
-    fileB !== null &&
-    labelAInput.trim().length >= 1 &&
-    labelBInput.trim().length >= 1 &&
+    slots.length >= MIN_SLOTS &&
+    slots.every(s => s.file !== null && s.label.trim().length >= 1) &&
     !sizeError &&
     !loading;
 
-  // Auto-fire the analysis once both slots complete a valid pair for the first time.
+  // Auto-fire the analysis once the slot array completes a valid set for the first time.
   // `runAnalysis` is intentionally omitted from deps: it's redefined every render and
   // isn't itself the trigger condition — including it would re-run this effect on every
   // keystroke/render without changing when armedRef is actually set.
@@ -294,10 +321,10 @@ export function UploadScreen({
       void runAnalysis();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileA, fileB, labelAInput, labelBInput, sizeError, loading]);
+  }, [slots, sizeError, loading]);
 
   const runAnalysis = async () => {
-    if (!canSubmit || !fileA || !fileB) return;
+    if (!canSubmit) return;
 
     setSubmitError(null);
     setErrorReport(null);
@@ -310,8 +337,7 @@ export function UploadScreen({
           timestamp: new Date().toISOString(),
           url: window.location.href,
           userAgent: navigator.userAgent,
-          fileA: { name: fileA.name, size: fileA.size, type: fileA.type },
-          fileB: { name: fileB.name, size: fileB.size, type: fileB.type },
+          files: slots.map(s => s.file && { name: s.file.name, size: s.file.size, type: s.file.type }),
           ...extra,
         },
         null,
@@ -320,10 +346,11 @@ export function UploadScreen({
 
     try {
       const fd = new FormData();
-      fd.append("pdf0", fileA);
-      fd.append("pdf1", fileB);
-      fd.append("label0", labelAInput.trim());
-      fd.append("label1", labelBInput.trim());
+      slots.forEach((s, i) => {
+        if (!s.file) return;
+        fd.append(`pdf${i}`, s.file);
+        fd.append(`label${i}`, s.label.trim());
+      });
 
       const res = await fetch("/api/parse", { method: "POST", body: fd });
 
@@ -352,7 +379,7 @@ export function UploadScreen({
       }
 
       const graphData: GraphData = await res.json();
-      onSuccess(graphData, labelAInput.trim(), labelBInput.trim());
+      onSuccess(graphData);
     } catch (err: unknown) {
       console.error("Upload failed:", err);
       setSubmitError(t("unknownError"));
@@ -380,6 +407,8 @@ export function UploadScreen({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const slotLabel = (index: number) => `${t("docFallback")} ${index + 1}`;
 
   return (
     <div className="flex flex-col min-h-screen bg-[#070b13] text-[#f8fafc] font-sans antialiased">
@@ -432,23 +461,45 @@ export function UploadScreen({
       <main className="flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-2xl">
           {/* Card */}
-          <div
-            data-testid="upload-drop-zone"
-            onDragOver={handleContainerDragOver}
-            onDragLeave={handleContainerDragLeave}
-            onDrop={handleContainerDrop}
-            className={`bg-[#0d1527] border rounded-2xl p-8 shadow-xl shadow-black/40 transition-colors duration-200 ${
-              isContainerDragging ? "border-[#38bdf8]/60" : "border-[#1e293b]"
-            }`}
-          >
+          <div className="bg-[#0d1527] border border-[#1e293b] rounded-2xl p-8 shadow-xl shadow-black/40">
             {/* Title block */}
-            <div className="mb-8 text-center">
+            <div className="mb-6 text-center">
               <h2 className="text-2xl font-extrabold tracking-tight text-[#f8fafc]">
                 {t("uploadTitle")}
               </h2>
               <p className="mt-2 text-sm text-[#94a3b8] leading-relaxed">
                 {t("uploadSubtitle")}
               </p>
+            </div>
+
+            {/* Mode Toggle */}
+            <div className="flex justify-center mb-6">
+              <div className="flex items-center gap-1 bg-[#131e35] p-1 rounded-lg border border-[#1e293b]" role="tablist">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === "bulk"}
+                  disabled={loading}
+                  onClick={() => handleModeToggle("bulk")}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
+                    mode === "bulk" ? "bg-[#38bdf8] text-[#070b13] shadow-md shadow-[#38bdf8]/10" : "text-[#94a3b8] hover:text-[#f8fafc]"
+                  }`}
+                >
+                  {t("uploadModeBulk")}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === "individual"}
+                  disabled={loading}
+                  onClick={() => handleModeToggle("individual")}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
+                    mode === "individual" ? "bg-[#38bdf8] text-[#070b13] shadow-md shadow-[#38bdf8]/10" : "text-[#94a3b8] hover:text-[#f8fafc]"
+                  }`}
+                >
+                  {t("uploadModeIndividual")}
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleSubmit} noValidate className="space-y-6">
@@ -460,29 +511,92 @@ export function UploadScreen({
                 </p>
               )}
 
-              {/* File slots */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FileSlot
-                  file={fileA}
-                  error={errorA}
-                  label={t("labelA")}
-                  dropZoneText={t("dropZoneA")}
-                  onFile={handleFileA}
-                  inputRef={inputRefA}
-                  disabled={loading}
-                  onDropExtras={handleSlotDropExtras}
-                />
-                <FileSlot
-                  file={fileB}
-                  error={errorB}
-                  label={t("labelB")}
-                  dropZoneText={t("dropZoneB")}
-                  onFile={handleFileB}
-                  inputRef={inputRefB}
-                  disabled={loading}
-                  onDropExtras={handleSlotDropExtras}
-                />
-              </div>
+              {mode === "bulk" ? (
+                <div
+                  data-testid="upload-drop-zone"
+                  onDragOver={handleContainerDragOver}
+                  onDragLeave={handleContainerDragLeave}
+                  onDrop={handleContainerDrop}
+                  className={`rounded-xl border-2 border-dashed transition-colors duration-200 p-4 ${
+                    isContainerDragging ? "border-[#38bdf8]/60 bg-[#38bdf8]/5" : "border-[#1e293b]"
+                  }`}
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {slots.map((slot, i) => (
+                      <FileSlot
+                        key={i}
+                        file={slot.file}
+                        error={slot.error}
+                        label={slotLabel(i)}
+                        dropZoneText={t("dropZoneSlot")}
+                        onFile={(file) => handleSlotFile(i, file)}
+                        inputRef={getInputRef(i)}
+                        disabled={loading}
+                        onDropExtras={handleSlotDropExtras}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div
+                    data-testid="upload-drop-zone"
+                    onDragOver={handleContainerDragOver}
+                    onDragLeave={handleContainerDragLeave}
+                    onDrop={handleContainerDrop}
+                    className={`rounded-xl border-2 border-dashed transition-colors duration-200 p-4 ${
+                      isContainerDragging ? "border-[#38bdf8]/60 bg-[#38bdf8]/5" : "border-transparent"
+                    }`}
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {slots.map((slot, i) => (
+                        <div key={i} className="relative">
+                          {slots.length > MIN_SLOTS && (
+                            <button
+                              type="button"
+                              aria-label={`${t("removeDocument")} ${i + 1}`}
+                              disabled={loading}
+                              onClick={() => handleRemoveSlot(i)}
+                              className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-full bg-[#1e293b] hover:bg-[#334155] border border-[#334155] flex items-center justify-center text-[#94a3b8] hover:text-[#f8fafc] transition-all disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <FileSlot
+                            file={slot.file}
+                            error={slot.error}
+                            label={slotLabel(i)}
+                            dropZoneText={t("dropZoneSlot")}
+                            onFile={(file) => handleSlotFile(i, file)}
+                            inputRef={getInputRef(i)}
+                            disabled={loading}
+                            onDropExtras={handleSlotDropExtras}
+                          />
+                          <input
+                            type="text"
+                            value={slot.label}
+                            onChange={(e) => handleLabelChange(i, e.target.value)}
+                            placeholder={slotLabel(i)}
+                            aria-label={slotLabel(i)}
+                            className="mt-1.5 w-full px-3 py-2 rounded-lg bg-[#131e35] border border-[#1e293b] text-sm text-[#f8fafc] placeholder-[#4b5c75]
+                                       focus:outline-none focus:ring-2 focus:ring-[#38bdf8]/50 focus:border-[#38bdf8]/60 transition-colors"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={loading || slots.length >= MAX_SLOTS}
+                    onClick={handleAddSlot}
+                    className="w-full py-2.5 rounded-xl border border-dashed border-[#1e293b] text-xs font-semibold text-[#94a3b8] hover:text-[#38bdf8] hover:border-[#38bdf8]/40 transition-all duration-200 flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    {t("addDocument")}
+                  </button>
+                </div>
+              )}
 
               {/* Size error */}
               {sizeError && (
@@ -492,43 +606,23 @@ export function UploadScreen({
                 </p>
               )}
 
-              {/* Label inputs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label
-                    htmlFor="labelA"
-                    className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider"
-                  >
-                    {t("labelA")}
-                  </label>
-                  <input
-                    id="labelA"
-                    type="text"
-                    value={labelAInput}
-                    onChange={(e) => handleLabelAChange(e.target.value)}
-                    placeholder={t("labelA")}
-                    className="px-3 py-2 rounded-lg bg-[#131e35] border border-[#1e293b] text-sm text-[#f8fafc] placeholder-[#4b5c75]
-                               focus:outline-none focus:ring-2 focus:ring-[#38bdf8]/50 focus:border-[#38bdf8]/60 transition-colors"
-                  />
+              {/* Bulk-mode label inputs (Individual mode inlines them per-slot above) */}
+              {mode === "bulk" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {slots.map((slot, i) => (
+                    <input
+                      key={i}
+                      type="text"
+                      value={slot.label}
+                      onChange={(e) => handleLabelChange(i, e.target.value)}
+                      placeholder={slotLabel(i)}
+                      aria-label={slotLabel(i)}
+                      className="px-3 py-2 rounded-lg bg-[#131e35] border border-[#1e293b] text-sm text-[#f8fafc] placeholder-[#4b5c75]
+                                 focus:outline-none focus:ring-2 focus:ring-[#38bdf8]/50 focus:border-[#38bdf8]/60 transition-colors"
+                    />
+                  ))}
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <label
-                    htmlFor="labelB"
-                    className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider"
-                  >
-                    {t("labelB")}
-                  </label>
-                  <input
-                    id="labelB"
-                    type="text"
-                    value={labelBInput}
-                    onChange={(e) => handleLabelBChange(e.target.value)}
-                    placeholder={t("labelB")}
-                    className="px-3 py-2 rounded-lg bg-[#131e35] border border-[#1e293b] text-sm text-[#f8fafc] placeholder-[#4b5c75]
-                               focus:outline-none focus:ring-2 focus:ring-[#38bdf8]/50 focus:border-[#38bdf8]/60 transition-colors"
-                  />
-                </div>
-              </div>
+              )}
 
               {/* Submit error */}
               {submitError && (

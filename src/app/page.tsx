@@ -95,8 +95,6 @@ export default function Home() {
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>("all");
   
   const [lang, setLang] = useState<Lang>("da");
-  const [labelAInput, setLabelAInput] = useState("");
-  const [labelBInput, setLabelBInput] = useState("");
 
   // Load language preference from localStorage on mount
   useEffect(() => {
@@ -145,10 +143,6 @@ export default function Home() {
         t={t}
         lang={lang}
         setLang={changeLang}
-        labelAInput={labelAInput}
-        setLabelAInput={setLabelAInput}
-        labelBInput={labelBInput}
-        setLabelBInput={setLabelBInput}
       />
     );
   }
