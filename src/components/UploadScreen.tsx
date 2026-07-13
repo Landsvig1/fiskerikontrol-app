@@ -239,9 +239,18 @@ export function UploadScreen({
     setSlots(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Switching to Bulk drops any lingering empty slots (e.g. an unfilled "+ Add document"
+  // slot from Individual mode) so Bulk's single-box view — which only ever renders filled
+  // slots — can't have an invisible empty slot silently blocking canSubmit. Switching to
+  // Individual pads back up to MIN_SLOTS so it keeps showing its classic 2-box minimum.
   const handleModeToggle = (next: "bulk" | "individual") => {
     if (loading) return;
     autoTriggerArmedRef.current = false;
+    setSlots(prev => {
+      if (next === "bulk") return prev.filter(s => s.file !== null);
+      if (prev.length >= MIN_SLOTS) return prev;
+      return [...prev, ...Array.from({ length: MIN_SLOTS - prev.length }, emptySlot)];
+    });
     setMode(next);
   };
 
@@ -263,15 +272,10 @@ export function UploadScreen({
     setMultiDropNotice(fileCount > 1 ? t("multiDropNonPdfIgnored") : null);
   };
 
-  // Bulk-mode drop: fill existing empty slots first (in drop order), then
-  // append any remaining PDFs as new slots up to MAX_SLOTS. Existing filled
-  // slots are never overwritten or reordered.
-  const handleContainerDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsContainerDragging(false);
-    if (loading) return;
-
-    const files = Array.from(e.dataTransfer.files);
+  // Bulk assignment (shared by container drop and the bulk box's multi-file browse input):
+  // fill existing empty slots first (in drop order), then append any remaining PDFs as new
+  // slots up to MAX_SLOTS. Existing filled slots are never overwritten or reordered.
+  const assignFiles = (files: File[]) => {
     if (files.length === 0) return;
 
     const pdfFiles = files.filter((f) => f.type === "application/pdf");
@@ -317,6 +321,27 @@ export function UploadScreen({
 
       return next;
     });
+  };
+
+  const handleContainerDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsContainerDragging(false);
+    if (loading) return;
+    assignFiles(Array.from(e.dataTransfer.files));
+  };
+
+  const bulkFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleBulkFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (loading) return;
+    assignFiles(Array.from(e.target.files ?? []));
+    // Reset so selecting the exact same file(s) again still fires a change event.
+    e.target.value = "";
+  };
+
+  const openBulkFileBrowser = () => {
+    if (loading) return;
+    bulkFileInputRef.current?.click();
   };
 
   const canSubmit =
@@ -526,31 +551,96 @@ export function UploadScreen({
               )}
 
               {mode === "bulk" ? (
-                <div
-                  data-testid="upload-drop-zone"
-                  onDragOver={handleContainerDragOver}
-                  onDragLeave={handleContainerDragLeave}
-                  onDrop={handleContainerDrop}
-                  className={`rounded-xl border-2 border-dashed transition-colors duration-200 p-4 ${
-                    isContainerDragging ? "border-[#38bdf8]/60 bg-[#38bdf8]/5" : "border-[#1e293b]"
-                  }`}
-                >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {slots.map((slot, i) => (
-                      <FileSlot
-                        key={i}
-                        file={slot.file}
-                        error={slot.error}
-                        label={slotLabel(i)}
-                        dropZoneText={t("dropZoneSlot")}
-                        onFile={(file) => handleSlotFile(i, file)}
-                        inputRef={getInputRef(i)}
-                        disabled={loading}
-                        onDropExtras={handleSlotDropExtras}
+                (() => {
+                  const filledCount = slots.filter(s => s.file !== null).length;
+                  return (
+                    <div
+                      data-testid="upload-drop-zone"
+                      role={filledCount === 0 ? "button" : undefined}
+                      tabIndex={filledCount === 0 ? (loading ? -1 : 0) : undefined}
+                      aria-label={filledCount === 0 ? t("dropZoneBulk") : undefined}
+                      aria-disabled={filledCount === 0 ? loading : undefined}
+                      onClick={filledCount === 0 ? openBulkFileBrowser : undefined}
+                      onKeyDown={filledCount === 0 ? (e) => {
+                        if (loading) return;
+                        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openBulkFileBrowser(); }
+                      } : undefined}
+                      onDragOver={handleContainerDragOver}
+                      onDragLeave={handleContainerDragLeave}
+                      onDrop={handleContainerDrop}
+                      className={`rounded-xl border-2 border-dashed transition-all duration-200 ${
+                        filledCount === 0 ? "min-h-[140px] flex flex-col items-center justify-center gap-3 p-6 select-none" : "p-4"
+                      } ${
+                        isContainerDragging
+                          ? "border-[#38bdf8] bg-[#38bdf8]/10"
+                          : filledCount === 0
+                            ? `border-[#1e293b] bg-[#0d1527] ${loading ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-[#38bdf8]/50 hover:bg-[#38bdf8]/5"}`
+                            : "border-[#1e293b]"
+                      }`}
+                    >
+                      {filledCount === 0 ? (
+                        <>
+                          <Upload className="w-8 h-8 text-[#38bdf8]" />
+                          <span className="text-sm text-center leading-snug text-[#94a3b8]">
+                            {t("dropZoneBulk")}
+                          </span>
+                        </>
+                      ) : (
+                        <div className="space-y-2">
+                          {slots.map((slot, i) => slot.file && (
+                            <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-[#070b13] border border-[#1e293b]">
+                              <FileText className="w-5 h-5 text-[#10b981] shrink-0" />
+                              <div className="min-w-0 shrink-0 w-40 sm:w-56">
+                                <p className="text-sm text-[#f8fafc] truncate">{slot.file.name}</p>
+                                <p className="text-xs text-[#94a3b8]">{(slot.file.size / 1024 / 1024).toFixed(2)} MB</p>
+                              </div>
+                              <input
+                                type="text"
+                                value={slot.label}
+                                onChange={(e) => handleLabelChange(i, e.target.value)}
+                                placeholder={slotLabel(i)}
+                                aria-label={slotLabel(i)}
+                                disabled={loading}
+                                className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-[#131e35] border border-[#1e293b] text-sm text-[#f8fafc] placeholder-[#4b5c75]
+                                           focus:outline-none focus:ring-2 focus:ring-[#38bdf8]/50 focus:border-[#38bdf8]/60 transition-colors disabled:opacity-50"
+                              />
+                              {filledCount > MIN_SLOTS && (
+                                <button
+                                  type="button"
+                                  aria-label={`${t("removeDocument")} ${i + 1}`}
+                                  disabled={loading}
+                                  onClick={() => handleRemoveSlot(i)}
+                                  className="shrink-0 w-7 h-7 rounded-full bg-[#1e293b] hover:bg-[#334155] border border-[#334155] flex items-center justify-center text-[#94a3b8] hover:text-[#f8fafc] transition-all disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            disabled={loading || slots.length >= MAX_SLOTS}
+                            onClick={openBulkFileBrowser}
+                            className="w-full py-2.5 rounded-xl border border-dashed border-[#1e293b] text-xs font-semibold text-[#94a3b8] hover:text-[#38bdf8] hover:border-[#38bdf8]/40 transition-all duration-200 flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            {t("addDocument")}
+                          </button>
+                        </div>
+                      )}
+                      <input
+                        ref={bulkFileInputRef}
+                        type="file"
+                        accept=".pdf"
+                        multiple
+                        className="hidden"
+                        onChange={handleBulkFileInputChange}
+                        aria-hidden="true"
+                        tabIndex={-1}
                       />
-                    ))}
-                  </div>
-                </div>
+                    </div>
+                  );
+                })()
               ) : (
                 <div className="space-y-4">
                   <div
@@ -619,24 +709,6 @@ export function UploadScreen({
                   <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                   {sizeError}
                 </p>
-              )}
-
-              {/* Bulk-mode label inputs (Individual mode inlines them per-slot above) */}
-              {mode === "bulk" && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {slots.map((slot, i) => (
-                    <input
-                      key={i}
-                      type="text"
-                      value={slot.label}
-                      onChange={(e) => handleLabelChange(i, e.target.value)}
-                      placeholder={slotLabel(i)}
-                      aria-label={slotLabel(i)}
-                      className="px-3 py-2 rounded-lg bg-[#131e35] border border-[#1e293b] text-sm text-[#f8fafc] placeholder-[#4b5c75]
-                                 focus:outline-none focus:ring-2 focus:ring-[#38bdf8]/50 focus:border-[#38bdf8]/60 transition-colors"
-                    />
-                  ))}
-                </div>
               )}
 
               {/* Submit error */}

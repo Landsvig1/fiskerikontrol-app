@@ -8,7 +8,7 @@ export type TranslationKey =
   | "newAnalysis" | "dashboard" | "citationGraph" | "nodeGraph"
   | "overlaps" | "conflicts" | "browse"
   | "uploadTitle" | "uploadSubtitle"
-  | "dropZoneSlot"
+  | "dropZoneSlot" | "dropZoneBulk"
   | "analyseButton" | "analysing"
   | "invalidPdfError" | "sizeLimitError" | "unknownError"
   | "multiDropNonPdfIgnored" | "multiDropCapReached"
@@ -39,6 +39,7 @@ const da: Translations = {
   uploadTitle: "Start ny analyse",
   uploadSubtitle: "Upload dine PDF-dokumenter og angiv navne for at kortlægge citationer og konflikter.",
   dropZoneSlot: "Træk og slip en PDF her, eller klik for at vælge",
+  dropZoneBulk: "Træk og slip dine PDF-dokumenter her, eller klik for at vælge flere",
   analyseButton: "Analysér",
   analysing: "Analyserer...",
   invalidPdfError: "Kun PDF-filer accepteres.",
@@ -89,6 +90,7 @@ const en: Translations = {
   uploadTitle: "Start a new analysis",
   uploadSubtitle: "Upload your PDF documents and provide names to map citations and conflicts.",
   dropZoneSlot: "Drag and drop a PDF here, or click to select",
+  dropZoneBulk: "Drag and drop your PDF documents here, or click to select multiple",
   analyseButton: "Analyse",
   analysing: "Analysing...",
   invalidPdfError: "Only PDF files are accepted.",
