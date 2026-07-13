@@ -169,7 +169,9 @@ export function UploadScreen({
   const [isContainerDragging, setIsContainerDragging] = useState(false);
 
   const inputRefsRef = useRef<Map<number, React.RefObject<HTMLInputElement | null>>>(new Map());
+  const labelInputRefsRef = useRef<Map<number, HTMLInputElement | null>>(new Map());
   const autoTriggerArmedRef = useRef(false);
+  const pendingFocusIndexRef = useRef<number | null>(null);
 
   const getInputRef = (index: number): React.RefObject<HTMLInputElement | null> => {
     if (!inputRefsRef.current.has(index)) {
@@ -177,6 +179,17 @@ export function UploadScreen({
     }
     return inputRefsRef.current.get(index)!;
   };
+
+  // Focuses a slot's label input right after it's added via "+ Add document", so keyboard
+  // users don't lose their place. Only fires for adds — slots.length is a coarse trigger,
+  // but pendingFocusIndexRef being null after every other mutation path keeps this a no-op
+  // for file drops, removals, and mode toggles.
+  useEffect(() => {
+    if (pendingFocusIndexRef.current === null) return;
+    const index = pendingFocusIndexRef.current;
+    pendingFocusIndexRef.current = null;
+    labelInputRefsRef.current.get(index)?.focus();
+  }, [slots.length]);
 
   // Derived (not effect-driven) so it's always in sync with slots in the same
   // render — the auto-trigger effect below reads it in that same render.
@@ -216,6 +229,7 @@ export function UploadScreen({
   const handleAddSlot = () => {
     if (loading || slots.length >= MAX_SLOTS) return;
     autoTriggerArmedRef.current = false;
+    pendingFocusIndexRef.current = slots.length;
     setSlots(prev => [...prev, emptySlot()]);
   };
 
@@ -573,6 +587,7 @@ export function UploadScreen({
                             onDropExtras={handleSlotDropExtras}
                           />
                           <input
+                            ref={(el) => { labelInputRefsRef.current.set(i, el); }}
                             type="text"
                             value={slot.label}
                             onChange={(e) => handleLabelChange(i, e.target.value)}

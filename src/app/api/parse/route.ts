@@ -29,11 +29,17 @@ export async function POST(request: Request) {
   }
 }
 
+// Matches the client's MAX_SLOTS in UploadScreen.tsx. Enforced server-side too since the
+// indexed pdf${i} loop below has no other bound — without this, a request crafted outside
+// the UI could submit an unbounded number of small PDFs (each triggering its own pdf-parse
+// invocation) while still fitting under the combined size cap.
+const MAX_DOCS = 12;
+
 async function handleParse(request: Request) {
   const formData = await request.formData();
 
   const docs: { file: File; label: string }[] = [];
-  for (let i = 0; ; i++) {
+  for (let i = 0; i <= MAX_DOCS; i++) {
     const file = formData.get(`pdf${i}`) as File | null;
     if (!file) break;
     const label = (formData.get(`label${i}`) as string | null)?.trim() ?? "";
@@ -43,6 +49,13 @@ async function handleParse(request: Request) {
   if (docs.length < 2) {
     return NextResponse.json(
       { error: "At least 2 PDF documents are required." },
+      { status: 400 }
+    );
+  }
+
+  if (docs.length > MAX_DOCS) {
+    return NextResponse.json(
+      { error: `At most ${MAX_DOCS} PDF documents are supported per request.` },
       { status: 400 }
     );
   }

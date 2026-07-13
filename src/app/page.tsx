@@ -358,7 +358,7 @@ function DashboardView({
             className="bg-[#0f172a] border border-[#1e293b] p-6 rounded-xl hover:border-[#38bdf8]/40 transition-all duration-300"
           >
             <BookOpen className="w-8 h-8 mb-4" style={{ color: docColorFor(data.docs, d.id) }} />
-            <h3 className="text-xs uppercase font-semibold text-[#94a3b8] tracking-wider truncate">{d.label || `${t("docFallback")}`}</h3>
+            <h3 className="text-xs uppercase font-semibold text-[#94a3b8] tracking-wider truncate">{docLabel(data.docs, d.id, t)}</h3>
             <p className="text-4xl font-extrabold text-[#f8fafc] mt-2">{d.count}</p>
           </div>
         ))}

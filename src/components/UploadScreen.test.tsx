@@ -67,7 +67,11 @@ describe("UploadScreen bulk mode (default)", () => {
     expect(onSuccess).toHaveBeenCalledWith(expect.objectContaining({ docs: expect.any(Array) }));
   });
 
-  it("assigns all dropped PDFs when 3+ are dropped together, appending beyond the initial two slots", async () => {
+  it("assigns all dropped PDFs when 3+ are dropped together, appending beyond the initial two slots, and auto-fires", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => makeGraphData(),
+    });
     renderUploadScreen();
     const dropZone = screen.getByTestId("upload-drop-zone");
 
@@ -79,6 +83,33 @@ describe("UploadScreen bulk mode (default)", () => {
     expect(screen.getByText("two.pdf")).toBeInTheDocument();
     expect(screen.getByText("three.pdf")).toBeInTheDocument();
     expect(screen.queryByText(t("multiDropNonPdfIgnored"))).not.toBeInTheDocument();
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+    const [, options] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = options.body as FormData;
+    expect(body.get("pdf2")).toBeTruthy();
+    expect(body.get("label2")).toBe("Three");
+  });
+
+  it("appends onto an already-partially-filled slot array without touching existing slots", async () => {
+    renderUploadScreen();
+    fireEvent.click(screen.getByRole("tab", { name: t("uploadModeIndividual") }));
+
+    fireEvent.drop(screen.getByRole("button", { name: slotName(0) }), { dataTransfer: { files: [pdf("first.pdf")] } });
+    fireEvent.drop(screen.getByRole("button", { name: slotName(1) }), { dataTransfer: { files: [pdf("second.pdf")] } });
+    fireEvent.click(screen.getByRole("button", { name: t("addDocument") }));
+    await screen.findByText("second.pdf");
+
+    fireEvent.click(screen.getByRole("tab", { name: t("uploadModeBulk") }));
+    const dropZone = screen.getByTestId("upload-drop-zone");
+    fireEvent.drop(dropZone, { dataTransfer: { files: [pdf("third.pdf"), pdf("fourth.pdf")] } });
+
+    // The two pre-existing filled slots are untouched; "third" fills the empty 3rd slot,
+    // "fourth" appends as a brand-new 4th slot.
+    expect(screen.getByText("first.pdf")).toBeInTheDocument();
+    expect(screen.getByText("second.pdf")).toBeInTheDocument();
+    expect(await screen.findByText("third.pdf")).toBeInTheDocument();
+    expect(screen.getByText("fourth.pdf")).toBeInTheDocument();
   });
 
   it("truncates to the 12-slot soft cap and shows a notice when a bulk drop would exceed it", async () => {
@@ -320,11 +351,15 @@ describe("UploadScreen mode toggle and individual mode", () => {
     fireEvent.drop(slot2, { dataTransfer: { files: [pdf("third.pdf")] } });
     await screen.findByText("third.pdf");
 
+    const fetchCallsBeforeRemove = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.length;
     fireEvent.click(screen.getByRole("button", { name: `${t("removeDocument")} 1` }));
 
     expect(screen.queryByText("first.pdf")).not.toBeInTheDocument();
     expect(screen.getByText("second.pdf")).toBeInTheDocument();
     expect(screen.getByText("third.pdf")).toBeInTheDocument();
+    // The remaining 2 slots (second, third) are now fully filled+labeled and would satisfy
+    // canSubmit — proves the removal itself disarmed auto-fire rather than triggering a new call.
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.length).toBe(fetchCallsBeforeRemove);
   });
 
   it("disables 'Add document' once the 12-slot cap is reached", async () => {
@@ -337,6 +372,15 @@ describe("UploadScreen mode toggle and individual mode", () => {
     }
 
     expect(addButton).toBeDisabled();
+  });
+
+  it("focuses the newly-added slot's label input after clicking 'Add document'", async () => {
+    renderUploadScreen();
+    fireEvent.click(screen.getByRole("tab", { name: t("uploadModeIndividual") }));
+
+    fireEvent.click(screen.getByRole("button", { name: t("addDocument") }));
+
+    expect(screen.getByPlaceholderText(slotName(2))).toHaveFocus();
   });
 
   it("does not auto-fire merely from switching modes, even when the array already satisfies canSubmit", async () => {

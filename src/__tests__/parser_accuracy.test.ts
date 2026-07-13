@@ -345,5 +345,11 @@ describe("LexGraph Parser Accuracy & Citation Extraction", () => {
       // even though doc1 also independently defines its own Article 5.
       expect(link?.target).toBe("doc0_sec_5");
     });
+
+    it("throws a structured TOO_FEW_DOCUMENTS error when fewer than 2 documents are provided", () => {
+      expect(() => analyzeCitationsAndBuildGraph([{ text: "Article 1\nOnly one document.", label: "Solo" }])).toThrow(
+        expect.objectContaining({ code: "TOO_FEW_DOCUMENTS" })
+      );
+    });
   });
 });
