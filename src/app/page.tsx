@@ -13,79 +13,40 @@ import {
   RefreshCw,
   Info,
   CheckCircle,
-  ShieldAlert
+  ShieldAlert,
+  FileText,
+  Calendar
 } from "lucide-react";
 import * as d3 from "d3";
 import { CitationGraphView } from "@/components/CitationGraphView";
 import { UploadScreen } from "@/components/UploadScreen";
 import { ConflictInspectorModal } from "@/components/ConflictInspectorModal";
+import { FleetFilterBar } from "@/components/FleetFilterBar";
+import { EnforcementTimelineView } from "@/components/EnforcementTimelineView";
+import { AuditMemoModal } from "@/components/AuditMemoModal";
+import { FleetFilterCriteria, DEFAULT_FLEET_CRITERIA, matchesFleetCriteria } from "@/lib/fleetFilter";
 import { getT, Lang, TranslateFn, TranslationKey } from "@/lib/i18n";
-import { modalityColor, modalityBadgeClasses, Modality } from "@/lib/graphColors";
+import { modalityColor, modalityBadgeClasses } from "@/lib/graphColors";
 import { filterGraph, computeDegree } from "@/lib/graphFilter";
 import { docLabel, docColorFor, docBadgeStyle, DocRef } from "@/lib/docDisplay";
+import {
+  GraphNode,
+  GraphLink,
+  OverlapRecord,
+  ConflictRecord,
+  GraphData,
+} from "@/lib/types";
 
-export type { DocRef };
+export type {
+  DocRef,
+  GraphNode,
+  GraphLink,
+  OverlapRecord,
+  ConflictRecord,
+  GraphData,
+};
 
-// Type definitions
-export interface GraphNode extends d3.SimulationNodeDatum {
-  id: string;           // format: {docId}_sec_{n}  e.g. "doc0_sec_12"
-  number: number;
-  label: string;
-  title: string;
-  doc: string;           // docId
-  theme: string;
-  body: string;
-  is_subnode?: boolean;
-  parent_id?: string;
-  external?: boolean;   // true for virtual subnodes that reference unknown sections
-  // d3 position properties
-  x?: number;
-  y?: number;
-  vx?: number;
-  vy?: number;
-}
-
-export interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
-  source: string | GraphNode;
-  target: string | GraphNode;
-  type: string;
-  modality: Modality;
-  snippet: string;
-  context: string;
-}
-
-export interface OverlapRecord {
-  target: string;
-  sources: string[];
-  count: number;
-  citations: Array<{
-    source: string;
-    modality: string;
-    snippet: string;
-  }>;
-}
-
-export interface ConflictRecord {
-  target: string;
-  modalities: string[];
-  description: string;
-  citations: Array<{
-    source: string;
-    modality: string;
-    snippet: string;
-    context: string;
-  }>;
-}
-
-export interface GraphData {
-  nodes: GraphNode[];
-  links: GraphLink[];
-  overlaps: OverlapRecord[];
-  conflicts: ConflictRecord[];
-  docs: DocRef[];
-}
-
-type TabType = "dashboard" | "citation" | "graph" | "overlaps" | "conflicts" | "browse";
+type TabType = "dashboard" | "citation" | "graph" | "overlaps" | "conflicts" | "browse" | "timeline";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
@@ -94,6 +55,8 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [inspectingConflict, setInspectingConflict] = useState<ConflictRecord | null>(null);
+  const [isAuditMemoOpen, setIsAuditMemoOpen] = useState(false);
+  const [fleetCriteria, setFleetCriteria] = useState<FleetFilterCriteria>(DEFAULT_FLEET_CRITERIA);
   const [activeDocFilter, setActiveDocFilter] = useState<"all" | string>("all");
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>("all");
   
@@ -168,7 +131,7 @@ export default function Home() {
         
         {/* Navigation Tabs */}
         <nav className="flex gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 flex-wrap">
-          {(["dashboard", "citation", "graph", "overlaps", "conflicts", "browse"] as const).map(tab => (
+          {(["dashboard", "timeline", "citation", "graph", "overlaps", "conflicts", "browse"] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -179,6 +142,12 @@ export default function Home() {
               }`}
             >
               {tab === "dashboard" && t("dashboard")}
+              {tab === "timeline" && (
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-sky-700" />
+                  {t("timeline")}
+                </span>
+              )}
               {tab === "citation" && t("citationGraph")}
               {tab === "graph" && t("nodeGraph")}
               {tab === "overlaps" && `${t("overlaps")} (${data.overlaps.length})`}
@@ -188,8 +157,18 @@ export default function Home() {
           ))}
         </nav>
 
-        {/* Right side controls: Language and Reset */}
-        <div className="flex items-center gap-3">
+        {/* Right side controls: Audit Memo, Language, and Reset */}
+        <div className="flex items-center gap-2.5">
+          {/* Export Legal Audit Memo button */}
+          <button
+            type="button"
+            onClick={() => setIsAuditMemoOpen(true)}
+            className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+          >
+            <FileText className="w-3.5 h-3.5 text-sky-300" />
+            {t("exportAuditMemo")}
+          </button>
+
           {/* Language Toggle */}
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
             <button
@@ -232,8 +211,24 @@ export default function Home() {
           <DashboardView 
             data={data} 
             setActiveTab={setActiveTab} 
+            fleetCriteria={fleetCriteria}
+            setFleetCriteria={setFleetCriteria}
             t={t}
             lang={lang}
+          />
+        )}
+        {activeTab === "timeline" && (
+          <EnforcementTimelineView 
+            data={data}
+            lang={lang}
+            t={t}
+            onInspectNode={(nodeLabel) => {
+              const found = data.nodes.find(n => n.label.toLowerCase().includes(nodeLabel.toLowerCase()));
+              if (found) {
+                setSelectedNode(found);
+                setActiveTab("citation");
+              }
+            }}
           />
         )}
         {activeTab === "citation" && (
@@ -301,6 +296,18 @@ export default function Home() {
           t={t}
         />
       )}
+
+      {/* 1-Click Exportable Legal Audit Memo Modal */}
+      {isAuditMemoOpen && (
+        <AuditMemoModal
+          isOpen={isAuditMemoOpen}
+          onClose={() => setIsAuditMemoOpen(false)}
+          data={data}
+          criteria={fleetCriteria}
+          lang={lang}
+          t={t}
+        />
+      )}
     </div>
   );
 }
@@ -311,25 +318,38 @@ export default function Home() {
 function DashboardView({ 
   data, 
   setActiveTab, 
+  fleetCriteria,
+  setFleetCriteria,
   t,
   lang
 }: { 
   data: GraphData; 
   setActiveTab: (tab: TabType) => void;
+  fleetCriteria: FleetFilterCriteria;
+  setFleetCriteria: (criteria: FleetFilterCriteria) => void;
   t: TranslateFn;
   lang: Lang;
 }) {
+  const filteredNodes = data.nodes.filter(n => matchesFleetCriteria(n, fleetCriteria));
   const countsByDoc = data.docs.map(d => ({
     ...d,
-    count: data.nodes.filter(n => n.doc === d.id && !n.is_subnode).length,
+    count: filteredNodes.filter(n => n.doc === d.id && !n.is_subnode).length,
   }));
-  const totalPrimaryNodes = data.nodes.filter(n => !n.is_subnode).length;
+  const totalPrimaryNodes = filteredNodes.filter(n => !n.is_subnode).length;
   const totalCitations = data.links.length;
   const docLabels = data.docs.map(d => d.label);
   const docLabelList = new Intl.ListFormat(lang, { style: "long", type: "conjunction" }).format(docLabels);
 
   return (
     <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-[#fafaf9] text-slate-900">
+      {/* Fleet & Scenario Filter Bar */}
+      <FleetFilterBar
+        criteria={fleetCriteria}
+        onChange={setFleetCriteria}
+        lang={lang}
+        matchCount={filteredNodes.length}
+        totalCount={data.nodes.length}
+      />
       {/* Citation Graph Preview */}
       <div className="bg-white border border-slate-200/90 p-6 rounded-2xl space-y-4 shadow-xs">
         <div className="flex items-center justify-between">

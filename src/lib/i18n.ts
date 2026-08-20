@@ -6,7 +6,7 @@ export type Lang = "da" | "en";
 export type TranslationKey =
   | "appTitle" | "appTagline"
   | "newAnalysis" | "dashboard" | "citationGraph" | "nodeGraph"
-  | "overlaps" | "conflicts" | "browse"
+  | "overlaps" | "conflicts" | "browse" | "timeline"
   | "uploadTitle" | "uploadSubtitle"
   | "dropZoneSlot" | "dropZoneBulk"
   | "analyseButton" | "analysing"
@@ -27,7 +27,8 @@ export type TranslationKey =
   | "inspectConflict" | "conflictSummaryBanner"
   | "baseProvision" | "derogatingProvision"
   | "copyConflictBrief" | "copiedToClipboard" | "closeModal"
-  | "selectedPresetCount";
+  | "selectedPresetCount"
+  | "exportAuditMemo" | "fleetScenarios";
 
 export type Translations = Record<TranslationKey, string>;
 
@@ -90,7 +91,10 @@ const da: Translations = {
   copyConflictBrief: "Kopiér notat",
   copiedToClipboard: "Kopieret til udklipsholder!",
   closeModal: "Luk",
+  timeline: "Tidslinje & Frister",
   selectedPresetCount: "{count} valgt",
+  exportAuditMemo: "Eksportér Tilsynsnotat",
+  fleetScenarios: "Flådescenarier",
 };
 
 const en: Translations = {
@@ -103,6 +107,7 @@ const en: Translations = {
   overlaps: "Overlaps",
   conflicts: "Conflicts",
   browse: "Search & Browse",
+  timeline: "Timeline & Deadlines",
   uploadTitle: "Start a new analysis",
   uploadSubtitle: "Upload your PDF documents and provide names to map citations and conflicts.",
   dropZoneSlot: "Drag and drop a PDF here, or click to select",
@@ -153,6 +158,8 @@ const en: Translations = {
   copiedToClipboard: "Copied to clipboard!",
   closeModal: "Close",
   selectedPresetCount: "{count} selected",
+  exportAuditMemo: "Export Audit Memo",
+  fleetScenarios: "Fleet Scenarios",
 };
 
 export const translations: Record<Lang, Translations> = { da, en };
