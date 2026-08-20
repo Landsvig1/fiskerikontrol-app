@@ -31,7 +31,9 @@ export type TranslationKey =
   | "exportAuditMemo" | "fleetScenarios"
   | "conflictsHeaderTitle" | "conflictsHeaderSubtitle"
   | "euPrecedenceBadge" | "inspectionVerdictTitle"
-  | "euRuleLabel" | "nationalDeviationLabel";
+  | "euRuleLabel" | "nationalDeviationLabel"
+  | "showDocumentText" | "hideDocumentText" | "noConnections"
+  | "outgoingCitation" | "incomingCitation";
 
 export type Translations = Record<TranslationKey, string>;
 
@@ -104,6 +106,11 @@ const da: Translations = {
   inspectionVerdictTitle: "Konklusion for Tilsynet",
   euRuleLabel: "EU Hovedregel (Krav)",
   nationalDeviationLabel: "National Undtagelse (Afvigelse)",
+  showDocumentText: "Vis fuld lovtekst / dokumenttekst",
+  hideDocumentText: "Skjul lovtekst",
+  noConnections: "Ingen direkte forbindelser fundet i grafen for denne bestemmelse.",
+  outgoingCitation: "Refererer til",
+  incomingCitation: "Citeret af",
 };
 
 const en: Translations = {
@@ -175,6 +182,11 @@ const en: Translations = {
   inspectionVerdictTitle: "Enforcement Assessment",
   euRuleLabel: "EU Base Rule (Requirement)",
   nationalDeviationLabel: "National Derogation (Exemption)",
+  showDocumentText: "Show full legal text / document text",
+  hideDocumentText: "Hide legal text",
+  noConnections: "No direct graph connections found for this provision.",
+  outgoingCitation: "References",
+  incomingCitation: "Cited by",
 };
 
 export const translations: Record<Lang, Translations> = { da, en };

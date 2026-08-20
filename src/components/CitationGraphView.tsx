@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import * as d3 from "d3";
 import { GraphNode, GraphLink, GraphData } from "@/lib/types";
 import { FleetFilterCriteria, matchesFleetCriteria } from "@/lib/fleetFilter";
@@ -6,7 +6,15 @@ import { TranslateFn, TranslationKey } from "@/lib/i18n";
 import { MODALITY_LEGEND, modalityColor, modalityBadgeClasses } from "@/lib/graphColors";
 import { filterGraph, computeDegree } from "@/lib/graphFilter";
 import { docLabel, docColorFor, docBadgeStyle } from "@/lib/docDisplay";
-import { Filter } from "lucide-react";
+import { 
+  Filter, 
+  GitBranch, 
+  ArrowUpRight, 
+  ArrowDownLeft, 
+  FileText, 
+  ChevronDown, 
+  ChevronUp 
+} from "lucide-react";
 
 interface CitationGraphViewProps {
   data: GraphData;
@@ -620,6 +628,32 @@ function CitationGraphCanvas({
       .call(zoomBehaviorRef.current.transform, transform);
   };
 
+  const [showDocText, setShowDocText] = useState(false);
+
+  useEffect(() => {
+    setShowDocText(false);
+  }, [selectedNode?.id]);
+
+  const nodeConnections = useMemo(() => {
+    if (!selectedNode) return [];
+    return data.links.filter(l => {
+      const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+      const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+      return s === selectedNode.id || t === selectedNode.id;
+    }).map(l => {
+      const sId = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+      const tId = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+      const isOutgoing = sId === selectedNode.id;
+      const otherNodeId = isOutgoing ? tId : sId;
+      const otherNode = data.nodes.find(n => n.id === otherNodeId);
+      return {
+        link: l,
+        isOutgoing,
+        otherNode
+      };
+    }).filter((item): item is { link: GraphLink; isOutgoing: boolean; otherNode: GraphNode } => item.otherNode !== undefined);
+  }, [selectedNode, data.links, data.nodes]);
+
   return (
     <div className="w-full h-full relative overflow-hidden bg-[#f8fafc]" ref={containerRef}>
       <svg ref={svgRef} className="w-full h-full block" style={{ outline: 'none' }} />
@@ -679,6 +713,131 @@ function CitationGraphCanvas({
           </div>
         )}
       </div>
+
+      {/* Details sidebar drawer — full-width overlay on small screens, fixed w-96 on md+ */}
+      {selectedNode && (
+        <div className="absolute right-0 top-0 w-full sm:w-96 max-w-full bg-white border-l border-slate-200 flex flex-col h-full z-20 shadow-xl transition-all duration-300">
+          <div className="p-5 border-b border-slate-200 bg-slate-50/70 relative flex flex-col gap-2">
+            <button 
+              onClick={() => setSelectedNode(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-xl cursor-pointer w-7 h-7 rounded-full flex items-center justify-center hover:bg-slate-200 transition-colors"
+            >
+              &times;
+            </button>
+            <div className="flex items-center gap-2">
+              <span
+                className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border"
+                style={docBadgeStyle(data.docs, selectedNode.doc, { borderAlpha: "4d" })}
+              >
+                {docLabel(data.docs, selectedNode.doc, t)}
+              </span>
+              <span className="inline-block px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[10px] font-semibold text-slate-700">
+                {selectedNode.theme}
+              </span>
+            </div>
+            <h2 className="text-base font-bold text-slate-900 leading-tight">{selectedNode.label}</h2>
+            <p className="text-xs text-slate-600 font-medium">{selectedNode.title || t("noTitle")}</p>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-5 space-y-5">
+            {/* List connections at the TOP */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs uppercase font-bold text-slate-700 tracking-wider flex items-center gap-1.5">
+                  <GitBranch className="w-3.5 h-3.5 text-sky-600" />
+                  {t("connections")}
+                </h3>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200">
+                  {nodeConnections.length}
+                </span>
+              </div>
+
+              {nodeConnections.length === 0 ? (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center">
+                  <p className="text-xs text-slate-500 italic">{t("noConnections")}</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {nodeConnections.map((item, i) => {
+                    const { link, isOutgoing, otherNode } = item;
+                    return (
+                      <div 
+                        key={i}
+                        onClick={() => setSelectedNode(otherNode)}
+                        className="p-3 bg-white border border-slate-200 rounded-xl hover:border-sky-400 hover:shadow-md cursor-pointer transition-all duration-200 group"
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {isOutgoing ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200 shrink-0">
+                                <ArrowUpRight className="w-3 h-3 text-sky-600" />
+                                {t("outgoingCitation")}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 shrink-0">
+                                <ArrowDownLeft className="w-3 h-3 text-indigo-600" />
+                                {t("incomingCitation")}
+                              </span>
+                            )}
+                            <span 
+                              className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 border"
+                              style={docBadgeStyle(data.docs, otherNode.doc, { borderAlpha: "4d" })}
+                            >
+                              {docLabel(data.docs, otherNode.doc, t)}
+                            </span>
+                          </div>
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${modalityBadgeClasses(link.modality)}`}>
+                            {t(link.modality.toLowerCase() as TranslationKey)}
+                          </span>
+                        </div>
+
+                        <div className="text-xs font-bold text-slate-900 group-hover:text-sky-600 transition-colors">
+                          {otherNode.label}
+                        </div>
+                        <p className="text-[11px] text-slate-600 line-clamp-1 mt-0.5">
+                          {otherNode.title || t("noHeading")}
+                        </p>
+
+                        {link.snippet && (
+                          <div className="mt-2 pt-2 border-t border-slate-100 text-[11px] text-slate-500 italic bg-slate-50/80 p-2 rounded leading-snug">
+                            &ldquo;{link.snippet}&rdquo;
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Collapsible Document Text Accordion */}
+            <div className="pt-2 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setShowDocText(prev => !prev)}
+                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-slate-600" />
+                  <span className="text-xs font-bold text-slate-800">
+                    {t("documentText")}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500">
+                  <span>{showDocText ? t("hideDocumentText") : t("showDocumentText")}</span>
+                  {showDocText ? <ChevronUp className="w-4 h-4 text-slate-600" /> : <ChevronDown className="w-4 h-4 text-slate-600" />}
+                </div>
+              </button>
+
+              {showDocText && (
+                <div className="mt-3 bg-slate-50 border border-slate-200 p-4 rounded-xl text-xs leading-relaxed text-slate-800 max-h-72 overflow-y-auto whitespace-pre-wrap animate-in fade-in slide-in-from-top-1 duration-200">
+                  {selectedNode.body}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
