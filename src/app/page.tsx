@@ -17,6 +17,7 @@ import {
   FileText,
   Calendar,
   Lightbulb,
+  Scale,
 } from "lucide-react";
 import * as d3 from "d3";
 import { CitationGraphView } from "@/components/CitationGraphView";
@@ -333,6 +334,10 @@ function DashboardView({
   lang: Lang;
 }) {
   const filteredNodes = data.nodes.filter(n => matchesFleetCriteria(n, fleetCriteria));
+  const realConflicts = data.conflicts.filter(record => {
+    const targetNode = data.nodes.find(n => n.id === record.target);
+    return targetNode && !targetNode.external && !targetNode.id.startsWith("external_");
+  });
   const countsByDoc = data.docs.map(d => ({
     ...d,
     count: filteredNodes.filter(n => n.doc === d.id && !n.is_subnode).length,
@@ -432,12 +437,15 @@ function DashboardView({
           </div>
         </div>
 
-        <div className="bg-rose-50/40 border border-rose-200/80 p-6 rounded-2xl shadow-xs hover:border-rose-300 transition-all duration-200 cursor-pointer" onClick={() => setActiveTab("conflicts")}>
-          <AlertTriangle className="w-7 h-7 text-rose-600 mb-4" />
-          <h3 className="text-xs uppercase font-medium text-rose-800 tracking-wider">{t("conflictsCount")}</h3>
+        <div 
+          className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs hover:border-slate-300 transition-all duration-200 cursor-pointer" 
+          onClick={() => setActiveTab("conflicts")}
+        >
+          <Scale className="w-7 h-7 text-slate-600 mb-4" />
+          <h3 className="text-xs uppercase font-medium text-slate-500 tracking-wider">{t("conflictsCount")}</h3>
           <div className="flex items-baseline justify-between mt-2">
-            <p className="text-3xl font-bold text-rose-900">{data.conflicts.length}</p>
-            <span className="text-xs text-rose-700 font-medium flex items-center gap-1">{t("viewConflicts")} <ArrowRight className="w-3.5 h-3.5" /></span>
+            <p className="text-3xl font-bold text-slate-900">{realConflicts.length}</p>
+            <span className="text-xs text-slate-600 font-medium flex items-center gap-1 hover:text-slate-900">{t("viewConflicts")} <ArrowRight className="w-3.5 h-3.5" /></span>
           </div>
         </div>
       </div>
@@ -1300,8 +1308,8 @@ function ConflictsView({
       {/* View Header with Domain Context */}
       <div className="max-w-4xl space-y-2 mb-8 min-w-0">
         <div className="flex items-center gap-2">
-          <div className="p-2 rounded-xl bg-rose-100/80 text-rose-700 border border-rose-200 shrink-0">
-            <AlertTriangle className="w-5 h-5" />
+          <div className="p-2 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
+            <Scale className="w-5 h-5" />
           </div>
           <div className="min-w-0">
             <h2 className="text-2xl font-bold tracking-tight text-slate-900 break-words">
@@ -1353,8 +1361,8 @@ function ConflictsView({
                 <div className="p-5 border-b border-slate-200/80 bg-slate-50/60 flex items-start justify-between gap-4 flex-wrap min-w-0">
                   <div className="space-y-1.5 min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-rose-900 bg-rose-100/80 border border-rose-200 px-2.5 py-0.5 rounded-md flex items-center gap-1 shrink-0">
-                        <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-800 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-md flex items-center gap-1 shrink-0">
+                        <Scale className="w-3 h-3 text-slate-600 shrink-0" />
                         {lang === "da" ? "Modstrid: Krav vs. Undtagelse" : "Conflict: Rule vs. Exemption"}
                       </span>
                       <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md border shrink-0 ${
@@ -1378,7 +1386,7 @@ function ConflictsView({
                       onClick={() => onInspectConflict(record)}
                       className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium transition-all flex items-center gap-1.5 shadow-xs cursor-pointer shrink-0"
                     >
-                      <ShieldAlert className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                      <ShieldAlert className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       {t("inspectConflict")}
                     </button>
                     <button 
