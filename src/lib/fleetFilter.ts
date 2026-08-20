@@ -32,144 +32,181 @@ export function matchesFleetCriteria(node: GraphNode, criteria: FleetFilterCrite
 
   // 1. Vessel Length Filtering
   if (criteria.vesselLength !== "all") {
-    const hasLengthMention = /(?:meter|m\b|længde|størrelse|fartøj)/i.test(searchableText);
-    
-    if (hasLengthMention) {
-      if (criteria.vesselLength === "under_8m") {
-        const matchesUnder8 =
-          searchableText.includes("under 8") ||
-          searchableText.includes("< 8") ||
-          searchableText.includes("<8") ||
-          searchableText.includes("mindre end 8") ||
-          searchableText.includes("kystfisker") ||
-          searchableText.includes("under 10") ||
-          searchableText.includes("< 10") ||
-          searchableText.includes("under 12") ||
-          searchableText.includes("< 12");
-        const excludesUnder8 =
-          searchableText.includes("over 12") ||
-          searchableText.includes("> 12") ||
-          searchableText.includes("mindst 12") ||
-          searchableText.includes("over 15") ||
-          searchableText.includes("over 18");
-        if (excludesUnder8 && !matchesUnder8) return false;
-      } else if (criteria.vesselLength === "8_12m") {
-        const matches8to12 =
-          searchableText.includes("8-12") ||
-          searchableText.includes("8 til 12") ||
-          searchableText.includes("10 m") ||
-          searchableText.includes("10 meter") ||
-          searchableText.includes("under 12") ||
-          searchableText.includes("< 12") ||
-          searchableText.includes("8 m") ||
-          searchableText.includes("8 meter");
-        const excludes8to12 =
-          searchableText.includes("over 15") ||
-          searchableText.includes("over 18") ||
-          searchableText.includes("> 18");
-        if (excludes8to12 && !matches8to12) return false;
-      } else if (criteria.vesselLength === "12_18m") {
-        const matches12to18 =
-          searchableText.includes("12-18") ||
-          searchableText.includes("12 til 18") ||
-          searchableText.includes("12 m") ||
-          searchableText.includes("12 meter") ||
-          searchableText.includes("over 12") ||
-          searchableText.includes("> 12") ||
-          searchableText.includes("15 m") ||
-          searchableText.includes("15 meter");
-        const excludes12to18 = searchableText.includes("under 8") || searchableText.includes("< 8");
-        if (excludes12to18 && !matches12to18) return false;
-      } else if (criteria.vesselLength === "over_18m") {
-        const matchesOver18 =
-          searchableText.includes("18 m") ||
-          searchableText.includes("18 meter") ||
-          searchableText.includes("over 18") ||
-          searchableText.includes("> 18") ||
-          searchableText.includes("over 12") ||
-          searchableText.includes("over 15") ||
-          searchableText.includes("havgående");
-        const excludesOver18 =
-          searchableText.includes("under 8") ||
-          searchableText.includes("< 8") ||
-          searchableText.includes("under 10");
-        if (excludesOver18 && !matchesOver18) return false;
+    const targetsLarge12Plus = 
+      searchableText.includes("12 meter eller derover") ||
+      searchableText.includes("12 m eller derover") ||
+      searchableText.includes("mindst 12 meter") ||
+      searchableText.includes("mindst 12 m") ||
+      searchableText.includes("over 12 meter") ||
+      searchableText.includes("over 12 m") ||
+      searchableText.includes("> 12") ||
+      searchableText.includes(">12") ||
+      searchableText.includes("15 meter") ||
+      searchableText.includes("15 m") ||
+      searchableText.includes("18 meter") ||
+      searchableText.includes("18 m") ||
+      searchableText.includes("24 meter") ||
+      searchableText.includes("24 m") ||
+      searchableText.includes("cctv") ||
+      searchableText.includes("kameraovervågning") ||
+      searchableText.includes("ais") ||
+      searchableText.includes("vms") ||
+      searchableText.includes("forhåndsmeddelelse") ||
+      searchableText.includes("motorkraft");
+
+    const targetsSmallUnder12 =
+      searchableText.includes("under 8") ||
+      searchableText.includes("< 8") ||
+      searchableText.includes("<8") ||
+      searchableText.includes("mindre end 8") ||
+      searchableText.includes("under 10") ||
+      searchableText.includes("< 10") ||
+      searchableText.includes("<10") ||
+      searchableText.includes("mindre end 10") ||
+      searchableText.includes("under 12") ||
+      searchableText.includes("< 12") ||
+      searchableText.includes("<12") ||
+      searchableText.includes("mindre end 12") ||
+      searchableText.includes("kystfisker") ||
+      searchableText.includes("kystfartøj") ||
+      searchableText.includes("småskala");
+
+    if (criteria.vesselLength === "under_8m") {
+      if (targetsLarge12Plus && !targetsSmallUnder12) {
+        return false;
+      }
+    } else if (criteria.vesselLength === "8_12m") {
+      const targetsLarge15Plus = 
+        searchableText.includes("15 meter") ||
+        searchableText.includes("15 m") ||
+        searchableText.includes("18 meter") ||
+        searchableText.includes("18 m") ||
+        searchableText.includes("24 meter") ||
+        searchableText.includes("24 m") ||
+        searchableText.includes("cctv") ||
+        searchableText.includes("kameraovervågning");
+      if (targetsLarge15Plus && !targetsSmallUnder12) {
+        return false;
+      }
+      if (searchableText.includes("kun under 8") || searchableText.includes("fartøjer under 8 meter")) {
+        return false;
+      }
+    } else if (criteria.vesselLength === "12_18m") {
+      const targetsOver18 =
+        searchableText.includes("18 meter eller derover") ||
+        searchableText.includes("mindst 18 meter") ||
+        searchableText.includes("over 18 meter") ||
+        searchableText.includes("> 18") ||
+        searchableText.includes("24 meter") ||
+        searchableText.includes("cctv") ||
+        searchableText.includes("kameraovervågning");
+      if (targetsOver18) {
+        return false;
+      }
+      if (targetsSmallUnder12 && !targetsLarge12Plus) {
+        return false;
+      }
+    } else if (criteria.vesselLength === "over_18m") {
+      if (targetsSmallUnder12 && !targetsLarge12Plus) {
+        return false;
       }
     }
   }
 
   // 2. Gear Type Filtering
   if (criteria.gearType !== "all") {
-    const hasGearMention = /(?:garn|krog|trawl|vod|snurrevod|tejn|ruse|redskab|bommen)/i.test(searchableText);
-    if (hasGearMention) {
-      if (criteria.gearType === "passive_nets") {
-        const matchesPassive =
-          searchableText.includes("garn") ||
-          searchableText.includes("krog") ||
-          searchableText.includes("drivgarn") ||
-          searchableText.includes("sættegarn") ||
-          searchableText.includes("pinger") ||
-          searchableText.includes("passiv");
-        if (!matchesPassive) return false;
-      } else if (criteria.gearType === "active_trawl") {
-        const matchesTrawl =
-          searchableText.includes("trawl") ||
-          searchableText.includes("bomtrawl") ||
-          searchableText.includes("pelagisk") ||
-          searchableText.includes("bundtrawl") ||
-          searchableText.includes("aktiv");
-        if (!matchesTrawl) return false;
-      } else if (criteria.gearType === "seine") {
-        const matchesSeine =
-          searchableText.includes("snurrevod") ||
-          searchableText.includes("vod") ||
-          searchableText.includes("not");
-        if (!matchesSeine) return false;
-      } else if (criteria.gearType === "traps") {
-        const matchesTraps =
-          searchableText.includes("tejn") ||
-          searchableText.includes("ruse") ||
-          searchableText.includes("kroge");
-        if (!matchesTraps) return false;
-      }
+    const isTrawlSpecific = 
+      searchableText.includes("trawl") || 
+      searchableText.includes("bomtrawl") || 
+      searchableText.includes("bundtrawl") || 
+      searchableText.includes("pelagisk") || 
+      searchableText.includes("løftetrawl") ||
+      searchableText.includes("trawlfiskeri");
+
+    const isNetSpecific = 
+      searchableText.includes("garn") || 
+      searchableText.includes("sættegarn") || 
+      searchableText.includes("drivgarn") || 
+      searchableText.includes("pinger") || 
+      searchableText.includes("akustisk") || 
+      searchableText.includes("maskevidde i garn") ||
+      searchableText.includes("garnlængde");
+
+    const isSeineSpecific = 
+      searchableText.includes("snurrevod") || 
+      searchableText.includes("vod") || 
+      searchableText.includes("ringnot");
+
+    const isTrapSpecific = 
+      searchableText.includes("tejn") || 
+      searchableText.includes("ruse") || 
+      searchableText.includes("hummertejn") || 
+      searchableText.includes("kroge");
+
+    if (criteria.gearType === "passive_nets") {
+      if (isTrawlSpecific && !isNetSpecific) return false;
+      if (isTrapSpecific && !isNetSpecific) return false;
+      if (isSeineSpecific && !isNetSpecific) return false;
+    } else if (criteria.gearType === "active_trawl") {
+      if (isNetSpecific && !isTrawlSpecific) return false;
+      if (isTrapSpecific && !isTrawlSpecific) return false;
+      if (isSeineSpecific && !isTrawlSpecific) return false;
+    } else if (criteria.gearType === "seine") {
+      if (isNetSpecific && !isSeineSpecific) return false;
+      if (isTrawlSpecific && !isSeineSpecific) return false;
+      if (isTrapSpecific && !isSeineSpecific) return false;
+    } else if (criteria.gearType === "traps") {
+      if (isNetSpecific && !isTrapSpecific) return false;
+      if (isTrawlSpecific && !isTrapSpecific) return false;
+      if (isSeineSpecific && !isTrapSpecific) return false;
     }
   }
 
   // 3. Sea Area Filtering
   if (criteria.seaArea !== "all") {
-    const hasAreaMention = /(?:nordsøen|skagerrak|kattegat|østersøen|bælterne|sundet|limfjorden|farvand|område|zone|ices)/i.test(searchableText);
-    if (hasAreaMention) {
-      if (criteria.seaArea === "north_sea") {
-        const matchesNorthSea =
-          searchableText.includes("nordsø") ||
-          searchableText.includes("skagerrak") ||
-          searchableText.includes("iv a") ||
-          searchableText.includes("iv b") ||
-          searchableText.includes("iii a");
-        if (!matchesNorthSea) return false;
-      } else if (criteria.seaArea === "kattegat") {
-        const matchesKattegat =
-          searchableText.includes("kattegat") ||
-          searchableText.includes("iii a") ||
-          searchableText.includes("sundet");
-        if (!matchesKattegat) return false;
-      } else if (criteria.seaArea === "baltic") {
-        const matchesBaltic =
-          searchableText.includes("østersø") ||
-          searchableText.includes("baltic") ||
-          searchableText.includes("bornholm") ||
-          searchableText.includes("bælterne") ||
-          searchableText.includes("danske bælter");
-        if (!matchesBaltic) return false;
-      } else if (criteria.seaArea === "inshore") {
-        const matchesInshore =
-          searchableText.includes("limfjord") ||
-          searchableText.includes("fjord") ||
-          searchableText.includes("kystnær") ||
-          searchableText.includes("indre farvand") ||
-          searchableText.includes("søterritoriet");
-        if (!matchesInshore) return false;
-      }
+    const isNorthSeaSpecific = 
+      searchableText.includes("nordsø") || 
+      searchableText.includes("skagerrak") || 
+      searchableText.includes("iv a") || 
+      searchableText.includes("iv b") || 
+      searchableText.includes("iv c");
+
+    const isKattegatSpecific = 
+      searchableText.includes("kattegat") || 
+      searchableText.includes("iii a syd") || 
+      searchableText.includes("sundet");
+
+    const isBalticSpecific = 
+      searchableText.includes("østersø") || 
+      searchableText.includes("baltic") || 
+      searchableText.includes("bornholm") || 
+      searchableText.includes("bælterne") || 
+      searchableText.includes("underområde 22") || 
+      searchableText.includes("underområde 24") || 
+      searchableText.includes("underområde 25");
+
+    const isInshoreSpecific = 
+      searchableText.includes("limfjord") || 
+      searchableText.includes("fjord") || 
+      searchableText.includes("kystnær") || 
+      searchableText.includes("indre farvand") || 
+      searchableText.includes("basislinje");
+
+    if (criteria.seaArea === "north_sea") {
+      if (isBalticSpecific && !isNorthSeaSpecific) return false;
+      if (isKattegatSpecific && !isNorthSeaSpecific) return false;
+      if (isInshoreSpecific && !isNorthSeaSpecific) return false;
+    } else if (criteria.seaArea === "kattegat") {
+      if (isNorthSeaSpecific && !isKattegatSpecific) return false;
+      if (isBalticSpecific && !isKattegatSpecific) return false;
+      if (isInshoreSpecific && !isKattegatSpecific) return false;
+    } else if (criteria.seaArea === "baltic") {
+      if (isNorthSeaSpecific && !isBalticSpecific) return false;
+      if (isKattegatSpecific && !isBalticSpecific) return false;
+      if (isInshoreSpecific && !isBalticSpecific) return false;
+    } else if (criteria.seaArea === "inshore") {
+      if (isNorthSeaSpecific && !isInshoreSpecific) return false;
+      if (isBalticSpecific && !isInshoreSpecific) return false;
     }
   }
 

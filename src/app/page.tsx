@@ -333,15 +333,25 @@ function DashboardView({
   t: TranslateFn;
   lang: Lang;
 }) {
+  const isFiltered =
+    fleetCriteria.vesselLength !== "all" ||
+    fleetCriteria.gearType !== "all" ||
+    fleetCriteria.seaArea !== "all";
+
   const filteredNodes = data.nodes.filter(n => matchesFleetCriteria(n, fleetCriteria));
   const realConflicts = data.conflicts.filter(record => {
     const targetNode = data.nodes.find(n => n.id === record.target);
     return targetNode && !targetNode.external && !targetNode.id.startsWith("external_");
   });
-  const countsByDoc = data.docs.map(d => ({
-    ...d,
-    count: filteredNodes.filter(n => n.doc === d.id && !n.is_subnode).length,
-  }));
+  const countsByDoc = data.docs.map(d => {
+    const totalCount = data.nodes.filter(n => n.doc === d.id && !n.is_subnode).length;
+    const count = filteredNodes.filter(n => n.doc === d.id && !n.is_subnode).length;
+    return {
+      ...d,
+      totalCount,
+      count,
+    };
+  });
   const totalPrimaryNodes = filteredNodes.filter(n => !n.is_subnode).length;
   const totalCitations = data.links.length;
   const docLabels = data.docs.map(d => d.label);
@@ -423,7 +433,21 @@ function DashboardView({
               <h3 className={`text-xs uppercase tracking-wider truncate ${isEu ? "font-bold text-slate-800" : "font-medium text-slate-500"}`}>
                 {docLabel(data.docs, d.id, t)}
               </h3>
-              <p className={`text-3xl font-bold mt-2 ${isEu ? "text-slate-900" : "text-slate-700"}`}>{d.count}</p>
+              <div className="mt-2">
+                <div className="flex items-baseline gap-1.5">
+                  <p className={`text-3xl font-bold ${isEu ? "text-slate-900" : "text-slate-700"}`}>{d.count}</p>
+                  {isFiltered && d.count !== d.totalCount && (
+                    <span className="text-xs font-semibold text-slate-400">
+                      / {d.totalCount}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1 font-medium">
+                  {isFiltered
+                    ? (lang === "da" ? `gældende artikler for flådeprofil` : `applicable articles for fleet`)
+                    : (lang === "da" ? `analyserede artikler i retsakt` : `analyzed articles in act`)}
+                </p>
+              </div>
             </div>
           );
         })}
