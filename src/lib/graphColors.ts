@@ -38,16 +38,14 @@ export function modalityBadgeClasses(modality: Modality): string {
 // Ordered fallback palette for an arbitrary number of documents.
 // Refined, muted Scandinavian architectural palette.
 export const DOC_COLOR_PALETTE: string[] = [
-  "#0284c7", // Nordic sky blue
-  "#059669", // Pine green
-  "#d97706", // Warm amber
-  "#7c3aed", // Heather purple
-  "#e11d48", // Brick red
-  "#0891b2", // Teal
-  "#475569", // Slate
-  "#d946ef", // Plum
-  "#ea580c", // Terracotta
-  "#65a30d", // Moss
+  "#0284c7", // EU Primary Sky Blue
+  "#1d4ed8", // EU Royal / Cobalt Blue
+  "#0369a1", // EU Deep Ocean Blue
+  "#0f766e", // EU Deep Teal
+  "#64748b", // National Slate (Muted)
+  "#78716c", // National Stone (Muted)
+  "#94a3b8", // National Cool Slate (Muted)
+  "#a1a1aa", // National Zinc (Muted)
 ];
 
 export function docColor(docIndex: number): string {

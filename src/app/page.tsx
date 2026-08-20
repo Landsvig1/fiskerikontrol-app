@@ -390,16 +390,36 @@ function DashboardView({
 
       {/* Metric Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-6">
-        {countsByDoc.map(d => (
-          <div
-            key={d.id}
-            className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs hover:border-slate-300 transition-all duration-200"
-          >
-            <BookOpen className="w-7 h-7 mb-4" style={{ color: docColorFor(data.docs, d.id) }} />
-            <h3 className="text-xs uppercase font-medium text-slate-500 tracking-wider truncate">{docLabel(data.docs, d.id, t)}</h3>
-            <p className="text-3xl font-bold text-slate-900 mt-2">{d.count}</p>
-          </div>
-        ))}
+        {countsByDoc.map(d => {
+          const isEu = d.label.toLowerCase().includes("eu") || d.id.toLowerCase().includes("eu");
+          return (
+            <div
+              key={d.id}
+              className={`p-6 rounded-2xl shadow-xs transition-all duration-200 ${
+                isEu
+                  ? "bg-white border-2 border-sky-200 hover:border-sky-400"
+                  : "bg-slate-50/60 border border-slate-200/90 hover:border-slate-300"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <BookOpen className="w-7 h-7" style={{ color: docColorFor(data.docs, d.id) }} />
+                <span className={`text-[10px] px-2 py-0.5 rounded ${
+                  isEu
+                    ? "bg-sky-100 text-sky-900 border border-sky-300 font-bold"
+                    : "bg-slate-200/80 text-slate-600 border border-slate-300/80 font-normal"
+                }`}>
+                  {isEu 
+                    ? lang === "da" ? "EU Primær" : "EU Primary" 
+                    : lang === "da" ? "National" : "National"}
+                </span>
+              </div>
+              <h3 className={`text-xs uppercase tracking-wider truncate ${isEu ? "font-bold text-slate-800" : "font-medium text-slate-500"}`}>
+                {docLabel(data.docs, d.id, t)}
+              </h3>
+              <p className={`text-3xl font-bold mt-2 ${isEu ? "text-slate-900" : "text-slate-700"}`}>{d.count}</p>
+            </div>
+          );
+        })}
 
         <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs hover:border-slate-300 transition-all duration-200 cursor-pointer" onClick={() => setActiveTab("overlaps")}>
           <GitBranch className="w-7 h-7 text-amber-600 mb-4" />
