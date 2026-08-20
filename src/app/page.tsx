@@ -1234,29 +1234,39 @@ function OverlapsView({
 // ----------------------------------------------------
 // VIEW 4: CONFLICTS VIEW (KRAV VS. UNDTAGELSE CONTRAST)
 // ----------------------------------------------------
+function cleanAndNormalizeText(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/\r?\n+/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^[\s\-–—:;.]+/, "")
+    .trim();
+}
+
 function highlightConflictKeywords(text: string) {
   if (!text) return null;
+  const cleaned = cleanAndNormalizeText(text);
   const regex = /(skal|må ikke|forbudt|fritages|undtages|dispensation|betingelse|ikke omfattet|forpligtet|krav)/gi;
-  const parts = text.split(regex);
+  const parts = cleaned.split(regex);
   return parts.map((part, i) => {
     if (regex.test(part)) {
       const lower = part.toLowerCase();
       if (lower === "skal" || lower === "forpligtet" || lower === "krav") {
         return (
-          <span key={i} className="font-bold text-sky-900 bg-sky-100/90 px-1 py-0.5 rounded">
+          <span key={i} className="font-bold text-sky-950 bg-sky-100/90 px-1 py-0.2 mx-0.5 rounded text-[11px] inline-block align-baseline border border-sky-300/60">
             {part}
           </span>
         );
       }
       if (lower === "fritages" || lower === "undtages" || lower === "dispensation" || lower === "ikke omfattet") {
         return (
-          <span key={i} className="font-bold text-amber-900 bg-amber-100/90 px-1 py-0.5 rounded">
+          <span key={i} className="font-bold text-amber-950 bg-amber-100/90 px-1 py-0.2 mx-0.5 rounded text-[11px] inline-block align-baseline border border-amber-300/60">
             {part}
           </span>
         );
       }
       return (
-        <span key={i} className="font-bold text-rose-900 bg-rose-100/90 px-1 py-0.5 rounded">
+        <span key={i} className="font-bold text-rose-950 bg-rose-100/90 px-1 py-0.2 mx-0.5 rounded text-[11px] inline-block align-baseline border border-rose-300/60">
           {part}
         </span>
       );
@@ -1286,15 +1296,15 @@ function ConflictsView({
   });
 
   return (
-    <div className="flex-1 overflow-y-auto p-8 bg-[#fafaf9] text-slate-900">
+    <div className="flex-1 overflow-y-auto p-6 sm:p-8 bg-[#fafaf9] text-slate-900 w-full min-w-0">
       {/* View Header with Domain Context */}
-      <div className="max-w-4xl space-y-2 mb-8">
+      <div className="max-w-4xl space-y-2 mb-8 min-w-0">
         <div className="flex items-center gap-2">
-          <div className="p-2 rounded-xl bg-rose-100/80 text-rose-700 border border-rose-200">
+          <div className="p-2 rounded-xl bg-rose-100/80 text-rose-700 border border-rose-200 shrink-0">
             <AlertTriangle className="w-5 h-5" />
           </div>
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+          <div className="min-w-0">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900 break-words">
               {t("conflictsHeaderTitle")}
             </h2>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -1302,12 +1312,12 @@ function ConflictsView({
             </p>
           </div>
         </div>
-        <p className="text-sm text-slate-600 leading-relaxed max-w-3xl pt-1">
+        <p className="text-sm text-slate-600 leading-relaxed max-w-3xl pt-1 break-words">
           {t("conflictsHeaderSubtitle")}
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 max-w-4xl">
+      <div className="grid grid-cols-1 gap-6 max-w-4xl w-full min-w-0">
         {realConflicts.length === 0 ? (
           <div className="bg-white border border-slate-200 p-12 rounded-2xl text-center text-slate-500 text-sm shadow-xs">
             {lang === "da" ? "Ingen retlige modstrid fundet i det indlæste korpus." : "No regulatory conflicts detected in loaded corpus."}
@@ -1337,17 +1347,17 @@ function ConflictsView({
             return (
               <div 
                 key={i} 
-                className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-xs hover:border-slate-300 transition-all duration-200"
+                className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-xs hover:border-slate-300 transition-all duration-200 w-full min-w-0"
               >
                 {/* 1. Header Block: Conflict Pair & Supremacy Badge */}
-                <div className="p-5 border-b border-slate-200/80 bg-slate-50/60 flex items-start justify-between gap-4 flex-wrap">
-                  <div className="space-y-1.5">
+                <div className="p-5 border-b border-slate-200/80 bg-slate-50/60 flex items-start justify-between gap-4 flex-wrap min-w-0">
+                  <div className="space-y-1.5 min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-rose-900 bg-rose-100/80 border border-rose-200 px-2.5 py-0.5 rounded-md flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3 text-rose-600" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-rose-900 bg-rose-100/80 border border-rose-200 px-2.5 py-0.5 rounded-md flex items-center gap-1 shrink-0">
+                        <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
                         {lang === "da" ? "Modstrid: Krav vs. Undtagelse" : "Conflict: Rule vs. Exemption"}
                       </span>
-                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md border ${
+                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md border shrink-0 ${
                         isTargetEu && isSourceNational 
                           ? "bg-sky-100 text-sky-900 border-sky-300"
                           : "bg-amber-100 text-amber-900 border-amber-300"
@@ -1356,19 +1366,19 @@ function ConflictsView({
                       </span>
                     </div>
 
-                    <h3 className="text-base font-bold text-slate-900 pt-0.5">
-                      <span className="text-sky-800">{targetNode.label}</span>
-                      <span className="text-slate-400 font-normal mx-2">⟷</span>
-                      <span className="text-amber-800">{sourceNode?.label || (lang === "da" ? "National bestemmelse" : "National rule")}</span>
+                    <h3 className="text-base font-bold text-slate-900 pt-0.5 break-words flex flex-wrap items-center gap-1.5">
+                      <span className="text-sky-800 shrink-0">{targetNode.label}</span>
+                      <span className="text-slate-400 font-normal">⟷</span>
+                      <span className="text-amber-800 break-words">{sourceNode?.label || (lang === "da" ? "National bestemmelse" : "National rule")}</span>
                     </h3>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => onInspectConflict(record)}
-                      className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium transition-all flex items-center gap-1.5 shadow-xs cursor-pointer shrink-0"
                     >
-                      <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
+                      <ShieldAlert className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                       {t("inspectConflict")}
                     </button>
                     <button 
@@ -1376,82 +1386,93 @@ function ConflictsView({
                         setSelectedNode(targetNode);
                         setActiveTab("graph");
                       }}
-                      className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition-all flex items-center gap-1.5 border border-slate-200 shadow-2xs cursor-pointer"
+                      className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition-all flex items-center gap-1.5 border border-slate-200 shadow-2xs cursor-pointer shrink-0"
                     >
-                      {t("showInGraph")} <ArrowRight className="w-3.5 h-3.5" />
+                      {t("showInGraph")} <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                     </button>
                   </div>
                 </div>
 
                 {/* 2. Middle Block: Side-by-Side Direct 'Krav vs. Undtagelse' Contrast Grid */}
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 bg-[#fafaf9]">
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 bg-[#fafaf9] min-w-0">
                   {/* Left Column: EU Rule (Skal-krav) */}
-                  <div className="bg-white p-4.5 rounded-xl border border-sky-300 shadow-xs flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-[11px] font-bold text-sky-950 uppercase tracking-wider flex items-center gap-1.5">
-                          <BookOpen className="w-3.5 h-3.5 text-sky-600" />
+                  <div className="bg-white p-4.5 rounded-xl border border-sky-300 shadow-xs flex flex-col justify-between min-w-0 overflow-hidden">
+                    <div className="min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                        <span className="text-[11px] font-bold text-sky-950 uppercase tracking-wider flex items-center gap-1.5 shrink-0">
+                          <BookOpen className="w-3.5 h-3.5 text-sky-600 shrink-0" />
                           {t("euRuleLabel")}
                         </span>
                         <span
-                          className="text-[10px] font-bold px-2 py-0.5 rounded border"
+                          className="text-[10px] font-bold px-2 py-0.5 rounded border shrink-0 truncate max-w-[150px]"
                           style={docBadgeStyle(data.docs, targetNode.doc, { borderAlpha: "40" })}
                         >
                           {docLabel(data.docs, targetNode.doc, t)}
                         </span>
                       </div>
-                      <h4 className="text-xs font-bold text-slate-900 mt-1">{targetNode.label} {targetNode.title ? `— ${targetNode.title}` : ""}</h4>
+                      <h4 className="text-xs font-bold text-slate-900 mt-1 break-words line-clamp-2">
+                        {targetNode.label} {targetNode.title ? `— ${cleanAndNormalizeText(targetNode.title)}` : ""}
+                      </h4>
                     </div>
 
-                    <div className="mt-3 p-3 bg-sky-50/50 rounded-lg text-xs leading-relaxed text-slate-800 border border-sky-100 border-l-2 border-l-sky-600">
+                    <div className="mt-3 p-3 bg-sky-50/50 rounded-lg text-xs leading-relaxed text-slate-800 border border-sky-100 border-l-2 border-l-sky-600 break-words whitespace-normal overflow-hidden">
                       {highlightConflictKeywords(
                         (() => {
                           const parentNode = targetNode.parent_id ? data.nodes.find(n => n.id === targetNode.parent_id) : undefined;
                           const rawBody = targetNode.body && !targetNode.body.startsWith("See parent section") 
                             ? targetNode.body 
                             : (parentNode?.body || targetNode.body || record.description || "");
-                          return rawBody.slice(0, 240) + (rawBody.length > 240 ? "..." : "");
+                          const cleanBody = cleanAndNormalizeText(rawBody);
+                          return cleanBody.slice(0, 220) + (cleanBody.length > 220 ? "..." : "");
                         })()
                       )}
                     </div>
                   </div>
 
                   {/* Right Column: National Exemption (Dispensation/Undtagelse) */}
-                  <div className="bg-white p-4.5 rounded-xl border border-amber-300 shadow-xs flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-[11px] font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
-                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                  <div className="bg-white p-4.5 rounded-xl border border-amber-300 shadow-xs flex flex-col justify-between min-w-0 overflow-hidden">
+                    <div className="min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                        <span className="text-[11px] font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5 shrink-0">
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                           {t("nationalDeviationLabel")}
                         </span>
                         {sourceNode && (
                           <span
-                            className="text-[10px] font-bold px-2 py-0.5 rounded border"
+                            className="text-[10px] font-bold px-2 py-0.5 rounded border shrink-0 truncate max-w-[150px]"
                             style={docBadgeStyle(data.docs, sourceNode.doc, { borderAlpha: "40" })}
                           >
                             {docLabel(data.docs, sourceNode.doc, t)}
                           </span>
                         )}
                       </div>
-                      <h4 className="text-xs font-bold text-slate-900 mt-1">{sourceNode?.label || "National sektion"} {sourceNode?.title ? `— ${sourceNode?.title}` : ""}</h4>
+                      <h4 className="text-xs font-bold text-slate-900 mt-1 break-words line-clamp-2">
+                        {sourceNode?.label || (lang === "da" ? "National sektion" : "National section")} {sourceNode?.title ? `— ${cleanAndNormalizeText(sourceNode.title)}` : ""}
+                      </h4>
                     </div>
 
-                    <div className="mt-3 p-3 bg-amber-50/50 rounded-lg text-xs leading-relaxed text-slate-800 border border-amber-100 border-l-2 border-l-amber-600">
-                      {highlightConflictKeywords(primaryCitation?.snippet || sourceNode?.body?.slice(0, 220) || (lang === "da" ? "Dispenserende bestemmelse" : "Exemption rule"))}
+                    <div className="mt-3 p-3 bg-amber-50/50 rounded-lg text-xs leading-relaxed text-slate-800 border border-amber-100 border-l-2 border-l-amber-600 break-words whitespace-normal overflow-hidden">
+                      {highlightConflictKeywords(
+                        (() => {
+                          const rawText = primaryCitation?.snippet || sourceNode?.body || (lang === "da" ? "Dispenserende bestemmelse" : "Exemption rule");
+                          const cleanSnippet = cleanAndNormalizeText(rawText);
+                          return cleanSnippet.slice(0, 220) + (cleanSnippet.length > 220 ? "..." : "");
+                        })()
+                      )}
                     </div>
                   </div>
                 </div>
 
                 {/* 3. Bottom Block: Plain-Danish Verdict Banner */}
-                <div className="px-6 py-4 bg-slate-100/70 border-t border-slate-200/80 flex items-start gap-3">
+                <div className="px-6 py-4 bg-slate-100/70 border-t border-slate-200/80 flex items-start gap-3 min-w-0 overflow-hidden">
                   <div className="p-1.5 rounded-lg bg-sky-100 text-sky-800 border border-sky-200 mt-0.5 shrink-0">
-                    <Lightbulb className="w-4 h-4" />
+                    <Lightbulb className="w-4 h-4 shrink-0" />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1 min-w-0 flex-1">
                     <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                       {t("inspectionVerdictTitle")}
                     </h4>
-                    <p className="text-xs text-slate-600 leading-relaxed">
+                    <p className="text-xs text-slate-600 leading-relaxed break-words whitespace-normal">
                       {verdictText}
                     </p>
                   </div>
