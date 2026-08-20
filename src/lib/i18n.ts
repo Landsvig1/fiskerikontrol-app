@@ -22,7 +22,12 @@ export type TranslationKey =
   | "showInGraph" | "viewAnalysis" | "viewConflicts"
   | "docFallback"            // generic per-index fallback, used as "${docFallback} ${i+1}"
   | "aboutButton" | "backToApp"
-  | "copyErrorDetails" | "copiedErrorDetails";
+  | "copyErrorDetails" | "copiedErrorDetails"
+  | "presetLibraryTitle" | "presetLibrarySubtitle" | "analyzePresets"
+  | "inspectConflict" | "conflictSummaryBanner"
+  | "baseProvision" | "derogatingProvision"
+  | "copyConflictBrief" | "copiedToClipboard" | "closeModal"
+  | "selectedPresetCount";
 
 export type Translations = Record<TranslationKey, string>;
 
@@ -75,6 +80,17 @@ const da: Translations = {
   backToApp: "Tilbage til appen",
   copyErrorDetails: "Kopiér fejldetaljer",
   copiedErrorDetails: "Kopieret!",
+  presetLibraryTitle: "Vælg fra reguleringsarkivet",
+  presetLibrarySubtitle: "Vælg 2 eller flere officielle fiskeriretsakter til øjeblikkelig analyse:",
+  analyzePresets: "Analysér valgte",
+  inspectConflict: "Inspicer modstrid",
+  conflictSummaryBanner: "Juridisk modstridsanalyse",
+  baseProvision: "Hovedbestemmelse / Krav",
+  derogatingProvision: "Undtagelse / Modstridende bestemmelse",
+  copyConflictBrief: "Kopiér notat",
+  copiedToClipboard: "Kopieret til udklipsholder!",
+  closeModal: "Luk",
+  selectedPresetCount: "{count} valgt",
 };
 
 const en: Translations = {
@@ -126,6 +142,17 @@ const en: Translations = {
   backToApp: "Back to the app",
   copyErrorDetails: "Copy error details",
   copiedErrorDetails: "Copied!",
+  presetLibraryTitle: "Select from Regulatory Library",
+  presetLibrarySubtitle: "Choose 2 or more official fisheries control regulations for instant analysis:",
+  analyzePresets: "Analyse Selected",
+  inspectConflict: "Inspect Conflict",
+  conflictSummaryBanner: "Legal Conflict Analysis",
+  baseProvision: "Base Provision / Requirement",
+  derogatingProvision: "Derogation / Conflicting Provision",
+  copyConflictBrief: "Copy Brief",
+  copiedToClipboard: "Copied to clipboard!",
+  closeModal: "Close",
+  selectedPresetCount: "{count} selected",
 };
 
 export const translations: Record<Lang, Translations> = { da, en };

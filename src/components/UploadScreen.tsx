@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Database, Upload, FileText, AlertTriangle, RefreshCw, Info, Plus, X } from "lucide-react";
+import { Database, Upload, FileText, AlertTriangle, RefreshCw, Info, Plus, X, BookOpen, Check } from "lucide-react";
 import { GraphData } from "@/app/page";
 import { TranslateFn } from "@/lib/i18n";
 import { deriveLabelFromFilename } from "@/lib/labels";
+import { PRESET_DOCUMENTS, fetchPresetFiles } from "@/lib/presetCorpus";
 
 import { Lang } from "@/lib/i18n";
 
@@ -167,6 +168,54 @@ export function UploadScreen({
   const [loading, setLoading] = useState(false);
   const [multiDropNotice, setMultiDropNotice] = useState<string | null>(null);
   const [isContainerDragging, setIsContainerDragging] = useState(false);
+  const [selectedPresetIds, setSelectedPresetIds] = useState<string[]>(["eu-2023-2842", "bek-1197-2025"]);
+
+  const togglePreset = (id: string) => {
+    setSelectedPresetIds((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+    );
+  };
+
+  const handleAnalyzePresets = async () => {
+    if (loading || selectedPresetIds.length < 2) return;
+    setSubmitError(null);
+    setErrorReport(null);
+    setCopied(false);
+    setLoading(true);
+
+    try {
+      const presetFiles = await fetchPresetFiles(selectedPresetIds);
+      const fd = new FormData();
+      presetFiles.forEach((p, i) => {
+        fd.append(`pdf${i}`, p.file);
+        fd.append(`label${i}`, p.label);
+      });
+
+      const res = await fetch("/api/parse", { method: "POST", body: fd });
+      if (!res.ok) {
+        const rawBody = await res.text();
+        let errorMsg = t("unknownError");
+        let parsedBody: unknown = null;
+        try {
+          parsedBody = JSON.parse(rawBody);
+          const body = parsedBody as { error?: string };
+          if (body?.error) errorMsg = body.error;
+        } catch {
+          // ignore
+        }
+        setSubmitError(errorMsg);
+        setLoading(false);
+        return;
+      }
+
+      const graphData: GraphData = await res.json();
+      onSuccess(graphData);
+    } catch (err: unknown) {
+      console.error("Preset analysis failed:", err);
+      setSubmitError(t("unknownError"));
+      setLoading(false);
+    }
+  };
 
   const inputRefsRef = useRef<Map<number, React.RefObject<HTMLInputElement | null>>>(new Map());
   const labelInputRefsRef = useRef<Map<number, HTMLInputElement | null>>(new Map());
@@ -509,6 +558,100 @@ export function UploadScreen({
               <p className="mt-2 text-sm text-[#94a3b8] leading-relaxed">
                 {t("uploadSubtitle")}
               </p>
+            </div>
+
+            {/* Preset Regulatory Library Section */}
+            <div className="mb-6 p-5 rounded-xl bg-[#070b13] border border-[#1e293b] space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#38bdf8] flex items-center gap-1.5">
+                    <BookOpen className="w-4 h-4 text-[#38bdf8]" /> {t("presetLibraryTitle")}
+                  </h3>
+                  <p className="text-xs text-[#94a3b8] mt-0.5">
+                    {t("presetLibrarySubtitle")}
+                  </p>
+                </div>
+                {selectedPresetIds.length > 0 && (
+                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#38bdf8]/15 text-[#38bdf8] border border-[#38bdf8]/30">
+                    {t("selectedPresetCount").replace("{count}", String(selectedPresetIds.length))}
+                  </span>
+                )}
+              </div>
+
+              {/* Grid of Preset Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {PRESET_DOCUMENTS.map((doc) => {
+                  const isSelected = selectedPresetIds.includes(doc.id);
+                  return (
+                    <div
+                      key={doc.id}
+                      data-testid={`preset-card-${doc.id}`}
+                      onClick={() => !loading && togglePreset(doc.id)}
+                      className={`p-3.5 rounded-xl border transition-all cursor-pointer select-none flex flex-col justify-between ${
+                        isSelected
+                          ? "bg-[#38bdf8]/10 border-[#38bdf8]/70 shadow-sm shadow-[#38bdf8]/5"
+                          : "bg-[#0d1527] border-[#1e293b] hover:border-[#38bdf8]/40 hover:bg-[#131e35]"
+                      } ${loading ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-1 mb-1.5">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                            doc.type === "eu" 
+                              ? "bg-[#3b82f6]/20 text-[#60a5fa] border border-[#3b82f6]/30" 
+                              : doc.type === "bek" 
+                                ? "bg-[#10b981]/20 text-[#34d399] border border-[#10b981]/30"
+                                : "bg-[#f59e0b]/20 text-[#fbbf24] border border-[#f59e0b]/30"
+                          }`}>
+                            {lang === "da" ? doc.typeLabelDa : doc.typeLabelEn}
+                          </span>
+                          <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
+                            isSelected ? "bg-[#38bdf8] border-[#38bdf8] text-[#070b13]" : "border-[#4b5c75]"
+                          }`}>
+                            {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                          </div>
+                        </div>
+                        <h4 className="text-xs font-bold text-[#f8fafc]">{doc.code}</h4>
+                        <p className="text-xs text-[#94a3b8] font-medium mt-0.5">
+                          {lang === "da" ? doc.titleDa : doc.titleEn}
+                        </p>
+                      </div>
+                      <p className="text-[11px] text-[#64748b] mt-2 line-clamp-2 leading-relaxed">
+                        {lang === "da" ? doc.descriptionDa : doc.descriptionEn}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Preset Fast-Launch Button */}
+              {selectedPresetIds.length >= 2 && (
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={handleAnalyzePresets}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#38bdf8] to-[#818cf8] text-[#070b13] font-bold text-xs hover:opacity-95 transition-all flex items-center justify-center gap-2 shadow-md shadow-[#38bdf8]/15 cursor-pointer disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      {t("analysing")}
+                    </>
+                  ) : (
+                    <>
+                      <Database className="w-4 h-4" />
+                      {t("analyzePresets")} ({selectedPresetIds.length})
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+
+            <div className="relative flex py-2 items-center mb-6">
+              <div className="flex-grow border-t border-[#1e293b]"></div>
+              <span className="flex-shrink mx-4 text-xs font-semibold uppercase text-[#64748b] tracking-wider">
+                {lang === "da" ? "Eller upload egne PDF-filer" : "Or upload custom PDFs"}
+              </span>
+              <div className="flex-grow border-t border-[#1e293b]"></div>
             </div>
 
             {/* Mode Toggle */}

@@ -422,4 +422,50 @@ describe("UploadScreen mode toggle and individual mode", () => {
 
     resolveFetch({ ok: true, json: async () => makeGraphData() });
   });
+
+  it("renders preset document catalog cards and allows toggling selection", () => {
+    renderUploadScreen();
+    
+    expect(screen.getByText(t("presetLibraryTitle"))).toBeInTheDocument();
+    expect(screen.getByText("EU 2023/2842")).toBeInTheDocument();
+    expect(screen.getByText("BEK 1197/2025")).toBeInTheDocument();
+    expect(screen.getByText("BEK 1144/2025")).toBeInTheDocument();
+    expect(screen.getByText("LBK 205/2023")).toBeInTheDocument();
+
+    const euCard = screen.getByTestId("preset-card-eu-2023-2842");
+    fireEvent.click(euCard); // Deselect
+    const bek1144Card = screen.getByTestId("preset-card-bek-1144-2025");
+    fireEvent.click(bek1144Card); // Select
+  });
+
+  it("fetches preset files and calls parse API when preset launch button is clicked", async () => {
+    const mockBlob = new Blob(["mock pdf"], { type: "application/pdf" });
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation(async (url: string) => {
+      if (url.startsWith("/corpus/")) {
+        return {
+          ok: true,
+          status: 200,
+          blob: async () => mockBlob,
+        };
+      }
+      if (url === "/api/parse") {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => makeGraphData(),
+        };
+      }
+      return { ok: false, status: 404 };
+    });
+
+    renderUploadScreen();
+
+    const launchButton = screen.getByRole("button", { name: new RegExp(t("analyzePresets"), "i") });
+    fireEvent.click(launchButton);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith("/api/parse", expect.objectContaining({ method: "POST" }));
+    });
+  });
 });
+

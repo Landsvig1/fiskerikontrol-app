@@ -12,11 +12,13 @@ import {
   ArrowRight,
   RefreshCw,
   Info,
-  CheckCircle
+  CheckCircle,
+  ShieldAlert
 } from "lucide-react";
 import * as d3 from "d3";
 import { CitationGraphView } from "@/components/CitationGraphView";
 import { UploadScreen } from "@/components/UploadScreen";
+import { ConflictInspectorModal } from "@/components/ConflictInspectorModal";
 import { getT, Lang, TranslateFn, TranslationKey } from "@/lib/i18n";
 import { modalityColor, modalityBadgeClasses, Modality } from "@/lib/graphColors";
 import { filterGraph, computeDegree } from "@/lib/graphFilter";
@@ -88,9 +90,10 @@ type TabType = "dashboard" | "citation" | "graph" | "overlaps" | "conflicts" | "
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
   const [data, setData] = useState<GraphData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [inspectingConflict, setInspectingConflict] = useState<ConflictRecord | null>(null);
   const [activeDocFilter, setActiveDocFilter] = useState<"all" | string>("all");
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>("all");
   
@@ -269,6 +272,7 @@ export default function Home() {
             data={data} 
             setSelectedNode={setSelectedNode} 
             setActiveTab={setActiveTab} 
+            onInspectConflict={setInspectingConflict}
             t={t}
           />
         )}
@@ -283,6 +287,20 @@ export default function Home() {
           />
         )}
       </main>
+
+      {/* Side-by-Side Legal Conflict Inspector Modal */}
+      {inspectingConflict && (
+        <ConflictInspectorModal
+          conflict={inspectingConflict}
+          data={data}
+          onClose={() => setInspectingConflict(null)}
+          onSelectNode={(node) => {
+            setSelectedNode(node);
+            setActiveTab("citation");
+          }}
+          t={t}
+        />
+      )}
     </div>
   );
 }
@@ -1187,11 +1205,13 @@ function ConflictsView({
   data, 
   setSelectedNode, 
   setActiveTab,
+  onInspectConflict,
   t
 }: { 
   data: GraphData; 
   setSelectedNode: (node: GraphNode) => void;
   setActiveTab: (tab: TabType) => void;
+  onInspectConflict: (conflict: ConflictRecord) => void;
   t: TranslateFn;
 }) {
   return (
@@ -1238,15 +1258,24 @@ function ConflictsView({
                     </h3>
                     <p className="text-xs text-[#94a3b8] leading-relaxed">{targetNode.title}</p>
                   </div>
-                  <button 
-                    onClick={() => {
-                      setSelectedNode(targetNode);
-                      setActiveTab("graph");
-                    }}
-                    className="px-3 py-1.5 rounded bg-[#ef4444]/10 hover:bg-[#ef4444]/20 text-[#f87171] text-xs font-semibold transition-all flex items-center gap-1.5 border border-[#ef4444]/30 shrink-0 cursor-pointer"
-                  >
-                    {t("showInGraph")} <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
+                    <button
+                      onClick={() => onInspectConflict(record)}
+                      className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#ef4444] to-[#f43f5e] hover:opacity-95 text-[#070b13] text-xs font-bold transition-all flex items-center gap-1.5 shadow-md shadow-[#ef4444]/20 cursor-pointer"
+                    >
+                      <ShieldAlert className="w-3.5 h-3.5" />
+                      {t("inspectConflict")}
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setSelectedNode(targetNode);
+                        setActiveTab("graph");
+                      }}
+                      className="px-3 py-1.5 rounded bg-[#ef4444]/10 hover:bg-[#ef4444]/20 text-[#f87171] text-xs font-semibold transition-all flex items-center gap-1.5 border border-[#ef4444]/30 cursor-pointer"
+                    >
+                      {t("showInGraph")} <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 <p className="text-sm text-[#f8fafc] bg-[#ef4444]/5 p-3 rounded-lg border border-[#ef4444]/10 leading-relaxed">
