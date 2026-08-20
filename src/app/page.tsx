@@ -703,6 +703,8 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     }
   }, [selectedNode, isFleetFiltered, fleetCriteria]);
 
+  const zoomToFitRef = useRef<((animate?: boolean) => void) | null>(null);
+
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return;
     
@@ -719,17 +721,13 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
 
     // Zoom setup
     const zoom = d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.1, 4])
+      .scaleExtent([0.08, 4])
       .on("zoom", (event) => {
         g.attr("transform", event.transform);
       });
 
     svg.call(zoom);
     zoomBehaviorRef.current = zoom;
-
-    // Start zoomed out centered
-    const initialTransform = d3.zoomIdentity.translate(0, 0).scale(0.35);
-    svg.call(zoom.transform, initialTransform);
 
     // Deep copy nodes and links for simulation run
     const nodes: GraphNode[] = data.nodes.map(n => ({ ...n }));
@@ -745,20 +743,78 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     // Degree calculations for node sizing
     const degree = computeDegree(filteredLinks);
 
-    // Force simulation with EU vs National cluster centers (EU left, National right)
+    // Force simulation with spacious dispersion, strong repulsion, and gentle EU vs National separation
     const simulation = d3.forceSimulation<GraphNode>(filteredNodes)
-      .force("link", d3.forceLink<GraphNode, GraphLink>(filteredLinks).id((d) => d.id).distance(110))
-      .force("charge", d3.forceManyBody().strength(-80))
+      .force("link", d3.forceLink<GraphNode, GraphLink>(filteredLinks).id((d) => d.id).distance((d) => {
+        const sId = typeof d.source === 'object' ? d.source.id : d.source;
+        const tId = typeof d.target === 'object' ? d.target.id : d.target;
+        const combinedDegree = (degree[sId] || 0) + (degree[tId] || 0);
+        return 180 + Math.min(combinedDegree * 8, 120);
+      }))
+      .force("charge", d3.forceManyBody().strength(-300))
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force("x", d3.forceX<GraphNode>(d => {
         const isEu = d.doc.toLowerCase().includes("eu") || d.label.toLowerCase().includes("eu");
-        return isEu ? width * 0.35 : width * 0.65;
-      }).strength(0.14))
-      .force("y", d3.forceY(height / 2).strength(0.08))
+        return isEu ? width * 0.30 : width * 0.70;
+      }).strength(0.035))
+      .force("y", d3.forceY(height / 2).strength(0.035))
       .force("collide", d3.forceCollide<GraphNode>()
-        .radius((d) => 9 + Math.min((degree[d.id] || 0) * 1.5, 30))
-        .iterations(2))
-      .velocityDecay(0.35);
+        .radius((d) => 18 + Math.min((degree[d.id] || 0) * 3.5, 45))
+        .iterations(3))
+      .velocityDecay(0.4);
+
+    // Pre-warm simulation so nodes expand into settled spacious positions before initial view calculation
+    for (let i = 0; i < 90; ++i) simulation.tick();
+
+    // Zoom-to-fit calculation to ensure outer edges of the graph are visible in screen corners
+    const zoomToFit = (animate = false) => {
+      if (!svgRef.current || !zoomBehaviorRef.current || !containerRef.current) return;
+      const currentWidth = containerRef.current.clientWidth || 800;
+      const currentHeight = containerRef.current.clientHeight || 600;
+
+      if (filteredNodes.length === 0) {
+        const def = d3.zoomIdentity.translate(currentWidth / 2, currentHeight / 2).scale(1);
+        d3.select(svgRef.current).call(zoomBehaviorRef.current.transform, def);
+        return;
+      }
+
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const d of filteredNodes) {
+        if (d.x === undefined || d.y === undefined) continue;
+        const r = 18 + Math.min((degree[d.id] || 0) * 3.5, 45);
+        if (d.x - r < minX) minX = d.x - r;
+        if (d.x + r > maxX) maxX = d.x + r;
+        if (d.y - r < minY) minY = d.y - r;
+        if (d.y + r > maxY) maxY = d.y + r;
+      }
+
+      const margin = 70;
+      const graphWidth = Math.max(maxX - minX + margin * 2, 100);
+      const graphHeight = Math.max(maxY - minY + margin * 2, 100);
+      const midX = (minX + maxX) / 2;
+      const midY = (minY + maxY) / 2;
+
+      const scaleX = currentWidth / graphWidth;
+      const scaleY = currentHeight / graphHeight;
+      const fitScale = Math.max(0.12, Math.min(scaleX, scaleY, 1.15));
+
+      const tx = currentWidth / 2 - midX * fitScale;
+      const ty = currentHeight / 2 - midY * fitScale;
+
+      const targetTransform = d3.zoomIdentity.translate(tx, ty).scale(fitScale);
+
+      if (animate) {
+        d3.select(svgRef.current)
+          .transition()
+          .duration(350)
+          .call(zoomBehaviorRef.current.transform, targetTransform);
+      } else {
+        d3.select(svgRef.current).call(zoomBehaviorRef.current.transform, targetTransform);
+      }
+    };
+
+    zoomToFitRef.current = zoomToFit;
+    zoomToFit(false);
 
     // Draw links
     const link = g.append("g")
@@ -939,6 +995,9 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       svg.attr("viewBox", [0, 0, newWidth, newHeight]);
       simulation.force("center", d3.forceCenter(newWidth / 2, newHeight / 2));
       simulation.alpha(0.1).restart();
+      if (zoomToFitRef.current) {
+        zoomToFitRef.current(false);
+      }
     });
 
     if (containerRef.current) {
@@ -968,12 +1027,9 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
   };
 
   const handleResetZoom = () => {
-    if (!svgRef.current || !zoomBehaviorRef.current || !containerRef.current) return;
-    const initialTransform = d3.zoomIdentity.translate(0, 0).scale(0.35);
-    d3.select(svgRef.current)
-      .transition()
-      .duration(250)
-      .call(zoomBehaviorRef.current.transform, initialTransform);
+    if (zoomToFitRef.current) {
+      zoomToFitRef.current(true);
+    }
   };
 
   return (
