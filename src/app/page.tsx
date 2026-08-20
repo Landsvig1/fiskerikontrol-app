@@ -129,9 +129,9 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#070b13] text-[#f8fafc]">
-        <RefreshCw className="w-12 h-12 text-[#38bdf8] animate-spin mb-4" />
-        <h2 className="text-xl font-semibold">{t("loadingGraph")}</h2>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#fafaf9] text-slate-900 font-sans">
+        <RefreshCw className="w-10 h-10 text-sky-700 animate-spin mb-4" />
+        <h2 className="text-base font-semibold text-slate-800">{t("loadingGraph")}</h2>
       </div>
     );
   }
@@ -151,31 +151,31 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#070b13] text-[#f8fafc] font-sans antialiased">
+    <div className="flex flex-col min-h-screen bg-[#fafaf9] text-slate-900 font-sans antialiased">
       {/* Top Header Navigation */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-4 bg-[#0d1527] border-b border-[#1e293b] z-25">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-slate-200 z-25 shadow-xs">
         <div className="flex items-center gap-3">
-          <Database className="w-6 h-6 text-[#38bdf8]" />
+          <Database className="w-5 h-5 text-sky-700" />
           <div>
-            <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-[#38bdf8] to-[#818cf8] bg-clip-text text-transparent">
+            <h1 className="text-base font-bold tracking-tight text-slate-900">
               {t("appTitle")}
             </h1>
-            <p className="text-xs text-[#94a3b8]">
+            <p className="text-xs text-slate-500">
               {t("appTagline")}
             </p>
           </div>
         </div>
         
         {/* Navigation Tabs */}
-        <nav className="flex gap-1 bg-[#131e35] p-1 rounded-lg border border-[#1e293b] flex-wrap">
+        <nav className="flex gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 flex-wrap">
           {(["dashboard", "citation", "graph", "overlaps", "conflicts", "browse"] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider transition-all duration-200 ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer ${
                 activeTab === tab 
-                  ? "bg-[#38bdf8] text-[#070b13] shadow-md shadow-[#38bdf8]/10" 
-                  : "text-[#94a3b8] hover:text-[#f8fafc] hover:bg-[#1e293b]"
+                  ? "bg-white text-slate-900 shadow-xs border border-slate-200/80 font-semibold" 
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
               }`}
             >
               {tab === "dashboard" && t("dashboard")}
@@ -191,12 +191,12 @@ export default function Home() {
         {/* Right side controls: Language and Reset */}
         <div className="flex items-center gap-3">
           {/* Language Toggle */}
-          <div className="flex items-center gap-1 bg-[#131e35] p-1 rounded-lg border border-[#1e293b]">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
             <button
               type="button"
               onClick={() => changeLang("da")}
-              className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all duration-200 ${
-                lang === "da" ? "bg-[#38bdf8] text-[#070b13]" : "text-[#94a3b8] hover:text-[#f8fafc]"
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all duration-200 ${
+                lang === "da" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
               }`}
             >
               DA
@@ -204,8 +204,8 @@ export default function Home() {
             <button
               type="button"
               onClick={() => changeLang("en")}
-              className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all duration-200 ${
-                lang === "en" ? "bg-[#38bdf8] text-[#070b13]" : "text-[#94a3b8] hover:text-[#f8fafc]"
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all duration-200 ${
+                lang === "en" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
               }`}
             >
               EN
@@ -218,9 +218,9 @@ export default function Home() {
               setData(null);
               setSelectedNode(null);
             }}
-            className="px-3 py-1.5 rounded-lg bg-[#1e293b] hover:bg-[#334155] border border-[#1e293b] hover:border-[#38bdf8]/40 text-xs font-semibold text-[#f8fafc] transition-all flex items-center gap-1 cursor-pointer"
+            className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
             {t("newAnalysis")}
           </button>
         </div>
@@ -309,8 +309,8 @@ export default function Home() {
 // VIEW 1: DASHBOARD VIEW
 // ----------------------------------------------------
 function DashboardView({ 
-  data,
-  setActiveTab,
+  data, 
+  setActiveTab, 
   t,
   lang
 }: { 
@@ -329,18 +329,18 @@ function DashboardView({
   const docLabelList = new Intl.ListFormat(lang, { style: "long", type: "conjunction" }).format(docLabels);
 
   return (
-    <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-gradient-to-b from-[#070b13] to-[#0a1122]">
+    <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-[#fafaf9] text-slate-900">
       {/* Citation Graph Preview */}
-      <div className="bg-[#0d1527] border border-[#1e293b] p-6 rounded-xl space-y-4">
+      <div className="bg-white border border-slate-200/90 p-6 rounded-2xl space-y-4 shadow-xs">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm uppercase font-bold text-[#38bdf8] tracking-wider flex items-center gap-2">
-            <Database className="w-4 h-4" /> {t("citationGraph")} {lang === "da" ? "Oversigt" : "Overview"}
+          <h3 className="text-xs uppercase font-bold text-sky-800 tracking-wider flex items-center gap-2">
+            <Database className="w-4 h-4 text-sky-700" /> {t("citationGraph")} {lang === "da" ? "Oversigt" : "Overview"}
           </h3>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#10b981]/15 text-[#34d399] border border-[#10b981]/30">
+          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
             {lang === "da" ? "Klar" : "Ready"}
           </span>
         </div>
-        <p className="text-sm text-[#94a3b8] leading-relaxed">
+        <p className="text-sm text-slate-600 leading-relaxed">
           {lang === "da"
             ? `Grafen er genereret på baggrund af de uploadede dokumenter: ${docLabelList}. Netværket kortlægger sektionerne som noder og de modallogiske henvisninger som kanter.`
             : `The graph is generated based on the uploaded documents: ${docLabelList}. The network maps sections as nodes and modal logic references as edges.`
@@ -349,7 +349,7 @@ function DashboardView({
 
         <button
           onClick={() => setActiveTab("citation")}
-          className="w-full py-2.5 rounded-lg bg-[#38bdf8] text-[#070b13] font-semibold text-sm hover:bg-[#38bdf8]/90 transition-all flex items-center justify-center gap-2 shadow-md shadow-[#38bdf8]/15 cursor-pointer"
+          className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
         >
           {lang === "da" ? "Åbn Citation Graf" : "Open Citation Graph"} <ArrowRight className="w-4 h-4" />
         </button>
@@ -357,10 +357,10 @@ function DashboardView({
 
       {/* Intro Hero Section */}
       <div className="max-w-4xl">
-        <h2 className="text-3xl font-extrabold tracking-tight">
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900">
           {lang === "da" ? "Kortlægning af dokumentcitationer og relationer" : "Mapping of Document Citations and Relations"}
         </h2>
-        <p className="text-base text-[#94a3b8] mt-2 leading-relaxed">
+        <p className="text-sm text-slate-600 mt-2 leading-relaxed">
           {lang === "da"
             ? "Dette værktøj analyserer afhængigheder, krydsreferencer og logiske modstrid i de analyserede dokumenter. Ved at dekonstruere teksten til en struktur af noder (sektioner) og kanter (citationer/modallogiske bindinger) kan vi automatisk afdække overlap og uoverensstemmelser."
             : "This tool analyzes dependencies, cross-references, and logical conflicts in the analyzed documents. By deconstructing the text into a structure of nodes (sections) and edges (citations/modal logical bonds), we can automatically uncover overlaps and inconsistencies."
@@ -373,59 +373,59 @@ function DashboardView({
         {countsByDoc.map(d => (
           <div
             key={d.id}
-            className="bg-[#0f172a] border border-[#1e293b] p-6 rounded-xl hover:border-[#38bdf8]/40 transition-all duration-300"
+            className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs hover:border-slate-300 transition-all duration-200"
           >
-            <BookOpen className="w-8 h-8 mb-4" style={{ color: docColorFor(data.docs, d.id) }} />
-            <h3 className="text-xs uppercase font-semibold text-[#94a3b8] tracking-wider truncate">{docLabel(data.docs, d.id, t)}</h3>
-            <p className="text-4xl font-extrabold text-[#f8fafc] mt-2">{d.count}</p>
+            <BookOpen className="w-7 h-7 mb-4" style={{ color: docColorFor(data.docs, d.id) }} />
+            <h3 className="text-xs uppercase font-medium text-slate-500 tracking-wider truncate">{docLabel(data.docs, d.id, t)}</h3>
+            <p className="text-3xl font-bold text-slate-900 mt-2">{d.count}</p>
           </div>
         ))}
 
-        <div className="bg-[#0f172a] border border-[#1e293b] p-6 rounded-xl hover:border-[#fbbf24]/40 transition-all duration-300 cursor-pointer" onClick={() => setActiveTab("overlaps")}>
-          <GitBranch className="w-8 h-8 text-[#fbbf24] mb-4" />
-          <h3 className="text-xs uppercase font-semibold text-[#94a3b8] tracking-wider">{t("overlapsCount")}</h3>
+        <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs hover:border-slate-300 transition-all duration-200 cursor-pointer" onClick={() => setActiveTab("overlaps")}>
+          <GitBranch className="w-7 h-7 text-amber-600 mb-4" />
+          <h3 className="text-xs uppercase font-medium text-slate-500 tracking-wider">{t("overlapsCount")}</h3>
           <div className="flex items-baseline justify-between mt-2">
-            <p className="text-4xl font-extrabold text-[#f8fafc]">{data.overlaps.length}</p>
-            <span className="text-xs text-[#fbbf24] flex items-center gap-1">{t("viewAnalysis")} <ArrowRight className="w-3.5 h-3.5" /></span>
+            <p className="text-3xl font-bold text-slate-900">{data.overlaps.length}</p>
+            <span className="text-xs text-amber-700 font-medium flex items-center gap-1">{t("viewAnalysis")} <ArrowRight className="w-3.5 h-3.5" /></span>
           </div>
         </div>
 
-        <div className="bg-[#ef4444]/10 border border-[#ef4444]/20 p-6 rounded-xl hover:border-[#ef4444]/50 transition-all duration-300 cursor-pointer" onClick={() => setActiveTab("conflicts")}>
-          <AlertTriangle className="w-8 h-8 text-[#f87171] mb-4" />
-          <h3 className="text-xs uppercase font-semibold text-[#f87171] tracking-wider">{t("conflictsCount")}</h3>
+        <div className="bg-rose-50/40 border border-rose-200/80 p-6 rounded-2xl shadow-xs hover:border-rose-300 transition-all duration-200 cursor-pointer" onClick={() => setActiveTab("conflicts")}>
+          <AlertTriangle className="w-7 h-7 text-rose-600 mb-4" />
+          <h3 className="text-xs uppercase font-medium text-rose-800 tracking-wider">{t("conflictsCount")}</h3>
           <div className="flex items-baseline justify-between mt-2">
-            <p className="text-4xl font-extrabold text-[#f87171]">{data.conflicts.length}</p>
-            <span className="text-xs text-[#f87171] flex items-center gap-1">{t("viewConflicts")} <ArrowRight className="w-3.5 h-3.5" /></span>
+            <p className="text-3xl font-bold text-rose-900">{data.conflicts.length}</p>
+            <span className="text-xs text-rose-700 font-medium flex items-center gap-1">{t("viewConflicts")} <ArrowRight className="w-3.5 h-3.5" /></span>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Graph Summary */}
-        <div className="bg-[#0d1527] border border-[#1e293b] p-6 rounded-xl">
-          <h3 className="text-sm uppercase font-semibold text-[#94a3b8] tracking-wider mb-4 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-[#38bdf8]" /> {lang === "da" ? "Netværksstruktur" : "Network Structure"}
+        <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs">
+          <h3 className="text-xs uppercase font-bold text-slate-700 tracking-wider mb-4 flex items-center gap-2">
+            <Activity className="w-4 h-4 text-sky-700" /> {lang === "da" ? "Netværksstruktur" : "Network Structure"}
           </h3>
           <div className="space-y-4">
-            <p className="text-sm text-[#94a3b8] leading-relaxed">
+            <p className="text-sm text-slate-600 leading-relaxed">
               {lang === "da"
-                ? <>Vi har udtrukket i alt <strong className="text-[#38bdf8]">{data.nodes.length} noder</strong> og etableret <strong className="text-[#38bdf8]">{totalCitations} relationer</strong> baseret på automatiske kildehenvisninger.</>
-                : <>We have extracted a total of <strong className="text-[#38bdf8]">{data.nodes.length} nodes</strong> and established <strong className="text-[#38bdf8]">{totalCitations} relations</strong> based on automatic cross-references.</>
+                ? <>Vi har udtrukket i alt <strong className="text-slate-900">{data.nodes.length} noder</strong> og etableret <strong className="text-slate-900">{totalCitations} relationer</strong> baseret på automatiske kildehenvisninger.</>
+                : <>We have extracted a total of <strong className="text-slate-900">{data.nodes.length} nodes</strong> and established <strong className="text-slate-900">{totalCitations} relations</strong> based on automatic cross-references.</>
               }
             </p>
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-[#1e293b]/40 p-4 rounded-lg">
-                <span className="text-xs text-[#94a3b8]">{lang === "da" ? "Gennemsnitlige referencer pr. sektion" : "Average references per section"}</span>
-                <p className="text-2xl font-bold mt-1">{(totalCitations / Math.max(1, totalPrimaryNodes)).toFixed(2)}</p>
+              <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-xl">
+                <span className="text-xs text-slate-500 font-medium">{lang === "da" ? "Gennemsnitlige referencer pr. sektion" : "Average references per section"}</span>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{(totalCitations / Math.max(1, totalPrimaryNodes)).toFixed(2)}</p>
               </div>
-              <div className="bg-[#1e293b]/40 p-4 rounded-lg">
-                <span className="text-xs text-[#94a3b8]">{lang === "da" ? "Modallogiske krydsreferencer" : "Modal logic cross-references"}</span>
-                <p className="text-2xl font-bold mt-1">{totalCitations}</p>
+              <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-xl">
+                <span className="text-xs text-slate-500 font-medium">{lang === "da" ? "Modallogiske krydsreferencer" : "Modal logic cross-references"}</span>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{totalCitations}</p>
               </div>
             </div>
             <button 
               onClick={() => setActiveTab("graph")}
-              className="w-full mt-2 py-2.5 rounded-lg bg-[#38bdf8] text-[#070b13] font-semibold text-sm hover:bg-[#38bdf8]/90 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full mt-2 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
             >
               {lang === "da" ? "Åbn Interaktiv Netværksgraf" : "Open Interactive Network Graph"} <ArrowRight className="w-4 h-4" />
             </button>
@@ -433,13 +433,13 @@ function DashboardView({
         </div>
 
         {/* System Description */}
-        <div className="bg-[#0d1527] border border-[#1e293b] p-6 rounded-xl space-y-4">
-          <h3 className="text-sm uppercase font-semibold text-[#94a3b8] tracking-wider mb-4 flex items-center gap-2">
-            <Info className="w-4 h-4 text-[#10b981]" /> {lang === "da" ? "Sådan fungerer analyse-motoren" : "How the Analysis Engine Works"}
+        <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs space-y-4">
+          <h3 className="text-xs uppercase font-bold text-slate-700 tracking-wider mb-4 flex items-center gap-2">
+            <Info className="w-4 h-4 text-emerald-700" /> {lang === "da" ? "Sådan fungerer analyse-motoren" : "How the Analysis Engine Works"}
           </h3>
-          <div className="space-y-3 text-sm text-[#94a3b8] leading-relaxed">
+          <div className="space-y-3 text-sm text-slate-600 leading-relaxed">
             <div className="flex gap-3">
-              <CheckCircle className="w-5 h-5 text-[#10b981] shrink-0 mt-0.5" />
+              <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
               <p>
                 {lang === "da"
                   ? <><strong>Modalklassificering:</strong> Hver krydsreference tildeles en modalitet (Forpligtelse, Undtagelse, Tilladelse, Forbud) ud fra tekstkonteksten (fx ord som <em>&quot;fritages&quot;</em>, <em>&quot;skal&quot;</em>, <em>&quot;må ikke&quot;</em>).</>
@@ -448,7 +448,7 @@ function DashboardView({
               </p>
             </div>
             <div className="flex gap-3">
-              <CheckCircle className="w-5 h-5 text-[#10b981] shrink-0 mt-0.5" />
+              <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
               <p>
                 {lang === "da"
                   ? <><strong>Kollisions-detektion:</strong> Hvis en sektion pålægger krav (Obligation), mens en anden sektion uafhængigt heraf tildeler en undtagelse (Exception) eller et forbud (Prohibition) i forhold til samme reference, flages dette som en potentiel konflikt.</>
@@ -457,7 +457,7 @@ function DashboardView({
               </p>
             </div>
             <div className="flex gap-3">
-              <CheckCircle className="w-5 h-5 text-[#10b981] shrink-0 mt-0.5" />
+              <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
               <p>
                 {lang === "da"
                   ? <><strong>Overlappende reference:</strong> Finder kernebestemmelser, som refereres af usædvanligt mange separate sektioner, hvilket øger kompleksiteten.</>
@@ -577,11 +577,11 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
         })
         .attr("stroke-width", (d: unknown) => {
           const n = d as GraphNode;
-          return n.id === selectedNode.id ? 3.0 : 1.5;
+          return n.id === selectedNode.id ? 2.5 : 1.5;
         })
         .attr("stroke", (d: unknown) => {
           const n = d as GraphNode;
-          return n.id === selectedNode.id ? "#38bdf8" : "#0d1527";
+          return n.id === selectedNode.id ? "#0f172a" : "#ffffff";
         });
     } else {
       // Reset styling
@@ -589,7 +589,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       svg.selectAll("circle")
         .style("opacity", 1.0)
         .attr("stroke-width", 1.5)
-        .attr("stroke", "#0d1527");
+        .attr("stroke", "#ffffff");
     }
   }, [selectedNode]);
 
@@ -618,10 +618,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     zoomBehaviorRef.current = zoom;
 
     // Start zoomed out (scale of 0.3) centered
-    const initialScale = 0.3;
-    const initialTransform = d3.zoomIdentity
-      .translate((width * (1 - initialScale)) / 2, (height * (1 - initialScale)) / 2)
-      .scale(initialScale);
+    const initialTransform = d3.zoomIdentity.translate(0, 0).scale(0.3);
     svg.call(zoom.transform, initialTransform);
 
     // Deep copy nodes and links for simulation run
@@ -648,11 +645,11 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       .force("collide", d3.forceCollide<GraphNode>()
         .radius((d) => 8 + Math.min((degree[d.id] || 0) * 1.5, 30))
         .iterations(2))
-      .velocityDecay(0.4);
+      .velocityDecay(0.35);
 
     // Draw links
     const link = g.append("g")
-      .selectAll("line")
+      .selectAll<SVGLineElement, GraphLink>("line")
       .data(filteredLinks)
       .join("line")
       .attr("stroke", d => modalityColor(d.modality))
@@ -670,7 +667,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
         return 6 + Math.min(deg * 0.8, 18);
       })
       .attr("fill", d => docColorFor(data.docs, d.doc))
-      .attr("stroke", "#0d1527")
+      .attr("stroke", "#ffffff")
       .attr("stroke-width", 1.5)
       .style("cursor", "pointer")
       .call(d3.drag<SVGCircleElement, GraphNode>()
@@ -791,13 +788,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
 
   const handleResetZoom = () => {
     if (!svgRef.current || !zoomBehaviorRef.current || !containerRef.current) return;
-    const width = containerRef.current.clientWidth || 800;
-    const height = containerRef.current.clientHeight || 600;
-    const initialScale = 0.3;
-    const initialTransform = d3.zoomIdentity
-      .translate((width * (1 - initialScale)) / 2, (height * (1 - initialScale)) / 2)
-      .scale(initialScale);
-
+    const initialTransform = d3.zoomIdentity.translate(0, 0).scale(0.3);
     d3.select(svgRef.current)
       .transition()
       .duration(250)
@@ -805,29 +796,29 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
   };
 
   return (
-    <div ref={containerRef} className="flex-1 bg-[#070b13] relative overflow-hidden">
+    <div ref={containerRef} className="flex-1 bg-[#f8fafc] relative overflow-hidden">
       <svg ref={svgRef} className="w-full h-full block" />
 
       {/* Zoom HUD Controls & Important Articles */}
       <div className="absolute top-6 right-6 flex flex-col gap-2 z-10 select-none">
-        <div className="flex flex-col gap-2 bg-[#0d1527]/90 border border-[#1e293b] p-2 rounded-xl backdrop-blur-md shadow-lg">
+        <div className="flex flex-col gap-1.5 bg-white/95 border border-slate-200 p-1.5 rounded-xl backdrop-blur-xs shadow-sm">
           <button 
             onClick={handleZoomIn}
-            className="w-8 h-8 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-sm font-bold flex items-center justify-center transition-all cursor-pointer border border-[#1e293b] hover:border-[#38bdf8]/40 text-[#f8fafc]"
+            className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm font-semibold flex items-center justify-center transition-all cursor-pointer border border-slate-200 text-slate-800 shadow-2xs"
             title="Zoom ind"
           >
             +
           </button>
           <button 
             onClick={handleZoomOut}
-            className="w-8 h-8 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-sm font-bold flex items-center justify-center transition-all cursor-pointer border border-[#1e293b] hover:border-[#38bdf8]/40 text-[#f8fafc]"
+            className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm font-semibold flex items-center justify-center transition-all cursor-pointer border border-slate-200 text-slate-800 shadow-2xs"
             title="Zoom ud"
           >
             &minus;
           </button>
           <button 
             onClick={handleResetZoom}
-            className="w-8 h-8 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-xs font-semibold flex items-center justify-center transition-all cursor-pointer border border-[#1e293b] hover:border-[#38bdf8]/40 text-[#94a3b8] hover:text-[#38bdf8]"
+            className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 text-[10px] font-semibold flex items-center justify-center transition-all cursor-pointer border border-slate-200 text-slate-600 shadow-2xs"
             title="Nulstil zoom"
           >
             Reset
@@ -836,8 +827,8 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
 
         {/* Top 10 nodes */}
         {top10Nodes.length > 0 && (
-          <div className="flex flex-col gap-2 bg-[#0d1527]/90 border border-[#1e293b] p-2 rounded-xl backdrop-blur-md shadow-lg max-h-[calc(100vh-250px)] overflow-y-auto">
-            <div className="text-[10px] uppercase font-bold text-[#94a3b8] text-center mb-1">
+          <div className="flex flex-col gap-1.5 bg-white/95 border border-slate-200 p-2 rounded-xl backdrop-blur-xs shadow-sm max-h-[calc(100vh-250px)] overflow-y-auto">
+            <div className="text-[10px] uppercase font-bold text-slate-400 text-center mb-0.5">
               Top 10
             </div>
             {top10Nodes.map(node => (
@@ -846,8 +837,8 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
                 onClick={() => handleFocusNode(node.id)}
                 className={`w-8 h-8 rounded-lg text-xs font-semibold flex items-center justify-center transition-all cursor-pointer border text-center ${
                   selectedNode?.id === node.id 
-                    ? "bg-[#38bdf8] text-[#070b13] border-[#38bdf8]" 
-                    : "bg-[#1e293b] hover:bg-[#334155] border-[#1e293b] hover:border-[#38bdf8]/40 text-[#f8fafc]"
+                    ? "bg-slate-900 text-white border-slate-900 shadow-xs" 
+                    : "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 shadow-2xs"
                 }`}
                 title={`Sect. ${node.number}: ${node.title} (${node.degree} links)`}
               >
@@ -859,21 +850,21 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       </div>
       
       {/* Modality Legend overlay */}
-      <div className="absolute bottom-6 left-6 bg-[#0d1527]/90 border border-[#1e293b] p-4 rounded-xl space-y-2 text-xs text-[#94a3b8] backdrop-blur-md">
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-0.5 bg-[#ef4444] border-t border-dashed" />
+      <div className="absolute bottom-6 left-6 bg-white/95 border border-slate-200 p-3.5 rounded-xl space-y-1.5 text-xs text-slate-600 backdrop-blur-xs shadow-sm">
+        <div className="flex items-center gap-2 font-medium">
+          <span className="w-3.5 h-0.5 bg-[#d97706] border-t border-dashed" />
           <span>{t("exception")}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-0.5 bg-[#3b82f6]" />
+        <div className="flex items-center gap-2 font-medium">
+          <span className="w-3.5 h-0.5 bg-[#0284c7]" />
           <span>{t("obligation")}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-0.5 bg-[#ec4899]" />
+        <div className="flex items-center gap-2 font-medium">
+          <span className="w-3.5 h-0.5 bg-[#e11d48]" />
           <span>{t("prohibition")}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-0.5 bg-[#10b981]" />
+        <div className="flex items-center gap-2 font-medium">
+          <span className="w-3.5 h-0.5 bg-[#059669]" />
           <span>{t("permission")}</span>
         </div>
       </div>
@@ -911,11 +902,11 @@ function InteractiveGraphView({
   });
 
   return (
-    <div className="flex-1 flex overflow-hidden relative">
+    <div className="flex-1 flex overflow-hidden relative bg-[#fafaf9]">
       {/* Mobile toggle for control panel */}
       <button
         onClick={() => setControlPanelOpen(v => !v)}
-        className="md:hidden absolute top-3 left-3 z-30 bg-[#0d1527] border border-[#1e293b] rounded-lg p-2 text-[#94a3b8] shadow-lg"
+        className="md:hidden absolute top-3 left-3 z-30 bg-white border border-slate-200 rounded-lg p-2 text-slate-600 shadow-sm"
         aria-label={t("browse")}
       >
         <Search className="w-4 h-4" />
@@ -924,35 +915,35 @@ function InteractiveGraphView({
       {/* Backdrop overlay when control panel is open on mobile */}
       {controlPanelOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-black/50 z-20"
+          className="md:hidden fixed inset-0 bg-slate-900/30 backdrop-blur-xs z-20"
           onClick={() => setControlPanelOpen(false)}
         />
       )}
 
       {/* Control panel sidebar — slides in as an overlay on small screens, static on md+ */}
       <div
-        className={`fixed md:relative inset-y-0 left-0 z-25 w-80 max-w-[85vw] bg-[#0d1527] border-r border-[#1e293b] p-6 flex flex-col gap-6 overflow-y-auto transform transition-transform duration-300 ${controlPanelOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
+        className={`fixed md:relative inset-y-0 left-0 z-25 w-80 max-w-[85vw] bg-white border-r border-slate-200 p-6 flex flex-col gap-6 overflow-y-auto transform transition-transform duration-300 shadow-sm ${controlPanelOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
         <div>
-          <h3 className="text-xs uppercase font-semibold text-[#94a3b8] tracking-wider mb-2">{t("browse") /* Søg i graf */}</h3>
+          <h3 className="text-xs uppercase font-bold text-slate-500 tracking-wider mb-2">{t("browse") /* Søg i graf */}</h3>
           <div className="relative">
             <input
               type="text"
               placeholder={t("noHeading") === "(No title)" ? "Enter search term..." : "Indtast søgeord..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#070b13] border border-[#1e293b] text-sm text-[#f8fafc] px-3 py-2 rounded-lg outline-none focus:border-[#38bdf8]"
+              className="w-full bg-slate-50 border border-slate-200 text-xs text-slate-900 px-3 py-2 rounded-lg outline-none focus:border-sky-500 focus:bg-white"
             />
-            <Search className="w-4 h-4 text-[#94a3b8] absolute right-3 top-3" />
+            <Search className="w-4 h-4 text-slate-400 absolute right-3 top-2.5" />
           </div>
         </div>
 
         <div>
-          <h3 className="text-xs uppercase font-semibold text-[#94a3b8] tracking-wider mb-2">Filter</h3>
+          <h3 className="text-xs uppercase font-bold text-slate-500 tracking-wider mb-2">Filter</h3>
           <div className="flex flex-col gap-1">
             <button
               onClick={() => setActiveDocFilter("all")}
-              className={`text-left px-3 py-2 rounded-lg text-xs font-semibold uppercase ${activeDocFilter === "all" ? "bg-[#38bdf8]/10 border border-[#38bdf8]/20 text-[#38bdf8]" : "text-[#94a3b8] hover:bg-[#1e293b]"}`}
+              className={`text-left px-3 py-2 rounded-lg text-xs font-semibold uppercase transition-all ${activeDocFilter === "all" ? "bg-sky-50 text-sky-800 border border-sky-200 shadow-2xs" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}
             >
               {t("allDocuments")}
             </button>
@@ -960,7 +951,7 @@ function InteractiveGraphView({
               <button
                 key={d.id}
                 onClick={() => setActiveDocFilter(d.id)}
-                className={`text-left px-3 py-2 rounded-lg text-xs font-semibold uppercase flex items-center gap-2 ${activeDocFilter === d.id ? "bg-[#38bdf8]/10 border border-[#38bdf8]/20 text-[#38bdf8]" : "text-[#94a3b8] hover:bg-[#1e293b]"}`}
+                className={`text-left px-3 py-2 rounded-lg text-xs font-semibold uppercase flex items-center gap-2 transition-all ${activeDocFilter === d.id ? "bg-sky-50 text-sky-800 border border-sky-200 shadow-2xs" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}
               >
                 <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: docColorFor(data.docs, d.id) }} />
                 <span className="truncate">{docLabel(data.docs, d.id, t)}</span>
@@ -970,11 +961,11 @@ function InteractiveGraphView({
         </div>
 
         <div>
-          <h3 className="text-xs uppercase font-semibold text-[#94a3b8] tracking-wider mb-2">{t("category")}</h3>
+          <h3 className="text-xs uppercase font-bold text-slate-500 tracking-wider mb-2">{t("category")}</h3>
           <div className="flex flex-col gap-1">
             <button
               onClick={() => setActiveCategoryFilter("all")}
-              className={`text-left px-3 py-2 rounded-lg text-xs font-semibold ${activeCategoryFilter === "all" ? "bg-[#38bdf8]/10 border border-[#38bdf8]/20 text-[#38bdf8]" : "text-[#94a3b8] hover:bg-[#1e293b]"}`}
+              className={`text-left px-3 py-2 rounded-lg text-xs font-semibold transition-all ${activeCategoryFilter === "all" ? "bg-sky-50 text-sky-800 border border-sky-200 shadow-2xs" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}
             >
               {t("allCategories")} ({data.nodes.length})
             </button>
@@ -984,7 +975,7 @@ function InteractiveGraphView({
                 <button
                   key={cat}
                   onClick={() => setActiveCategoryFilter(cat)}
-                  className={`text-left px-3 py-2 rounded-lg text-xs font-semibold truncate ${activeCategoryFilter === cat ? "bg-[#38bdf8]/10 border border-[#38bdf8]/20 text-[#38bdf8]" : "text-[#94a3b8] hover:bg-[#1e293b]"}`}
+                  className={`text-left px-3 py-2 rounded-lg text-xs font-semibold truncate transition-all ${activeCategoryFilter === cat ? "bg-sky-50 text-sky-800 border border-sky-200 shadow-2xs" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}
                   title={`${cat} (${count})`}
                 >
                   {cat} ({count})
@@ -1008,11 +999,11 @@ function InteractiveGraphView({
 
       {/* Details sidebar drawer — full-width overlay on small screens, fixed w-96 on md+ */}
       {selectedNode && (
-        <div className="absolute right-0 top-0 w-full sm:w-96 max-w-full bg-[#0d1527] border-l border-[#1e293b] flex flex-col h-full z-20 shadow-2xl transition-all duration-300">
-          <div className="p-6 border-b border-[#1e293b] relative flex flex-col gap-2">
+        <div className="absolute right-0 top-0 w-full sm:w-96 max-w-full bg-white border-l border-slate-200 flex flex-col h-full z-20 shadow-xl transition-all duration-300">
+          <div className="p-6 border-b border-slate-200 bg-slate-50/70 relative flex flex-col gap-2">
             <button 
               onClick={() => setSelectedNode(null)}
-              className="absolute top-4 right-4 text-[#94a3b8] hover:text-[#f8fafc] text-xl"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-xl cursor-pointer"
             >
               &times;
             </button>
@@ -1022,28 +1013,28 @@ function InteractiveGraphView({
             >
               {docLabel(data.docs, selectedNode.doc, t)}
             </span>
-            <h2 className="text-lg font-bold">{selectedNode.label}</h2>
-            <p className="text-xs text-[#94a3b8] font-medium">{selectedNode.title || t("noTitle")}</p>
+            <h2 className="text-lg font-bold text-slate-900">{selectedNode.label}</h2>
+            <p className="text-xs text-slate-600 font-medium">{selectedNode.title || t("noTitle")}</p>
           </div>
           
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             <div className="space-y-2">
-              <h3 className="text-xs uppercase font-bold text-[#94a3b8] tracking-wider">{t("category")}</h3>
-              <span className="inline-block px-2.5 py-1 rounded bg-[#1e293b] text-xs font-semibold text-[#f8fafc]">
+              <h3 className="text-xs uppercase font-bold text-slate-500 tracking-wider">{t("category")}</h3>
+              <span className="inline-block px-2.5 py-1 rounded bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-800">
                 {selectedNode.theme}
               </span>
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-xs uppercase font-bold text-[#94a3b8] tracking-wider">{t("documentText")}</h3>
-              <div className="bg-[#070b13] border border-[#1e293b] p-4 rounded-lg text-sm leading-relaxed max-h-60 overflow-y-auto whitespace-pre-wrap">
+              <h3 className="text-xs uppercase font-bold text-slate-500 tracking-wider">{t("documentText")}</h3>
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-lg text-xs leading-relaxed text-slate-800 max-h-60 overflow-y-auto whitespace-pre-wrap">
                 {selectedNode.body}
               </div>
             </div>
 
             {/* List connections */}
             <div className="space-y-3">
-              <h3 className="text-xs uppercase font-bold text-[#94a3b8] tracking-wider">{t("connections")}</h3>
+              <h3 className="text-xs uppercase font-bold text-slate-500 tracking-wider">{t("connections")}</h3>
               <div className="space-y-2">
                 {data.links.filter(l => {
                   const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
@@ -1062,15 +1053,15 @@ function InteractiveGraphView({
                     <div 
                       key={i}
                       onClick={() => setSelectedNode(targetNode)}
-                      className="p-3 bg-[#070b13] border border-[#1e293b] rounded-lg hover:border-[#38bdf8]/40 cursor-pointer transition-all duration-200"
+                      className="p-3 bg-slate-50 border border-slate-200 rounded-lg hover:border-slate-400 hover:bg-white cursor-pointer transition-all duration-200 shadow-2xs"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-[#38bdf8]">{targetNode.label}</span>
+                        <span className="text-xs font-bold text-slate-900">{targetNode.label}</span>
                         <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${modalityBadgeClasses(l.modality)}`}>
                           {t(l.modality.toLowerCase() as TranslationKey)}
                         </span>
                       </div>
-                      <p className="text-[11px] text-[#94a3b8] truncate mt-1">{targetNode.title || t("noHeading")}</p>
+                      <p className="text-[11px] text-slate-500 truncate mt-1">{targetNode.title || t("noHeading")}</p>
                     </div>
                   );
                 })}
@@ -1100,12 +1091,12 @@ function OverlapsView({
   const overlapsList = data.overlaps.sort((a, b) => b.count - a.count);
 
   return (
-    <div className="flex-1 overflow-y-auto p-8 bg-[#070b13]">
+    <div className="flex-1 overflow-y-auto p-8 bg-[#fafaf9] text-slate-900">
       <div className="max-w-4xl space-y-2 mb-8">
-        <h2 className="text-2xl font-extrabold tracking-tight flex items-center gap-2">
-          <Layers className="text-[#fbbf24] w-6 h-6" /> {t("overlapsCount") /* Overlappende sektionsreferencer */}
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+          <Layers className="text-amber-600 w-6 h-6" /> {t("overlapsCount") /* Overlappende sektionsreferencer */}
         </h2>
-        <p className="text-sm text-[#94a3b8] leading-relaxed">
+        <p className="text-sm text-slate-600 leading-relaxed">
           {t("noTitle") === "(No heading)"
             ? "Below is a list of sections or provisions that are subject to multiple independent cross-references. These are indicators of regulatory complexity."
             : "Nedenfor vises en liste over bestemmelser, der er genstand for flere uafhængige kildehenvisninger. Dette er indikatorer for retlig kompleksitet."
@@ -1115,7 +1106,7 @@ function OverlapsView({
 
       <div className="grid grid-cols-1 gap-6 max-w-4xl">
         {overlapsList.length === 0 ? (
-          <div className="bg-[#0d1527] border border-[#1e293b] p-6 rounded-xl text-center text-[#94a3b8] text-sm">
+          <div className="bg-white border border-slate-200 p-8 rounded-2xl text-center text-slate-500 text-sm shadow-xs">
             {t("noTitle") === "(No heading)" ? "No overlaps detected." : "Ingen overlap fundet."}
           </div>
         ) : (
@@ -1124,11 +1115,11 @@ function OverlapsView({
             if (!targetNode) return null;
 
             return (
-              <div key={i} className="bg-[#0d1527] border border-[#1e293b] p-6 rounded-xl space-y-4 shadow-md">
+              <div key={i} className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4 shadow-xs">
                 <div className="flex items-start justify-between gap-4 flex-wrap md:flex-nowrap">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-bold uppercase text-[#fbbf24] bg-[#fbbf24]/10 border border-[#fbbf24]/30 px-2 py-0.5 rounded">
+                      <span className="text-[10px] font-bold uppercase text-amber-900 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded">
                         {t("noTitle") === "(No heading)" ? `Overlap (${record.count} references)` : `Overlap (${record.count} referencer)`}
                       </span>
                       <span
@@ -1138,35 +1129,35 @@ function OverlapsView({
                         {docLabel(data.docs, targetNode.doc, t)}
                       </span>
                     </div>
-                    <h3 className="text-base font-bold mt-2">
-                      {t("noTitle") === "(No heading)" ? "Target Section: " : "Målsektion: "} <span className="text-[#38bdf8]">{targetNode.label}</span>
+                    <h3 className="text-base font-bold mt-2 text-slate-900">
+                      {t("noTitle") === "(No heading)" ? "Target Section: " : "Målsektion: "} <span className="text-sky-800">{targetNode.label}</span>
                     </h3>
-                    <p className="text-xs text-[#94a3b8] leading-relaxed">{targetNode.title}</p>
+                    <p className="text-xs text-slate-600 leading-relaxed font-medium">{targetNode.title}</p>
                   </div>
                   <button 
                     onClick={() => {
                       setSelectedNode(targetNode);
                       setActiveTab("graph");
                     }}
-                    className="px-3 py-1.5 rounded bg-[#1e293b] text-xs font-semibold hover:bg-[#334155] transition-all flex items-center gap-1.5 shrink-0 border border-[#1e293b] hover:border-[#38bdf8]/40 text-[#f8fafc] cursor-pointer"
+                    className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-medium text-white transition-all flex items-center gap-1.5 shrink-0 shadow-xs cursor-pointer"
                   >
                     {t("showInGraph")} <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
-                <div className="border-t border-[#1e293b] pt-4">
-                  <h4 className="text-xs uppercase font-bold text-[#94a3b8] tracking-wider mb-3">
+                <div className="border-t border-slate-200 pt-4">
+                  <h4 className="text-xs uppercase font-bold text-slate-500 tracking-wider mb-3">
                     {t("noTitle") === "(No heading)" ? "Referencing sections:" : "Refererende sektioner:"}
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {record.citations.map((c, idx) => {
                       const sourceNode = data.nodes.find(n => n.id === c.source);
                       return (
-                        <div key={idx} className="bg-[#070b13] p-4 border border-[#1e293b] rounded-lg flex flex-col justify-between">
+                        <div key={idx} className="bg-slate-50 p-4 border border-slate-200/80 rounded-xl flex flex-col justify-between">
                           <div>
                             <div className="flex justify-between items-center gap-2 mb-2">
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-semibold text-[#38bdf8]">{sourceNode?.label}</span>
+                                <span className="text-xs font-bold text-slate-900">{sourceNode?.label}</span>
                                 {sourceNode && (
                                   <span
                                     className="text-[9px] font-bold px-1.5 py-0.2 rounded border"
@@ -1176,12 +1167,12 @@ function OverlapsView({
                                   </span>
                                 )}
                               </div>
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1e293b] text-[#94a3b8] font-medium">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-700 font-medium">
                                 {t(c.modality.toLowerCase() as TranslationKey)}
                               </span>
                             </div>
                           </div>
-                          <p className="text-xs font-serif italic text-[#94a3b8] block border-l-2 border-[#1e293b] pl-2 leading-relaxed">
+                          <p className="text-xs font-serif italic text-slate-600 block border-l-2 border-slate-300 pl-2 leading-relaxed">
                             &quot;...{c.snippet}...&quot;
                           </p>
                         </div>
@@ -1215,12 +1206,12 @@ function ConflictsView({
   t: TranslateFn;
 }) {
   return (
-    <div className="flex-1 overflow-y-auto p-8 bg-[#070b13]">
+    <div className="flex-1 overflow-y-auto p-8 bg-[#fafaf9] text-slate-900">
       <div className="max-w-4xl space-y-2 mb-8">
-        <h2 className="text-2xl font-extrabold tracking-tight flex items-center gap-2">
-          <AlertTriangle className="text-[#f87171] w-6 h-6 animate-pulse" /> {t("conflicts") /* Retlige Modstrid & Anomalier */}
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+          <AlertTriangle className="text-rose-600 w-6 h-6" /> {t("conflicts") /* Retlige Modstrid & Anomalier */}
         </h2>
-        <p className="text-sm text-[#94a3b8] leading-relaxed">
+        <p className="text-sm text-slate-600 leading-relaxed">
           {t("noTitle") === "(No heading)"
             ? "Collisions occur when one section imposes a requirement (Obligation), while another section independently grants an exception (Exception) or a prohibition (Prohibition) regarding the same reference."
             : "Kollisioner sker, når en artikel i rammen pålægger krav (Obligation), mens underliggende bestemmelser eller relaterede artikler fritager eller undtager (Exception) for samme bestemmelse."
@@ -1230,7 +1221,7 @@ function ConflictsView({
 
       <div className="grid grid-cols-1 gap-6 max-w-4xl">
         {data.conflicts.length === 0 ? (
-          <div className="bg-[#0d1527] border border-[#1e293b] p-6 rounded-xl text-center text-[#94a3b8] text-sm">
+          <div className="bg-white border border-slate-200 p-8 rounded-2xl text-center text-slate-500 text-sm shadow-xs">
             {t("noTitle") === "(No heading)" ? "No conflicts detected." : "Ingen retlige modstrid fundet."}
           </div>
         ) : (
@@ -1239,11 +1230,11 @@ function ConflictsView({
             if (!targetNode) return null;
 
             return (
-              <div key={i} className="bg-[#110e19] border border-[#ef4444]/20 p-6 rounded-xl space-y-4 shadow-lg hover:border-[#ef4444]/40 transition-all duration-300">
+              <div key={i} className="bg-white border border-rose-200/80 p-6 rounded-2xl space-y-4 shadow-xs hover:border-rose-300 transition-all duration-200">
                 <div className="flex items-start justify-between gap-4 flex-wrap md:flex-nowrap">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-bold uppercase text-[#f87171] bg-[#ef4444]/10 border border-[#ef4444]/30 px-2 py-0.5 rounded">
+                      <span className="text-[10px] font-bold uppercase text-rose-900 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded">
                         {t("noTitle") === "(No heading)" ? "Conflict Detected" : "Modstrid detekteret"} ({record.modalities.map(m => t(m.toLowerCase() as TranslationKey)).join(" / ")})
                       </span>
                       <span
@@ -1253,17 +1244,17 @@ function ConflictsView({
                         {docLabel(data.docs, targetNode.doc, t)}
                       </span>
                     </div>
-                    <h3 className="text-lg font-bold mt-2">
-                      {t("noTitle") === "(No heading)" ? "Conflict regarding:" : "Modstrid vedrørende:"} <span className="text-[#38bdf8]">{targetNode.label}</span>
+                    <h3 className="text-lg font-bold mt-2 text-slate-900">
+                      {t("noTitle") === "(No heading)" ? "Conflict regarding:" : "Modstrid vedrørende:"} <span className="text-sky-800">{targetNode.label}</span>
                     </h3>
-                    <p className="text-xs text-[#94a3b8] leading-relaxed">{targetNode.title}</p>
+                    <p className="text-xs text-slate-600 leading-relaxed font-medium">{targetNode.title}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
                     <button
                       onClick={() => onInspectConflict(record)}
-                      className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#ef4444] to-[#f43f5e] hover:opacity-95 text-[#070b13] text-xs font-bold transition-all flex items-center gap-1.5 shadow-md shadow-[#ef4444]/20 cursor-pointer"
+                      className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
                     >
-                      <ShieldAlert className="w-3.5 h-3.5" />
+                      <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
                       {t("inspectConflict")}
                     </button>
                     <button 
@@ -1271,26 +1262,26 @@ function ConflictsView({
                         setSelectedNode(targetNode);
                         setActiveTab("graph");
                       }}
-                      className="px-3 py-1.5 rounded bg-[#ef4444]/10 hover:bg-[#ef4444]/20 text-[#f87171] text-xs font-semibold transition-all flex items-center gap-1.5 border border-[#ef4444]/30 cursor-pointer"
+                      className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition-all flex items-center gap-1.5 border border-slate-200 shadow-2xs cursor-pointer"
                     >
                       {t("showInGraph")} <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
 
-                <p className="text-sm text-[#f8fafc] bg-[#ef4444]/5 p-3 rounded-lg border border-[#ef4444]/10 leading-relaxed">
+                <p className="text-xs text-slate-700 bg-rose-50/40 p-3.5 rounded-xl border border-rose-200/60 leading-relaxed">
                   {record.description}
                 </p>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-[#1e293b]/40 pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-200 pt-4">
                   {record.citations.map((c, idx) => {
                     const sourceNode = data.nodes.find(n => n.id === c.source);
                     return (
-                      <div key={idx} className="bg-[#070b13] p-4 border border-[#1e293b] rounded-lg flex flex-col justify-between">
+                      <div key={idx} className="bg-slate-50 p-4 border border-slate-200/80 rounded-xl flex flex-col justify-between">
                         <div>
                           <div className="flex justify-between items-center gap-2 mb-2 flex-wrap">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-[#38bdf8]">{sourceNode?.label}</span>
+                              <span className="text-xs font-bold text-slate-900">{sourceNode?.label}</span>
                               {sourceNode && (
                                 <span
                                   className="text-[9px] font-bold px-1.5 py-0.2 rounded border"
@@ -1301,15 +1292,15 @@ function ConflictsView({
                               )}
                             </div>
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                              c.modality === "Exception" ? "bg-[#ef4444]/20 text-[#f87171]" : "bg-[#3b82f6]/20 text-[#60a5fa]"
+                              c.modality === "Exception" ? "bg-rose-50 text-rose-800 border border-rose-200" : "bg-sky-50 text-sky-800 border border-sky-200"
                             }`}>
                               {t(c.modality.toLowerCase() as TranslationKey)}
                             </span>
                           </div>
-                          <p className="text-xs text-[#94a3b8] mt-1 leading-relaxed">{sourceNode?.title}</p>
+                          <p className="text-xs text-slate-600 mt-1 leading-relaxed">{sourceNode?.title}</p>
                         </div>
                         
-                        <div className="mt-4 p-3 bg-[#0d1527] rounded text-xs font-serif leading-relaxed text-[#f8fafc]/90 border-l-2 border-[#38bdf8]/40 whitespace-pre-wrap">
+                        <div className="mt-4 p-3 bg-white rounded-lg text-xs font-serif leading-relaxed text-slate-700 border border-slate-200 border-l-2 border-l-sky-600 whitespace-pre-wrap">
                           ...{c.context}...
                         </div>
                       </div>
@@ -1337,7 +1328,7 @@ function BrowseView({
   t
 }: { 
   data: GraphData; 
-  searchQuery: string;
+  searchQuery: string; 
   setSearchQuery: (query: string) => void;
   setSelectedNode: (node: GraphNode) => void;
   setActiveTab: (tab: TabType) => void;
@@ -1384,18 +1375,18 @@ function BrowseView({
   }, [data.nodes, searchQuery]);
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-[#070b13]">
-      <div className="p-8 border-b border-[#1e293b] space-y-4">
-        <h2 className="text-2xl font-extrabold tracking-tight">{t("noTitle") === "(No heading)" ? "Browse Sections" : "Gennemse sektioner"}</h2>
+    <div className="flex-1 flex flex-col overflow-hidden bg-[#fafaf9] text-slate-900">
+      <div className="p-8 bg-white border-b border-slate-200 space-y-4 shadow-2xs">
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900">{t("noTitle") === "(No heading)" ? "Browse Sections" : "Gennemse sektioner"}</h2>
         <div className="max-w-xl relative">
           <input
             type="text"
             placeholder={t("noTitle") === "(No heading)" ? "Search in text, sections, categories..." : "Søg i tekst, sektioner, kategorier..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#0d1527] border border-[#1e293b] text-[#f8fafc] px-4 py-3 pl-11 rounded-xl outline-none focus:border-[#38bdf8] text-sm"
+            className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-4 py-2.5 pl-11 rounded-xl outline-none focus:border-sky-500 focus:bg-white text-xs transition-colors"
           />
-          <Search className="w-5 h-5 text-[#94a3b8] absolute left-4 top-3.5" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-4 top-3" />
         </div>
       </div>
 
@@ -1404,7 +1395,7 @@ function BrowseView({
           {filteredNodes.map(node => (
             <div 
               key={node.id} 
-              className="bg-[#0d1527] border border-[#1e293b] p-5 rounded-xl hover:border-[#38bdf8]/40 transition-all duration-200 flex flex-col justify-between"
+              className="bg-white border border-slate-200 p-5 rounded-2xl hover:border-slate-400 hover:shadow-xs transition-all duration-200 flex flex-col justify-between"
             >
               <div>
                 <div className="flex justify-between items-start">
@@ -1415,25 +1406,25 @@ function BrowseView({
                   >
                     {docLabel(data.docs, node.doc, t)}
                   </span>
-                  <span className="text-[10px] font-semibold text-[#94a3b8] bg-[#1e293b] px-2 py-0.5 rounded truncate max-w-[140px]" title={node.theme}>
+                  <span className="text-[10px] font-semibold text-slate-700 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded truncate max-w-[140px]" title={node.theme}>
                     {node.theme}
                   </span>
                 </div>
-                <h3 className="text-base font-bold text-[#f8fafc] mt-3">{node.label}</h3>
-                <p className="text-xs text-[#94a3b8] mt-1 font-medium">{node.title || t("noTitle")}</p>
+                <h3 className="text-base font-bold text-slate-900 mt-3">{node.label}</h3>
+                <p className="text-xs text-slate-600 mt-1 font-medium">{node.title || t("noTitle")}</p>
                 
-                <p className="text-xs text-[#94a3b8] leading-relaxed mt-4 line-clamp-3 bg-[#070b13] p-3 rounded-lg border border-[#1e293b]/40">
+                <p className="text-xs text-slate-600 leading-relaxed mt-4 line-clamp-3 bg-slate-50 p-3 rounded-lg border border-slate-200/80">
                   {node.body}
                 </p>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-[#1e293b]/40 flex justify-end">
+              <div className="mt-4 pt-3 border-t border-slate-100 flex justify-end">
                 <button
                   onClick={() => {
                     setSelectedNode(node);
                     setActiveTab("graph");
                   }}
-                  className="text-xs font-bold text-[#38bdf8] flex items-center gap-1.5 hover:underline cursor-pointer"
+                  className="text-xs font-semibold text-sky-700 hover:text-sky-900 flex items-center gap-1.5 cursor-pointer"
                 >
                   {t("noTitle") === "(No heading)" ? "Inspect connections" : "Inspicer forbindelser"} <ArrowRight className="w-3.5 h-3.5" />
                 </button>

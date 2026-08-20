@@ -78,8 +78,8 @@ describe("ConflictInspectorModal", () => {
     expect(screen.getByText(/fartøjer under 12 meter/i)).toBeInTheDocument();
 
     // Assert keywords are highlighted
-    expect(screen.getByText("skal")).toHaveClass("bg-[#38bdf8]/20");
-    expect(screen.getByText("fritages")).toHaveClass("bg-[#ef4444]/25");
+    expect(screen.getByText("skal")).toHaveClass("bg-sky-100");
+    expect(screen.getByText("fritages")).toHaveClass("bg-amber-100");
   });
 
   it("triggers onSelectNode and onClose when 'Vis i graf' is clicked", () => {

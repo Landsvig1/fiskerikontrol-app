@@ -3,10 +3,10 @@
 export type Modality = "Obligation" | "Exception" | "Prohibition" | "Permission";
 
 export const MODALITY_COLORS: Record<Modality, string> = {
-  Obligation: "#3b82f6",
-  Exception: "#ef4444",
-  Prohibition: "#ec4899",
-  Permission: "#10b981",
+  Obligation: "#0284c7",  // Nordic sky / slate blue
+  Exception: "#d97706",   // Warm ochre / amber
+  Prohibition: "#e11d48", // Danish brick / crimson
+  Permission: "#059669",  // Scandinavian pine / sage
 };
 
 export const MODALITY_LEGEND: { modality: Modality; color: string; dashed: boolean }[] =
@@ -17,10 +17,10 @@ export const MODALITY_LEGEND: { modality: Modality; color: string; dashed: boole
   }));
 
 const MODALITY_BADGE_CLASSES: Record<Modality, string> = {
-  Exception: "bg-[#ef4444]/10 text-[#f87171]",
-  Prohibition: "bg-[#ec4899]/10 text-[#f472b6]",
-  Permission: "bg-[#10b981]/10 text-[#34d399]",
-  Obligation: "bg-[#3b82f6]/10 text-[#60a5fa]",
+  Exception: "bg-amber-50 text-amber-800 border border-amber-200/80",
+  Prohibition: "bg-rose-50 text-rose-800 border border-rose-200/80",
+  Permission: "bg-emerald-50 text-emerald-800 border border-emerald-200/80",
+  Obligation: "bg-sky-50 text-sky-800 border border-sky-200/80",
 };
 
 // The graph data comes from an untyped API JSON response cast to GraphData with no runtime
@@ -35,13 +35,19 @@ export function modalityBadgeClasses(modality: Modality): string {
   return MODALITY_BADGE_CLASSES[modality] ?? MODALITY_BADGE_CLASSES.Obligation;
 }
 
-// Ordered fallback palette for an arbitrary number of documents. The first two entries
-// intentionally match the historical control/impl colors (blue/green) so existing 2-document
-// graphs render unchanged. Sized to MAX_SLOTS (UploadScreen.tsx) so no two documents in a
-// single upload ever wrap around to the same color.
+// Ordered fallback palette for an arbitrary number of documents.
+// Refined, muted Scandinavian architectural palette.
 export const DOC_COLOR_PALETTE: string[] = [
-  "#3b82f6", "#10b981", "#f59e0b", "#a855f7", "#ec4899", "#14b8a6", "#f97316", "#6366f1",
-  "#84cc16", "#06b6d4", "#d946ef", "#eab308",
+  "#0284c7", // Nordic sky blue
+  "#059669", // Pine green
+  "#d97706", // Warm amber
+  "#7c3aed", // Heather purple
+  "#e11d48", // Brick red
+  "#0891b2", // Teal
+  "#475569", // Slate
+  "#d946ef", // Plum
+  "#ea580c", // Terracotta
+  "#65a30d", // Moss
 ];
 
 export function docColor(docIndex: number): string {

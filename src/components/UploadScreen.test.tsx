@@ -231,12 +231,12 @@ describe("UploadScreen bulk mode (default)", () => {
     const dropZone = screen.getByTestId("upload-drop-zone");
 
     fireEvent.dragOver(dropZone, { dataTransfer: { files: [] } });
-    expect(dropZone.className).toMatch(/border-\[#38bdf8\]/);
+    expect(dropZone.className).toMatch(/border-sky-500/);
 
     fireEvent.drop(dropZone, { dataTransfer: { files: [pdf("one.pdf")] } });
 
     expect(await screen.findByText("one.pdf")).toBeInTheDocument();
-    expect(dropZone.className).not.toMatch(/border-\[#38bdf8\]/);
+    expect(dropZone.className).not.toMatch(/border-sky-500/);
   });
 
   it("does not auto-fire when an unrelated label edit happens to satisfy canSubmit after a prior file drop", async () => {

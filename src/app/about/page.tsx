@@ -155,22 +155,22 @@ export default function AboutPage() {
   const c = content[lang];
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#070b13] text-[#f8fafc] font-sans antialiased">
+    <div className="flex flex-col min-h-screen bg-[#fafaf9] text-slate-900 font-sans antialiased">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 bg-[#0d1527] border-b border-[#1e293b]">
+      <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200 shadow-xs">
         <Link href="/" className="flex items-center gap-3">
-          <Database className="w-6 h-6 text-[#38bdf8]" />
-          <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-[#38bdf8] to-[#818cf8] bg-clip-text text-transparent">
+          <Database className="w-5 h-5 text-sky-700" />
+          <h1 className="text-base font-bold tracking-tight text-slate-900">
             LexGraph
           </h1>
         </Link>
 
-        <div className="flex items-center gap-1 bg-[#131e35] p-1 rounded-lg border border-[#1e293b]">
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
           <button
             type="button"
             onClick={() => changeLang("da")}
-            className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-200 ${
-              lang === "da" ? "bg-[#38bdf8] text-[#070b13] shadow-md shadow-[#38bdf8]/10" : "text-[#94a3b8] hover:text-[#f8fafc]"
+            className={`px-3 py-1 rounded-md text-xs font-semibold transition-all duration-200 ${
+              lang === "da" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
             }`}
           >
             DA
@@ -178,8 +178,8 @@ export default function AboutPage() {
           <button
             type="button"
             onClick={() => changeLang("en")}
-            className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-200 ${
-              lang === "en" ? "bg-[#38bdf8] text-[#070b13] shadow-md shadow-[#38bdf8]/10" : "text-[#94a3b8] hover:text-[#f8fafc]"
+            className={`px-3 py-1 rounded-md text-xs font-semibold transition-all duration-200 ${
+              lang === "en" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
             }`}
           >
             EN
@@ -191,11 +191,11 @@ export default function AboutPage() {
         <div className="max-w-3xl mx-auto space-y-12">
           {/* Intro */}
           <div className="text-center space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#38bdf8]">{c.tagline}</p>
-            <h2 className="text-3xl font-extrabold tracking-tight">{c.whatTitle}</h2>
+            <p className="text-xs font-bold uppercase tracking-wider text-sky-800">{c.tagline}</p>
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900">{c.whatTitle}</h2>
             <div className="space-y-4 text-left sm:text-center">
               {c.whatBody.map((p, i) => (
-                <p key={i} className="text-sm text-[#94a3b8] leading-relaxed">
+                <p key={i} className="text-sm text-slate-600 leading-relaxed max-w-2xl mx-auto">
                   {p}
                 </p>
               ))}
@@ -204,18 +204,18 @@ export default function AboutPage() {
 
           {/* How to use it */}
           <section>
-            <h3 className="text-xl font-bold mb-5 flex items-center gap-2">
-              <Upload className="w-5 h-5 text-[#38bdf8]" />
+            <h3 className="text-lg font-bold mb-5 flex items-center gap-2 text-slate-900">
+              <Upload className="w-4 h-4 text-sky-700" />
               {c.howTitle}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {c.steps.map((step) => (
                 <div
                   key={step.title}
-                  className="bg-[#0d1527] border border-[#1e293b] rounded-xl p-5"
+                  className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs"
                 >
-                  <h4 className="text-sm font-bold text-[#f8fafc] mb-1.5">{step.title}</h4>
-                  <p className="text-sm text-[#94a3b8] leading-relaxed">{step.body}</p>
+                  <h4 className="text-sm font-bold text-slate-900 mb-1.5">{step.title}</h4>
+                  <p className="text-xs text-slate-600 leading-relaxed font-normal">{step.body}</p>
                 </div>
               ))}
             </div>
@@ -223,8 +223,8 @@ export default function AboutPage() {
 
           {/* Value */}
           <section>
-            <h3 className="text-xl font-bold mb-5 flex items-center gap-2">
-              <GitBranch className="w-5 h-5 text-[#38bdf8]" />
+            <h3 className="text-lg font-bold mb-5 flex items-center gap-2 text-slate-900">
+              <GitBranch className="w-4 h-4 text-sky-700" />
               {c.valueTitle}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -233,12 +233,12 @@ export default function AboutPage() {
                 return (
                   <div
                     key={item.title}
-                    className="bg-[#0d1527] border border-[#1e293b] rounded-xl p-5 flex gap-3"
+                    className="bg-white border border-slate-200 rounded-2xl p-5 flex gap-3.5 shadow-xs"
                   >
-                    <Icon className="w-5 h-5 text-[#38bdf8] shrink-0 mt-0.5" />
+                    <Icon className="w-5 h-5 text-sky-700 shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="text-sm font-bold text-[#f8fafc] mb-1.5">{item.title}</h4>
-                      <p className="text-sm text-[#94a3b8] leading-relaxed">{item.body}</p>
+                      <h4 className="text-sm font-bold text-slate-900 mb-1.5">{item.title}</h4>
+                      <p className="text-xs text-slate-600 leading-relaxed font-normal">{item.body}</p>
                     </div>
                   </div>
                 );
@@ -250,9 +250,9 @@ export default function AboutPage() {
           <div className="text-center pt-4">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm bg-[#38bdf8] text-[#070b13] hover:bg-[#38bdf8]/90 shadow-md shadow-[#38bdf8]/20 transition-all duration-200"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-xs bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition-all duration-200"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-3.5 h-3.5" />
               {c.cta}
             </Link>
           </div>

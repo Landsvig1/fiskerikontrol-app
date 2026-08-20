@@ -9,25 +9,25 @@ const MODAL_PATTERNS: Array<{
   {
     regex: /\b(?:undtagen|undtagelse|fritaget|fritages|uanset|afvige|dispensation|notwithstanding|except(?:ed)?|by\s+way\s+of\s+derogation|derogation|waiver)\b/gi,
     category: "Exception",
-    colorClass: "bg-[#ef4444]/25 text-[#fca5a5] border border-[#ef4444]/40 font-bold px-1 rounded",
+    colorClass: "bg-amber-100 text-amber-900 border border-amber-300/80 font-semibold px-1 py-0.5 rounded",
     label: "Undtagelse / Exception",
   },
   {
     regex: /\b(?:forbudt|må\s+ikke|ikke\s+tilladt|prohibited|shall\s+not|must\s+not|not\s+permitted)\b/gi,
     category: "Prohibition",
-    colorClass: "bg-[#f43f5e]/25 text-[#fda4af] border border-[#f43f5e]/40 font-bold px-1 rounded",
+    colorClass: "bg-rose-100 text-rose-900 border border-rose-300/80 font-semibold px-1 py-0.5 rounded",
     label: "Forbud / Prohibition",
   },
   {
     regex: /\b(?:skal|pligtig|forpligtet|krav|påkrævet|shall|must|required|obligation|duty|mandatory|compulsory)\b/gi,
     category: "Obligation",
-    colorClass: "bg-[#38bdf8]/20 text-[#7dd3fc] border border-[#38bdf8]/35 font-bold px-1 rounded",
+    colorClass: "bg-sky-100 text-sky-900 border border-sky-300/80 font-semibold px-1 py-0.5 rounded",
     label: "Forpligtelse / Obligation",
   },
   {
     regex: /\b(?:kan|tilladt|bemyndiget|hjemmel|tilladelse|may|permitted|allowed|authorised|authorized|entitled)\b/gi,
     category: "Permission",
-    colorClass: "bg-[#10b981]/20 text-[#6ee7b7] border border-[#10b981]/35 font-bold px-1 rounded",
+    colorClass: "bg-emerald-100 text-emerald-900 border border-emerald-300/80 font-semibold px-1 py-0.5 rounded",
     label: "Tilladelse / Permission",
   },
 ];

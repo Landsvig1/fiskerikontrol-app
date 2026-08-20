@@ -86,31 +86,31 @@ export function ConflictInspectorModal({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
     >
-      <div className="relative w-full max-w-5xl max-h-[92vh] flex flex-col bg-[#0d1527] border border-[#ef4444]/30 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-5xl max-h-[92vh] flex flex-col bg-white border border-slate-200/90 rounded-2xl shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#1e293b] bg-[#110e19]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/80 bg-slate-50/80">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-[#ef4444]/15 text-[#f87171] border border-[#ef4444]/30">
+            <div className="p-2 rounded-lg bg-amber-50 text-amber-800 border border-amber-200/80">
               <ShieldAlert className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] font-bold uppercase text-[#f87171] bg-[#ef4444]/10 border border-[#ef4444]/30 px-2 py-0.5 rounded">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded">
                   {t("inspectConflict")} ({conflict.modalities.map((m) => t(m.toLowerCase() as TranslationKey)).join(" / ")})
                 </span>
                 <span
                   className="text-[10px] font-bold px-2 py-0.5 rounded border"
-                  style={docBadgeStyle(data.docs, targetNode.doc, { borderAlpha: "33" })}
+                  style={docBadgeStyle(data.docs, targetNode.doc, { borderAlpha: "40" })}
                 >
                   {docLabel(data.docs, targetNode.doc, t)}
                 </span>
               </div>
-              <h2 id="modal-title" className="text-lg font-extrabold text-[#f8fafc] mt-0.5">
+              <h2 id="modal-title" className="text-lg font-bold text-slate-900 mt-0.5">
                 {targetNode.label} {targetNode.title ? `— ${targetNode.title}` : ""}
               </h2>
             </div>
@@ -118,7 +118,7 @@ export function ConflictInspectorModal({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[#94a3b8] hover:text-[#f8fafc] hover:bg-[#1e293b] transition-all cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-all cursor-pointer"
             aria-label={t("closeModal")}
           >
             <X className="w-5 h-5" />
@@ -126,13 +126,13 @@ export function ConflictInspectorModal({
         </div>
 
         {/* Plain-Language Conflict Summary Banner */}
-        <div className="px-6 py-3 bg-[#ef4444]/10 border-b border-[#ef4444]/20 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-[#f87171] shrink-0 mt-0.5" />
-          <div className="space-y-1 text-xs leading-relaxed text-[#f8fafc]">
-            <p className="font-semibold text-[#fca5a5]">
+        <div className="px-6 py-3.5 bg-amber-50/70 border-b border-amber-200/80 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+          <div className="space-y-1 text-xs leading-relaxed text-slate-800">
+            <p className="font-semibold text-amber-950">
               {t("conflictSummaryBanner")}:
             </p>
-            <p className="text-[#e2e8f0]">
+            <p className="text-slate-700">
               {conflict.description}
             </p>
           </div>
@@ -140,9 +140,9 @@ export function ConflictInspectorModal({
 
         {/* If multiple citations/sources collide on this target, provide selector pills */}
         {conflict.citations.length > 1 && (
-          <div className="px-6 py-2 bg-[#070b13] border-b border-[#1e293b] flex items-center gap-2 overflow-x-auto">
-            <span className="text-xs font-semibold text-[#94a3b8] whitespace-nowrap flex items-center gap-1">
-              <GitBranch className="w-3.5 h-3.5 text-[#38bdf8]" /> Modstridende kilder ({conflict.citations.length}):
+          <div className="px-6 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center gap-2 overflow-x-auto">
+            <span className="text-xs font-semibold text-slate-600 whitespace-nowrap flex items-center gap-1">
+              <GitBranch className="w-3.5 h-3.5 text-sky-600" /> Modstridende kilder ({conflict.citations.length}):
             </span>
             {conflict.citations.map((c, idx) => {
               const src = data.nodes.find((n) => n.id === c.source);
@@ -150,10 +150,10 @@ export function ConflictInspectorModal({
                 <button
                   key={idx}
                   onClick={() => setSelectedCitationIndex(idx)}
-                  className={`px-2.5 py-1 rounded text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
                     selectedCitationIndex === idx
-                      ? "bg-[#38bdf8] text-[#070b13] shadow-sm"
-                      : "bg-[#1e293b] text-[#94a3b8] hover:text-[#f8fafc]"
+                      ? "bg-slate-900 text-white shadow-xs"
+                      : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
                   }`}
                 >
                   {src?.label || c.source} ({t(c.modality.toLowerCase() as TranslationKey)})
@@ -164,16 +164,16 @@ export function ConflictInspectorModal({
         )}
 
         {/* Dual-Pane Side-by-Side Content */}
-        <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#070b13]">
+        <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#fafaf9]">
           {/* Left Pane: Target/Base Provision */}
-          <div className="flex flex-col bg-[#0d1527] border border-[#1e293b] rounded-xl overflow-hidden shadow-md">
-            <div className="p-4 border-b border-[#1e293b] bg-[#10192e] flex items-center justify-between">
+          <div className="flex flex-col bg-white border border-slate-200/90 rounded-xl overflow-hidden shadow-xs">
+            <div className="p-4 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-bold text-[#38bdf8] uppercase tracking-wider block">
+                <span className="text-[10px] font-bold text-sky-700 uppercase tracking-wider block">
                   {t("baseProvision")}
                 </span>
-                <h3 className="text-sm font-bold text-[#f8fafc] mt-0.5 flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 text-[#38bdf8]" /> {targetNode.label}
+                <h3 className="text-sm font-bold text-slate-900 mt-0.5 flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-sky-600" /> {targetNode.label}
                 </h3>
               </div>
               <span
@@ -184,27 +184,27 @@ export function ConflictInspectorModal({
               </span>
             </div>
 
-            <div className="p-4 flex-1 overflow-y-auto space-y-3">
+            <div className="p-5 flex-1 overflow-y-auto space-y-3">
               {targetNode.title && (
-                <p className="text-xs font-semibold text-[#94a3b8] italic border-b border-[#1e293b]/60 pb-2">
+                <p className="text-xs font-medium text-slate-600 border-b border-slate-100 pb-2">
                   {targetNode.title}
                 </p>
               )}
-              <div className="text-xs font-serif leading-relaxed text-[#f8fafc]/90 whitespace-pre-wrap">
+              <div className="text-xs leading-relaxed text-slate-800 whitespace-pre-wrap">
                 {highlightModalKeywords(targetNode.body)}
               </div>
             </div>
           </div>
 
           {/* Right Pane: Source/Derogating Provision */}
-          <div className="flex flex-col bg-[#0d1527] border border-[#1e293b] rounded-xl overflow-hidden shadow-md">
-            <div className="p-4 border-b border-[#1e293b] bg-[#110e19] flex items-center justify-between">
+          <div className="flex flex-col bg-white border border-slate-200/90 rounded-xl overflow-hidden shadow-xs">
+            <div className="p-4 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-bold text-[#f87171] uppercase tracking-wider block">
+                <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">
                   {t("derogatingProvision")}
                 </span>
-                <h3 className="text-sm font-bold text-[#f8fafc] mt-0.5 flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-[#f87171]" /> {sourceNode?.label || activeCitation?.source}
+                <h3 className="text-sm font-bold text-slate-900 mt-0.5 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" /> {sourceNode?.label || activeCitation?.source}
                 </h3>
               </div>
               {sourceNode && (
@@ -217,21 +217,21 @@ export function ConflictInspectorModal({
               )}
             </div>
 
-            <div className="p-4 flex-1 overflow-y-auto space-y-3">
+            <div className="p-5 flex-1 overflow-y-auto space-y-3">
               {sourceNode?.title && (
-                <p className="text-xs font-semibold text-[#94a3b8] italic border-b border-[#1e293b]/60 pb-2">
+                <p className="text-xs font-medium text-slate-600 border-b border-slate-100 pb-2">
                   {sourceNode.title}
                 </p>
               )}
 
               {/* Specific citation context callout */}
               {activeCitation?.snippet && (
-                <div className="p-2.5 rounded-lg bg-[#ef4444]/10 border border-[#ef4444]/25 text-xs text-[#fca5a5] italic leading-relaxed">
+                <div className="p-3 rounded-lg bg-amber-50 border border-amber-200/70 text-xs text-amber-900 italic leading-relaxed">
                   &quot;...{activeCitation.snippet}...&quot;
                 </div>
               )}
 
-              <div className="text-xs font-serif leading-relaxed text-[#f8fafc]/90 whitespace-pre-wrap">
+              <div className="text-xs leading-relaxed text-slate-800 whitespace-pre-wrap">
                 {sourceNode ? highlightModalKeywords(sourceNode.body) : "Ingen detaljeret tekst tilgængelig for denne kilde."}
               </div>
             </div>
@@ -239,12 +239,12 @@ export function ConflictInspectorModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-between gap-4 px-6 py-4 border-t border-[#1e293b] bg-[#0d1527] flex-wrap">
+        <div className="flex items-center justify-between gap-4 px-6 py-4 border-t border-slate-200 bg-slate-50/80 flex-wrap">
           <button
             onClick={handleCopySummary}
-            className="px-3.5 py-2 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-xs font-semibold text-[#f8fafc] transition-all flex items-center gap-2 cursor-pointer border border-[#1e293b] hover:border-[#38bdf8]/40"
+            className="px-3.5 py-2 rounded-lg bg-white hover:bg-slate-100 text-xs font-medium text-slate-700 transition-all flex items-center gap-2 cursor-pointer border border-slate-200 shadow-xs"
           >
-            {copied ? <Check className="w-4 h-4 text-[#34d399]" /> : <Copy className="w-4 h-4" />}
+            {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
             {copied ? t("copiedToClipboard") : t("copyConflictBrief")}
           </button>
 
@@ -254,13 +254,13 @@ export function ConflictInspectorModal({
                 onSelectNode(targetNode);
                 onClose();
               }}
-              className="px-4 py-2 rounded-lg bg-[#38bdf8] text-[#070b13] text-xs font-bold hover:bg-[#38bdf8]/90 transition-all flex items-center gap-1.5 shadow-md shadow-[#38bdf8]/15 cursor-pointer"
+              className="px-4 py-2 rounded-lg bg-slate-900 text-white text-xs font-medium hover:bg-slate-800 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
             >
               {t("showInGraph")} <ArrowRight className="w-4 h-4" />
             </button>
             <button
               onClick={onClose}
-              className="px-4 py-2 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-xs font-semibold text-[#94a3b8] hover:text-[#f8fafc] transition-all cursor-pointer"
+              className="px-4 py-2 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-xs font-medium text-slate-600 hover:text-slate-900 transition-all cursor-pointer shadow-xs"
             >
               {t("closeModal")}
             </button>

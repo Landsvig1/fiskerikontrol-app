@@ -81,7 +81,7 @@ function FileSlot({ file, error, label, dropZoneText, onFile, inputRef, disabled
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider">
+      <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
         {label}
       </span>
 
@@ -96,38 +96,38 @@ function FileSlot({ file, error, label, dropZoneText, onFile, inputRef, disabled
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={`
-          flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-dashed
+          flex flex-col items-center justify-center gap-2.5 p-6 rounded-xl border-2 border-dashed
           transition-all duration-200 min-h-[140px] select-none
           ${disabled
-            ? "opacity-50 cursor-not-allowed pointer-events-none border-[#1e293b] bg-[#0d1527]"
+            ? "opacity-50 cursor-not-allowed pointer-events-none border-slate-200 bg-slate-50"
             : "cursor-pointer"
           }
           ${!disabled && isDragging
-            ? "border-[#38bdf8] bg-[#38bdf8]/10"
+            ? "border-sky-500 bg-sky-50/60"
             : !disabled && file && !error
-              ? "border-[#10b981]/60 bg-[#10b981]/5"
+              ? "border-emerald-400 bg-emerald-50/40"
               : !disabled && error
-                ? "border-[#ef4444]/60 bg-[#ef4444]/5"
+                ? "border-rose-400 bg-rose-50/40"
                 : !disabled
-                  ? "border-[#1e293b] bg-[#0d1527] hover:border-[#38bdf8]/50 hover:bg-[#38bdf8]/5"
+                  ? "border-slate-200 bg-slate-50/40 hover:border-slate-400 hover:bg-slate-50"
                   : ""
           }
         `}
       >
         {file && !error ? (
           <>
-            <FileText className="w-8 h-8 text-[#10b981]" />
-            <span className="text-sm font-medium text-[#10b981] text-center break-all">
+            <FileText className="w-7 h-7 text-emerald-700" />
+            <span className="text-sm font-medium text-slate-800 text-center break-all">
               {file.name}
             </span>
-            <span className="text-xs text-[#94a3b8]">
+            <span className="text-xs text-slate-400">
               {(file.size / 1024 / 1024).toFixed(2)} MB
             </span>
           </>
         ) : (
           <>
-            <Upload className={`w-8 h-8 ${error ? "text-[#ef4444]" : "text-[#38bdf8]"}`} />
-            <span className={`text-sm text-center leading-snug ${error ? "text-[#ef4444]" : "text-[#94a3b8]"}`}>
+            <Upload className={`w-7 h-7 ${error ? "text-rose-600" : "text-slate-400"}`} />
+            <span className={`text-sm text-center leading-snug ${error ? "text-rose-600" : "text-slate-500"}`}>
               {dropZoneText}
             </span>
           </>
@@ -135,7 +135,7 @@ function FileSlot({ file, error, label, dropZoneText, onFile, inputRef, disabled
       </div>
 
       {error && (
-        <p className="flex items-center gap-1.5 text-xs text-[#ef4444]">
+        <p className="flex items-center gap-1.5 text-xs text-rose-600">
           <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
           {error}
         </p>
@@ -499,13 +499,13 @@ export function UploadScreen({
   const slotLabel = (index: number) => `${t("docFallback")} ${index + 1}`;
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#070b13] text-[#f8fafc] font-sans antialiased">
+    <div className="flex flex-col min-h-screen bg-[#fafaf9] text-slate-900 font-sans antialiased">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 bg-[#0d1527] border-b border-[#1e293b]">
+      <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200 shadow-xs">
         <div className="flex items-center gap-3">
-          <Database className="w-6 h-6 text-[#38bdf8]" />
+          <Database className="w-5 h-5 text-sky-700" />
           <div>
-            <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-[#38bdf8] to-[#818cf8] bg-clip-text text-transparent">
+            <h1 className="text-base font-bold tracking-tight text-slate-900">
               {t("appTitle")}
             </h1>
           </div>
@@ -515,19 +515,19 @@ export function UploadScreen({
           {/* About link */}
           <Link
             href="/about"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#94a3b8] border border-[#1e293b] hover:text-[#38bdf8] hover:border-[#38bdf8]/40 transition-all duration-200"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 border border-slate-200 hover:text-slate-900 hover:bg-slate-50 transition-all duration-200 shadow-xs"
           >
             <Info className="w-3.5 h-3.5" />
             {t("aboutButton")}
           </Link>
 
           {/* Language Toggle */}
-          <div className="flex items-center gap-1 bg-[#131e35] p-1 rounded-lg border border-[#1e293b]">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
             <button
               type="button"
               onClick={() => setLang("da")}
-              className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-200 ${
-                lang === "da" ? "bg-[#38bdf8] text-[#070b13] shadow-md shadow-[#38bdf8]/10" : "text-[#94a3b8] hover:text-[#f8fafc]"
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all duration-200 ${
+                lang === "da" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
               }`}
             >
               DA
@@ -535,8 +535,8 @@ export function UploadScreen({
             <button
               type="button"
               onClick={() => setLang("en")}
-              className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-200 ${
-                lang === "en" ? "bg-[#38bdf8] text-[#070b13] shadow-md shadow-[#38bdf8]/10" : "text-[#94a3b8] hover:text-[#f8fafc]"
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all duration-200 ${
+                lang === "en" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
               }`}
             >
               EN
@@ -546,33 +546,33 @@ export function UploadScreen({
       </header>
 
       {/* Main content */}
-      <main className="flex flex-1 items-center justify-center p-6">
+      <main className="flex flex-1 items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-2xl">
           {/* Card */}
-          <div className="bg-[#0d1527] border border-[#1e293b] rounded-2xl p-8 shadow-xl shadow-black/40">
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-8 sm:p-10 shadow-sm">
             {/* Title block */}
-            <div className="mb-6 text-center">
-              <h2 className="text-2xl font-extrabold tracking-tight text-[#f8fafc]">
+            <div className="mb-8 text-center">
+              <h2 className="text-2xl font-bold tracking-tight text-slate-900">
                 {t("uploadTitle")}
               </h2>
-              <p className="mt-2 text-sm text-[#94a3b8] leading-relaxed">
+              <p className="mt-2 text-sm text-slate-500 leading-relaxed max-w-md mx-auto">
                 {t("uploadSubtitle")}
               </p>
             </div>
 
             {/* Preset Regulatory Library Section */}
-            <div className="mb-6 p-5 rounded-xl bg-[#070b13] border border-[#1e293b] space-y-4">
+            <div className="mb-6 p-5 rounded-xl bg-slate-50/70 border border-slate-200/90 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#38bdf8] flex items-center gap-1.5">
-                    <BookOpen className="w-4 h-4 text-[#38bdf8]" /> {t("presetLibraryTitle")}
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-sky-800 flex items-center gap-1.5">
+                    <BookOpen className="w-4 h-4 text-sky-700" /> {t("presetLibraryTitle")}
                   </h3>
-                  <p className="text-xs text-[#94a3b8] mt-0.5">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     {t("presetLibrarySubtitle")}
                   </p>
                 </div>
                 {selectedPresetIds.length > 0 && (
-                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#38bdf8]/15 text-[#38bdf8] border border-[#38bdf8]/30">
+                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-900 border border-sky-200">
                     {t("selectedPresetCount").replace("{count}", String(selectedPresetIds.length))}
                   </span>
                 )}
@@ -587,35 +587,35 @@ export function UploadScreen({
                       key={doc.id}
                       data-testid={`preset-card-${doc.id}`}
                       onClick={() => !loading && togglePreset(doc.id)}
-                      className={`p-3.5 rounded-xl border transition-all cursor-pointer select-none flex flex-col justify-between ${
+                      className={`p-4 rounded-xl border transition-all cursor-pointer select-none flex flex-col justify-between ${
                         isSelected
-                          ? "bg-[#38bdf8]/10 border-[#38bdf8]/70 shadow-sm shadow-[#38bdf8]/5"
-                          : "bg-[#0d1527] border-[#1e293b] hover:border-[#38bdf8]/40 hover:bg-[#131e35]"
+                          ? "bg-sky-50/70 border-sky-500 shadow-xs ring-1 ring-sky-500/20"
+                          : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-xs"
                       } ${loading ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}
                     >
                       <div>
                         <div className="flex items-center justify-between gap-1 mb-1.5">
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                             doc.type === "eu" 
-                              ? "bg-[#3b82f6]/20 text-[#60a5fa] border border-[#3b82f6]/30" 
+                              ? "bg-sky-50 text-sky-800 border border-sky-200/80" 
                               : doc.type === "bek" 
-                                ? "bg-[#10b981]/20 text-[#34d399] border border-[#10b981]/30"
-                                : "bg-[#f59e0b]/20 text-[#fbbf24] border border-[#f59e0b]/30"
+                                ? "bg-emerald-50 text-emerald-800 border border-emerald-200/80"
+                                : "bg-amber-50 text-amber-800 border border-amber-200/80"
                           }`}>
                             {lang === "da" ? doc.typeLabelDa : doc.typeLabelEn}
                           </span>
                           <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
-                            isSelected ? "bg-[#38bdf8] border-[#38bdf8] text-[#070b13]" : "border-[#4b5c75]"
+                            isSelected ? "bg-sky-700 border-sky-700 text-white" : "border-slate-300 bg-white"
                           }`}>
                             {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                           </div>
                         </div>
-                        <h4 className="text-xs font-bold text-[#f8fafc]">{doc.code}</h4>
-                        <p className="text-xs text-[#94a3b8] font-medium mt-0.5">
+                        <h4 className="text-xs font-bold text-slate-900">{doc.code}</h4>
+                        <p className="text-xs text-slate-600 font-medium mt-0.5">
                           {lang === "da" ? doc.titleDa : doc.titleEn}
                         </p>
                       </div>
-                      <p className="text-[11px] text-[#64748b] mt-2 line-clamp-2 leading-relaxed">
+                      <p className="text-[11px] text-slate-500 mt-2 line-clamp-2 leading-relaxed">
                         {lang === "da" ? doc.descriptionDa : doc.descriptionEn}
                       </p>
                     </div>
@@ -629,16 +629,16 @@ export function UploadScreen({
                   type="button"
                   disabled={loading}
                   onClick={handleAnalyzePresets}
-                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#38bdf8] to-[#818cf8] text-[#070b13] font-bold text-xs hover:opacity-95 transition-all flex items-center justify-center gap-2 shadow-md shadow-[#38bdf8]/15 cursor-pointer disabled:opacity-50"
+                  className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
                 >
                   {loading ? (
                     <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                       {t("analysing")}
                     </>
                   ) : (
                     <>
-                      <Database className="w-4 h-4" />
+                      <Database className="w-3.5 h-3.5" />
                       {t("analyzePresets")} ({selectedPresetIds.length})
                     </>
                   )}
@@ -647,24 +647,24 @@ export function UploadScreen({
             </div>
 
             <div className="relative flex py-2 items-center mb-6">
-              <div className="flex-grow border-t border-[#1e293b]"></div>
-              <span className="flex-shrink mx-4 text-xs font-semibold uppercase text-[#64748b] tracking-wider">
+              <div className="flex-grow border-t border-slate-200"></div>
+              <span className="flex-shrink mx-4 text-xs font-medium uppercase text-slate-400 tracking-wider">
                 {lang === "da" ? "Eller upload egne PDF-filer" : "Or upload custom PDFs"}
               </span>
-              <div className="flex-grow border-t border-[#1e293b]"></div>
+              <div className="flex-grow border-t border-slate-200"></div>
             </div>
 
             {/* Mode Toggle */}
             <div className="flex justify-center mb-6">
-              <div className="flex items-center gap-1 bg-[#131e35] p-1 rounded-lg border border-[#1e293b]" role="tablist">
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200" role="tablist">
                 <button
                   type="button"
                   role="tab"
                   aria-selected={mode === "bulk"}
                   disabled={loading}
                   onClick={() => handleModeToggle("bulk")}
-                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
-                    mode === "bulk" ? "bg-[#38bdf8] text-[#070b13] shadow-md shadow-[#38bdf8]/10" : "text-[#94a3b8] hover:text-[#f8fafc]"
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
+                    mode === "bulk" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"
                   }`}
                 >
                   {t("uploadModeBulk")}
@@ -675,8 +675,8 @@ export function UploadScreen({
                   aria-selected={mode === "individual"}
                   disabled={loading}
                   onClick={() => handleModeToggle("individual")}
-                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
-                    mode === "individual" ? "bg-[#38bdf8] text-[#070b13] shadow-md shadow-[#38bdf8]/10" : "text-[#94a3b8] hover:text-[#f8fafc]"
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
+                    mode === "individual" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"
                   }`}
                 >
                   {t("uploadModeIndividual")}
@@ -687,7 +687,7 @@ export function UploadScreen({
             <form onSubmit={handleSubmit} noValidate className="space-y-6">
               {/* Multi-file drop notice */}
               {multiDropNotice && (
-                <p className="flex items-center gap-1.5 text-xs text-[#f59e0b]">
+                <p className="flex items-center gap-1.5 text-xs text-amber-700">
                   <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                   {multiDropNotice}
                 </p>
@@ -712,30 +712,30 @@ export function UploadScreen({
                       onDragLeave={handleContainerDragLeave}
                       onDrop={handleContainerDrop}
                       className={`rounded-xl border-2 border-dashed transition-all duration-200 ${
-                        filledCount === 0 ? "min-h-[140px] flex flex-col items-center justify-center gap-3 p-6 select-none" : "p-4"
+                        filledCount === 0 ? "min-h-[140px] flex flex-col items-center justify-center gap-2.5 p-6 select-none" : "p-4"
                       } ${
                         isContainerDragging
-                          ? "border-[#38bdf8] bg-[#38bdf8]/10"
+                          ? "border-sky-500 bg-sky-50/50"
                           : filledCount === 0
-                            ? `border-[#1e293b] bg-[#0d1527] ${loading ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-[#38bdf8]/50 hover:bg-[#38bdf8]/5"}`
-                            : "border-[#1e293b]"
+                            ? `border-slate-300 bg-slate-50/50 ${loading ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-slate-400 hover:bg-slate-50"}`
+                            : "border-slate-200"
                       }`}
                     >
                       {filledCount === 0 ? (
                         <>
-                          <Upload className="w-8 h-8 text-[#38bdf8]" />
-                          <span className="text-sm text-center leading-snug text-[#94a3b8]">
+                          <Upload className="w-7 h-7 text-slate-400" />
+                          <span className="text-sm text-center leading-snug text-slate-500">
                             {t("dropZoneBulk")}
                           </span>
                         </>
                       ) : (
                         <div className="space-y-2">
                           {slots.map((slot, i) => slot.file && (
-                            <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-[#070b13] border border-[#1e293b]">
-                              <FileText className="w-5 h-5 text-[#10b981] shrink-0" />
+                            <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
+                              <FileText className="w-5 h-5 text-emerald-700 shrink-0" />
                               <div className="min-w-0 shrink-0 w-40 sm:w-56">
-                                <p className="text-sm text-[#f8fafc] truncate">{slot.file.name}</p>
-                                <p className="text-xs text-[#94a3b8]">{(slot.file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                <p className="text-sm font-medium text-slate-800 truncate">{slot.file.name}</p>
+                                <p className="text-xs text-slate-400">{(slot.file.size / 1024 / 1024).toFixed(2)} MB</p>
                               </div>
                               <input
                                 type="text"
@@ -744,8 +744,8 @@ export function UploadScreen({
                                 placeholder={slotLabel(i)}
                                 aria-label={slotLabel(i)}
                                 disabled={loading}
-                                className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-[#131e35] border border-[#1e293b] text-sm text-[#f8fafc] placeholder-[#4b5c75]
-                                           focus:outline-none focus:ring-2 focus:ring-[#38bdf8]/50 focus:border-[#38bdf8]/60 transition-colors disabled:opacity-50"
+                                className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 placeholder-slate-400
+                                           focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-colors disabled:opacity-50"
                               />
                               {filledCount > MIN_SLOTS && (
                                 <button
@@ -753,7 +753,7 @@ export function UploadScreen({
                                   aria-label={`${t("removeDocument")} ${i + 1}`}
                                   disabled={loading}
                                   onClick={() => handleRemoveSlot(i)}
-                                  className="shrink-0 w-7 h-7 rounded-full bg-[#1e293b] hover:bg-[#334155] border border-[#334155] flex items-center justify-center text-[#94a3b8] hover:text-[#f8fafc] transition-all disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                                  className="shrink-0 w-7 h-7 rounded-full bg-slate-200 hover:bg-slate-300 border border-slate-300 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-all disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                                 >
                                   <X className="w-3.5 h-3.5" />
                                 </button>
@@ -764,7 +764,7 @@ export function UploadScreen({
                             type="button"
                             disabled={loading || slots.length >= MAX_SLOTS}
                             onClick={openBulkFileBrowser}
-                            className="w-full py-2.5 rounded-xl border border-dashed border-[#1e293b] text-xs font-semibold text-[#94a3b8] hover:text-[#38bdf8] hover:border-[#38bdf8]/40 transition-all duration-200 flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-xs font-medium text-slate-500 hover:text-slate-800 hover:border-slate-400 transition-all duration-200 flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <Plus className="w-3.5 h-3.5" />
                             {t("addDocument")}
@@ -792,7 +792,7 @@ export function UploadScreen({
                     onDragLeave={handleContainerDragLeave}
                     onDrop={handleContainerDrop}
                     className={`rounded-xl border-2 border-dashed transition-colors duration-200 p-4 ${
-                      isContainerDragging ? "border-[#38bdf8]/60 bg-[#38bdf8]/5" : "border-transparent"
+                      isContainerDragging ? "border-sky-500 bg-sky-50/50" : "border-transparent"
                     }`}
                   >
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -804,7 +804,7 @@ export function UploadScreen({
                               aria-label={`${t("removeDocument")} ${i + 1}`}
                               disabled={loading}
                               onClick={() => handleRemoveSlot(i)}
-                              className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-full bg-[#1e293b] hover:bg-[#334155] border border-[#334155] flex items-center justify-center text-[#94a3b8] hover:text-[#f8fafc] transition-all disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                              className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-full bg-slate-200 hover:bg-slate-300 border border-slate-300 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-all disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                             >
                               <X className="w-3.5 h-3.5" />
                             </button>
@@ -826,8 +826,8 @@ export function UploadScreen({
                             onChange={(e) => handleLabelChange(i, e.target.value)}
                             placeholder={slotLabel(i)}
                             aria-label={slotLabel(i)}
-                            className="mt-1.5 w-full px-3 py-2 rounded-lg bg-[#131e35] border border-[#1e293b] text-sm text-[#f8fafc] placeholder-[#4b5c75]
-                                       focus:outline-none focus:ring-2 focus:ring-[#38bdf8]/50 focus:border-[#38bdf8]/60 transition-colors"
+                            className="mt-1.5 w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder-slate-400
+                                       focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-colors"
                           />
                         </div>
                       ))}
@@ -838,7 +838,7 @@ export function UploadScreen({
                     type="button"
                     disabled={loading || slots.length >= MAX_SLOTS}
                     onClick={handleAddSlot}
-                    className="w-full py-2.5 rounded-xl border border-dashed border-[#1e293b] text-xs font-semibold text-[#94a3b8] hover:text-[#38bdf8] hover:border-[#38bdf8]/40 transition-all duration-200 flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-xs font-medium text-slate-500 hover:text-slate-800 hover:border-slate-400 transition-all duration-200 flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     {t("addDocument")}
@@ -848,7 +848,7 @@ export function UploadScreen({
 
               {/* Size error */}
               {sizeError && (
-                <p className="flex items-center gap-1.5 text-xs text-[#f59e0b]">
+                <p className="flex items-center gap-1.5 text-xs text-amber-700">
                   <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                   {sizeError}
                 </p>
@@ -856,20 +856,20 @@ export function UploadScreen({
 
               {/* Submit error */}
               {submitError && (
-                <div className="p-3 rounded-lg bg-[#ef4444]/10 border border-[#ef4444]/25 text-sm text-[#f87171] space-y-3">
+                <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-sm text-rose-800 space-y-3">
                   <div className="flex items-start gap-2">
-                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
                     <span>{submitError}</span>
                   </div>
                   {errorReport && (
                     <>
-                      <pre className="max-h-48 overflow-auto p-2 rounded bg-[#070b13] border border-[#1e293b] text-xs text-[#94a3b8] whitespace-pre-wrap break-all">
+                      <pre className="max-h-48 overflow-auto p-3 rounded-lg bg-white border border-rose-200 text-xs text-slate-700 whitespace-pre-wrap break-all font-mono">
                         {errorReport}
                       </pre>
                       <button
                         type="button"
                         onClick={handleCopyReport}
-                        className="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#1e293b] text-[#f8fafc] hover:bg-[#334155] transition-colors"
+                        className="px-3 py-1.5 rounded-md text-xs font-medium bg-white text-rose-900 border border-rose-200 hover:bg-rose-100 transition-colors"
                       >
                         {copied ? t("copiedErrorDetails") : t("copyErrorDetails")}
                       </button>
@@ -883,11 +883,11 @@ export function UploadScreen({
                 type="submit"
                 disabled={!canSubmit}
                 className={`
-                  w-full py-3 rounded-xl font-semibold text-sm transition-all duration-200
-                  flex items-center justify-center gap-2
+                  w-full py-3.5 rounded-xl font-medium text-sm transition-all duration-200
+                  flex items-center justify-center gap-2 shadow-xs
                   ${canSubmit
-                    ? "bg-[#38bdf8] text-[#070b13] hover:bg-[#38bdf8]/90 shadow-md shadow-[#38bdf8]/20 cursor-pointer"
-                    : "bg-[#1e293b] text-[#4b5c75] cursor-not-allowed"
+                    ? "bg-slate-900 text-white hover:bg-slate-800 cursor-pointer shadow-sm"
+                    : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
                   }
                 `}
               >

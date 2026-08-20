@@ -27,21 +27,21 @@ export function CitationGraphView({
   t
 }: CitationGraphViewProps) {
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-[#070b13] relative border border-[#1e293b] rounded-xl overflow-hidden shadow-2xl">
+    <div className="flex-1 flex flex-col min-h-0 bg-[#fafaf9] relative border border-slate-200 rounded-xl overflow-hidden shadow-sm">
       <div className="absolute top-6 left-6 z-10 flex gap-4 pointer-events-none">
-        <div className="bg-[#0f172a]/90 backdrop-blur-sm p-4 rounded-xl border border-[#1e293b] pointer-events-auto shadow-xl">
-          <h3 className="text-sm font-bold text-[#f8fafc] mb-2 uppercase tracking-wider">{t("citationGraph")}</h3>
-          <div className="space-y-2 text-xs text-[#94a3b8]">
+        <div className="bg-white/95 backdrop-blur-xs p-4 rounded-xl border border-slate-200 pointer-events-auto shadow-sm">
+          <h3 className="text-xs font-bold text-slate-900 mb-2 uppercase tracking-wider">{t("citationGraph")}</h3>
+          <div className="space-y-1.5 text-xs text-slate-600">
             {data.docs.map(d => (
-              <div key={d.id} className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: docColorFor(data.docs, d.id) }}></div>
+              <div key={d.id} className="flex items-center gap-2 font-medium">
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: docColorFor(data.docs, d.id) }}></div>
                 {docLabel(data.docs, d.id, t)}
               </div>
             ))}
-            <div className="border-t border-[#1e293b] pt-2 mt-2">
+            <div className="border-t border-slate-200 pt-2 mt-2">
               {MODALITY_LEGEND.map(({ modality, color, dashed }) => (
-                <div key={modality} className="flex items-center gap-2 mt-1 first:mt-0">
-                  <div className={`w-4 h-0.5 ${dashed ? "border-dashed border-t" : ""}`} style={{ backgroundColor: dashed ? undefined : color, borderColor: dashed ? color : undefined }}></div>
+                <div key={modality} className="flex items-center gap-2 mt-1 first:mt-0 font-medium">
+                  <div className={`w-3.5 h-0.5 ${dashed ? "border-dashed border-t" : ""}`} style={{ backgroundColor: dashed ? undefined : color, borderColor: dashed ? color : undefined }}></div>
                   {t(modality.toLowerCase() as TranslationKey)}
                 </div>
               ))}
@@ -49,7 +49,7 @@ export function CitationGraphView({
           </div>
         </div>
       </div>
-      <div className="flex-1 bg-[#0a1122]">
+      <div className="flex-1 bg-[#f8fafc]">
         <CitationGraphCanvas 
           data={data}
           selectedNode={selectedNode}
@@ -63,11 +63,11 @@ export function CitationGraphView({
 
       {/* Details sidebar drawer — full-width overlay on small screens, fixed w-96 on sm+ */}
       {selectedNode && (
-        <div className="absolute right-0 top-0 w-full sm:w-96 max-w-full bg-[#0d1527] border-l border-[#1e293b] flex flex-col h-full z-20 shadow-2xl transition-all duration-300">
-          <div className="p-6 border-b border-[#1e293b] relative flex flex-col gap-2">
+        <div className="absolute right-0 top-0 w-full sm:w-96 max-w-full bg-white border-l border-slate-200 flex flex-col h-full z-20 shadow-xl transition-all duration-300">
+          <div className="p-6 border-b border-slate-200 bg-slate-50/70 relative flex flex-col gap-2">
             <button 
               onClick={() => setSelectedNode(null)}
-              className="absolute top-4 right-4 text-[#94a3b8] hover:text-[#f8fafc] text-xl"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-xl cursor-pointer"
             >
               &times;
             </button>
@@ -77,28 +77,28 @@ export function CitationGraphView({
             >
               {docLabel(data.docs, selectedNode.doc, t)}
             </span>
-            <h2 className="text-lg font-bold">{selectedNode.label}</h2>
-            <p className="text-xs text-[#94a3b8] font-medium">{selectedNode.title || t("noTitle")}</p>
+            <h2 className="text-lg font-bold text-slate-900">{selectedNode.label}</h2>
+            <p className="text-xs text-slate-600 font-medium">{selectedNode.title || t("noTitle")}</p>
           </div>
           
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             <div className="space-y-2">
-              <h3 className="text-xs uppercase font-bold text-[#94a3b8] tracking-wider">{t("category")}</h3>
-              <span className="inline-block px-2.5 py-1 rounded bg-[#1e293b] text-xs font-semibold text-[#f8fafc]">
+              <h3 className="text-xs uppercase font-bold text-slate-500 tracking-wider">{t("category")}</h3>
+              <span className="inline-block px-2.5 py-1 rounded bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-800">
                 {selectedNode.theme}
               </span>
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-xs uppercase font-bold text-[#94a3b8] tracking-wider">{t("documentText")}</h3>
-              <div className="bg-[#070b13] border border-[#1e293b] p-4 rounded-lg text-sm leading-relaxed max-h-60 overflow-y-auto whitespace-pre-wrap">
+              <h3 className="text-xs uppercase font-bold text-slate-500 tracking-wider">{t("documentText")}</h3>
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-lg text-xs leading-relaxed text-slate-800 max-h-60 overflow-y-auto whitespace-pre-wrap">
                 {selectedNode.body}
               </div>
             </div>
 
             {/* List connections */}
             <div className="space-y-3">
-              <h3 className="text-xs uppercase font-bold text-[#94a3b8] tracking-wider">{t("connections")}</h3>
+              <h3 className="text-xs uppercase font-bold text-slate-500 tracking-wider">{t("connections")}</h3>
               <div className="space-y-2">
                 {data.links.filter(l => {
                   const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
@@ -117,15 +117,15 @@ export function CitationGraphView({
                     <div 
                       key={i}
                       onClick={() => setSelectedNode(targetNode)}
-                      className="p-3 bg-[#070b13] border border-[#1e293b] rounded-lg hover:border-[#38bdf8]/40 cursor-pointer transition-all duration-200"
+                      className="p-3 bg-slate-50 border border-slate-200 rounded-lg hover:border-slate-400 hover:bg-white cursor-pointer transition-all duration-200 shadow-2xs"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-[#38bdf8]">{targetNode.label}</span>
+                        <span className="text-xs font-bold text-slate-900">{targetNode.label}</span>
                         <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${modalityBadgeClasses(l.modality)}`}>
                           {t(l.modality.toLowerCase() as TranslationKey)}
                         </span>
                       </div>
-                      <p className="text-[11px] text-[#94a3b8] truncate mt-1">{targetNode.title || t("noHeading")}</p>
+                      <p className="text-[11px] text-slate-500 truncate mt-1">{targetNode.title || t("noHeading")}</p>
                     </div>
                   );
                 })}
@@ -201,18 +201,18 @@ function CitationGraphCanvas({
       svg.selectAll("circle")
         .attr("stroke-width", (d: unknown) => {
           const n = d as GraphNode;
-          return n.id === selectedNode.id ? 3.0 : 1.5;
+          return n.id === selectedNode.id ? 2.5 : 1.5;
         })
         .attr("stroke", (d: unknown) => {
           const n = d as GraphNode;
-          return n.id === selectedNode.id ? "#38bdf8" : "#0d1527";
+          return n.id === selectedNode.id ? "#0f172a" : "#ffffff";
         });
     } else {
-      svg.selectAll("path.citation-link").style("stroke-opacity", 0.4);
+      svg.selectAll("path.citation-link").style("stroke-opacity", 0.5);
       svg.selectAll("g.node").style("opacity", 1.0);
       svg.selectAll("circle")
         .attr("stroke-width", 1.5)
-        .attr("stroke", "#0d1527");
+        .attr("stroke", "#ffffff");
     }
   }, [selectedNode]);
 
@@ -313,7 +313,7 @@ function CitationGraphCanvas({
         return 6 + Math.min(deg * 0.8, 18);
       })
       .attr("fill", d => docColorFor(data.docs, d.doc))
-      .attr("stroke", "#0d1527")
+      .attr("stroke", "#ffffff")
       .attr("stroke-width", 1.5);
 
     // Docs in the left half of the column order label to the left (anchor-end), the right
@@ -327,9 +327,9 @@ function CitationGraphCanvas({
       .attr("x", d => isLeftHalf(d.doc) ? -15 : 15)
       .attr("y", 4)
       .attr("text-anchor", d => isLeftHalf(d.doc) ? "end" : "start")
-      .attr("fill", "#94a3b8")
+      .attr("fill", "#475569")
       .attr("font-size", "11px")
-      .attr("font-weight", "500");
+      .attr("font-weight", "600");
 
     node.on("click", (event, d) => {
       setSelectedNode(d);
@@ -431,29 +431,29 @@ function CitationGraphCanvas({
   };
 
   return (
-    <div className="w-full h-full relative overflow-hidden" ref={containerRef}>
+    <div className="w-full h-full relative overflow-hidden bg-[#f8fafc]" ref={containerRef}>
       <svg ref={svgRef} className="w-full h-full block" style={{ outline: 'none' }} />
 
       {/* Zoom HUD Controls & Important Articles */}
       <div className="absolute top-6 right-6 flex flex-col gap-2 z-10 select-none">
-        <div className="flex flex-col gap-2 bg-[#0d1527]/90 border border-[#1e293b] p-2 rounded-xl backdrop-blur-md shadow-lg">
+        <div className="flex flex-col gap-1.5 bg-white/95 border border-slate-200 p-1.5 rounded-xl backdrop-blur-xs shadow-sm">
           <button 
             onClick={handleZoomIn}
-            className="w-8 h-8 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-sm font-bold flex items-center justify-center transition-all cursor-pointer border border-[#1e293b] hover:border-[#38bdf8]/40 text-[#f8fafc]"
+            className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm font-semibold flex items-center justify-center transition-all cursor-pointer border border-slate-200 text-slate-800 shadow-2xs"
             title="Zoom ind"
           >
             +
           </button>
           <button 
             onClick={handleZoomOut}
-            className="w-8 h-8 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-sm font-bold flex items-center justify-center transition-all cursor-pointer border border-[#1e293b] hover:border-[#38bdf8]/40 text-[#f8fafc]"
+            className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm font-semibold flex items-center justify-center transition-all cursor-pointer border border-slate-200 text-slate-800 shadow-2xs"
             title="Zoom ud"
           >
             &minus;
           </button>
           <button 
             onClick={handleResetZoom}
-            className="w-8 h-8 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-xs font-semibold flex items-center justify-center transition-all cursor-pointer border border-[#1e293b] hover:border-[#38bdf8]/40 text-[#94a3b8] hover:text-[#38bdf8]"
+            className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 text-[10px] font-semibold flex items-center justify-center transition-all cursor-pointer border border-slate-200 text-slate-600 shadow-2xs"
             title="Nulstil zoom"
           >
             Reset
@@ -462,8 +462,8 @@ function CitationGraphCanvas({
 
         {/* Top 10 nodes */}
         {top10Nodes.length > 0 && (
-          <div className="flex flex-col gap-2 bg-[#0d1527]/90 border border-[#1e293b] p-2 rounded-xl backdrop-blur-md shadow-lg max-h-[calc(100vh-250px)] overflow-y-auto">
-            <div className="text-[10px] uppercase font-bold text-[#94a3b8] text-center mb-1">
+          <div className="flex flex-col gap-1.5 bg-white/95 border border-slate-200 p-2 rounded-xl backdrop-blur-xs shadow-sm max-h-[calc(100vh-250px)] overflow-y-auto">
+            <div className="text-[10px] uppercase font-bold text-slate-400 text-center mb-0.5">
               Top 10
             </div>
             {top10Nodes.map(node => (
@@ -472,8 +472,8 @@ function CitationGraphCanvas({
                 onClick={() => handleFocusNode(node.id)}
                 className={`w-8 h-8 rounded-lg text-xs font-semibold flex items-center justify-center transition-all cursor-pointer border text-center ${
                   selectedNode?.id === node.id 
-                    ? "bg-[#38bdf8] text-[#070b13] border-[#38bdf8]" 
-                    : "bg-[#1e293b] hover:bg-[#334155] border-[#1e293b] hover:border-[#38bdf8]/40 text-[#f8fafc]"
+                    ? "bg-slate-900 text-white border-slate-900 shadow-xs" 
+                    : "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 shadow-2xs"
                 }`}
                 title={`Art. ${node.number}: ${node.title} (${node.degree} links)`}
               >
