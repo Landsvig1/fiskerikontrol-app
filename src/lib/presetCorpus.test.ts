@@ -3,7 +3,8 @@ import { PRESET_DOCUMENTS, fetchPresetFiles } from "./presetCorpus";
 
 describe("presetCorpus", () => {
   it("exports valid preset documents with required metadata", () => {
-    expect(PRESET_DOCUMENTS.length).toBeGreaterThanOrEqual(4);
+    expect(PRESET_DOCUMENTS.length).toBe(10);
+    expect(PRESET_DOCUMENTS.some((d) => d.id === "eu-1224-2009" && d.code === "EU 1224/2009")).toBe(true);
     
     for (const doc of PRESET_DOCUMENTS) {
       expect(doc.id).toBeTruthy();

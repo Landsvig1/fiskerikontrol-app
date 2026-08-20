@@ -168,12 +168,21 @@ export function UploadScreen({
   const [loading, setLoading] = useState(false);
   const [multiDropNotice, setMultiDropNotice] = useState<string | null>(null);
   const [isContainerDragging, setIsContainerDragging] = useState(false);
-  const [selectedPresetIds, setSelectedPresetIds] = useState<string[]>(["eu-2023-2842", "bek-1197-2025"]);
+  const [selectedPresetIds, setSelectedPresetIds] = useState<string[]>(["eu-1224-2009", "eu-2023-2842"]);
+  const [presetFilter, setPresetFilter] = useState<"all" | "eu" | "bek" | "lov">("all");
 
   const togglePreset = (id: string) => {
     setSelectedPresetIds((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
     );
+  };
+
+  const selectAllPresets = () => {
+    setSelectedPresetIds(PRESET_DOCUMENTS.map((d) => d.id));
+  };
+
+  const clearAllPresets = () => {
+    setSelectedPresetIds([]);
   };
 
   const handleAnalyzePresets = async () => {
@@ -578,16 +587,76 @@ export function UploadScreen({
                 )}
               </div>
 
+              {/* Category Filter Pills & Selection helpers */}
+              <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
+                <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[11px] font-medium">
+                  <button
+                    type="button"
+                    onClick={() => setPresetFilter("all")}
+                    className={`px-2.5 py-1 rounded-md transition-all ${
+                      presetFilter === "all" ? "bg-white text-slate-900 font-semibold shadow-xs" : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    {lang === "da" ? "Alle" : "All"} ({PRESET_DOCUMENTS.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPresetFilter("eu")}
+                    className={`px-2.5 py-1 rounded-md transition-all ${
+                      presetFilter === "eu" ? "bg-white text-slate-900 font-semibold shadow-xs" : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    EU ({PRESET_DOCUMENTS.filter(d => d.type === "eu").length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPresetFilter("bek")}
+                    className={`px-2.5 py-1 rounded-md transition-all ${
+                      presetFilter === "bek" ? "bg-white text-slate-900 font-semibold shadow-xs" : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    {lang === "da" ? "Bekendtgørelser" : "Orders"} ({PRESET_DOCUMENTS.filter(d => d.type === "bek").length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPresetFilter("lov")}
+                    className={`px-2.5 py-1 rounded-md transition-all ${
+                      presetFilter === "lov" ? "bg-white text-slate-900 font-semibold shadow-xs" : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    {lang === "da" ? "Love" : "Acts"} ({PRESET_DOCUMENTS.filter(d => d.type === "lov").length})
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={selectAllPresets}
+                    className="text-sky-700 hover:text-sky-900 font-medium hover:underline cursor-pointer"
+                  >
+                    {lang === "da" ? "Vælg alle" : "Select all"}
+                  </button>
+                  <span className="text-slate-300">|</span>
+                  <button
+                    type="button"
+                    onClick={clearAllPresets}
+                    className="text-slate-500 hover:text-slate-800 font-medium hover:underline cursor-pointer"
+                  >
+                    {lang === "da" ? "Ryd" : "Clear"}
+                  </button>
+                </div>
+              </div>
+
               {/* Grid of Preset Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {PRESET_DOCUMENTS.map((doc) => {
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[380px] overflow-y-auto pr-1">
+                {PRESET_DOCUMENTS.filter(doc => presetFilter === "all" || doc.type === presetFilter).map((doc) => {
                   const isSelected = selectedPresetIds.includes(doc.id);
                   return (
                     <div
                       key={doc.id}
                       data-testid={`preset-card-${doc.id}`}
                       onClick={() => !loading && togglePreset(doc.id)}
-                      className={`p-4 rounded-xl border transition-all cursor-pointer select-none flex flex-col justify-between ${
+                      className={`p-3.5 rounded-xl border transition-all cursor-pointer select-none flex flex-col justify-between ${
                         isSelected
                           ? "bg-sky-50/70 border-sky-500 shadow-xs ring-1 ring-sky-500/20"
                           : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-xs"
