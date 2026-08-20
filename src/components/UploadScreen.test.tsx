@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { UploadScreen } from "./UploadScreen";
 import { getT } from "@/lib/i18n";
-import type { GraphData } from "@/app/page";
+import type { GraphData } from "@/lib/types";
 
 const t = getT("en");
 

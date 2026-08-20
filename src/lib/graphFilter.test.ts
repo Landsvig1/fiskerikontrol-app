@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { filterGraph, computeDegree } from "./graphFilter";
-import type { GraphNode, GraphLink } from "@/app/page";
+import type { GraphNode, GraphLink } from "./types";
 
 function node(id: string, doc: string): GraphNode {
   return { id, number: 1, label: id, title: "", doc, theme: "General", body: "" };

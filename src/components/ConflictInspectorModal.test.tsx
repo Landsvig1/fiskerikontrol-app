@@ -3,7 +3,7 @@ import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ConflictInspectorModal } from "./ConflictInspectorModal";
-import { GraphData } from "@/app/page";
+import type { GraphData } from "@/lib/types";
 import { getT } from "@/lib/i18n";
 
 const mockData: GraphData = {

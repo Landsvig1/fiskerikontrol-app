@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Database, Upload, FileText, AlertTriangle, RefreshCw, Info, Plus, X, BookOpen, Check } from "lucide-react";
-import { GraphData } from "@/app/page";
+import type { GraphData } from "@/lib/types";
 import { TranslateFn } from "@/lib/i18n";
 import { deriveLabelFromFilename } from "@/lib/labels";
 import { PRESET_DOCUMENTS, fetchPresetFiles } from "@/lib/presetCorpus";
