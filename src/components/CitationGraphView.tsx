@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useMemo } from "react";
 import * as d3 from "d3";
-import { GraphNode, GraphLink, GraphData } from "@/app/page";
-
+import { GraphNode, GraphLink, GraphData } from "@/lib/types";
+import { FleetFilterCriteria, matchesFleetCriteria } from "@/lib/fleetFilter";
 import { TranslateFn, TranslationKey } from "@/lib/i18n";
 import { MODALITY_LEGEND, modalityColor, modalityBadgeClasses } from "@/lib/graphColors";
 import { filterGraph, computeDegree } from "@/lib/graphFilter";
 import { docLabel, docColorFor, docBadgeStyle } from "@/lib/docDisplay";
+import { Filter } from "lucide-react";
 
 interface CitationGraphViewProps {
   data: GraphData;
@@ -13,8 +14,10 @@ interface CitationGraphViewProps {
   activeDocFilter: "all" | string;
   activeCategoryFilter: string;
   searchQuery: string;
+  fleetCriteria?: FleetFilterCriteria;
   setSelectedNode: (node: GraphNode | null) => void;
   t: TranslateFn;
+  lang?: "da" | "en";
 }
 
 export function CitationGraphView({
@@ -23,14 +26,30 @@ export function CitationGraphView({
   activeDocFilter,
   activeCategoryFilter,
   searchQuery,
+  fleetCriteria,
   setSelectedNode,
-  t
+  t,
+  lang = "da",
 }: CitationGraphViewProps) {
+  const isFleetFiltered = fleetCriteria && (
+    fleetCriteria.vesselLength !== "all" ||
+    fleetCriteria.gearType !== "all" ||
+    fleetCriteria.seaArea !== "all"
+  );
+
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-[#fafaf9] relative border border-slate-200 rounded-xl overflow-hidden shadow-sm">
       <div className="absolute top-6 left-6 z-10 flex gap-4 pointer-events-none">
         <div className="bg-white/95 backdrop-blur-xs p-4 rounded-xl border border-slate-200 pointer-events-auto shadow-sm">
-          <h3 className="text-xs font-bold text-slate-900 mb-2 uppercase tracking-wider">{t("citationGraph")}</h3>
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">{t("citationGraph")}</h3>
+            {isFleetFiltered && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-300 flex items-center gap-1">
+                <Filter className="w-2.5 h-2.5" />
+                {lang === "da" ? "Flådefiltreret" : "Fleet Filtered"}
+              </span>
+            )}
+          </div>
           <div className="space-y-1.5 text-xs text-slate-600">
             {data.docs.map(d => (
               <div key={d.id} className="flex items-center gap-2 font-medium">
@@ -56,8 +75,10 @@ export function CitationGraphView({
           activeDocFilter={activeDocFilter}
           activeCategoryFilter={activeCategoryFilter}
           searchQuery={searchQuery}
+          fleetCriteria={fleetCriteria}
           setSelectedNode={setSelectedNode}
           t={t}
+          lang={lang}
         />
       </div>
 
@@ -144,12 +165,32 @@ function CitationGraphCanvas({
   activeDocFilter,
   activeCategoryFilter,
   searchQuery,
-  setSelectedNode
+  fleetCriteria,
+  setSelectedNode,
+  t
 }: CitationGraphViewProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
   const zoomBehaviorRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const selectedNodeRef = useRef<GraphNode | null>(null);
+
+  const isFleetFiltered = fleetCriteria && (
+    fleetCriteria.vesselLength !== "all" ||
+    fleetCriteria.gearType !== "all" ||
+    fleetCriteria.seaArea !== "all"
+  );
+
+  const conflictTargets = useMemo(() => {
+    return new Set(
+      data.conflicts
+        .filter(c => {
+          const tNode = data.nodes.find(n => n.id === c.target);
+          return tNode && !tNode.external && !tNode.id.startsWith("external_");
+        })
+        .map(c => c.target)
+    );
+  }, [data.conflicts, data.nodes]);
 
   const top10Nodes = useMemo(() => {
     const nodes: GraphNode[] = data.nodes.map(n => ({ ...n }));
@@ -189,16 +230,16 @@ function CitationGraphCanvas({
           connectedNodeIds.add(tId);
           return 1.0;
         }
-        return 0.08;
+        return 0.06;
       });
 
       svg.selectAll("g.node")
         .style("opacity", (d: unknown) => {
           const n = d as GraphNode;
-          return connectedNodeIds.has(n.id) ? 1.0 : 0.15;
+          return connectedNodeIds.has(n.id) ? 1.0 : 0.12;
         });
 
-      svg.selectAll("circle")
+      svg.selectAll("circle.primary-circle")
         .attr("stroke-width", (d: unknown) => {
           const n = d as GraphNode;
           return n.id === selectedNode.id ? 2.5 : 1.5;
@@ -208,13 +249,19 @@ function CitationGraphCanvas({
           return n.id === selectedNode.id ? "#0f172a" : "#ffffff";
         });
     } else {
-      svg.selectAll("path.citation-link").style("stroke-opacity", 0.5);
-      svg.selectAll("g.node").style("opacity", 1.0);
-      svg.selectAll("circle")
+      svg.selectAll("path.citation-link").style("stroke-opacity", 0.4);
+      svg.selectAll("g.node").style("opacity", (d: unknown) => {
+        const n = d as GraphNode;
+        if (isFleetFiltered) {
+          return matchesFleetCriteria(n, fleetCriteria!) ? 1.0 : 0.2;
+        }
+        return 1.0;
+      });
+      svg.selectAll("circle.primary-circle")
         .attr("stroke-width", 1.5)
         .attr("stroke", "#ffffff");
     }
-  }, [selectedNode]);
+  }, [selectedNode, isFleetFiltered, fleetCriteria]);
 
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return;
@@ -250,8 +297,8 @@ function CitationGraphCanvas({
     const { filteredNodes, filteredLinks } = filterGraph(nodes, links, activeDocFilter, activeCategoryFilter, searchQuery);
     const degree = computeDegree(filteredLinks);
 
-    const padding = 60;
-    const nodeHeightSpacing = 25;
+    const padding = 70;
+    const nodeHeightSpacing = 26;
     const numDocs = data.docs.length;
 
     const nodesByDoc = d3.group(filteredNodes, n => n.doc);
@@ -263,6 +310,35 @@ function CitationGraphCanvas({
           n.x = x;
           n.y = padding + i * nodeHeightSpacing;
         });
+    });
+
+    // Draw Column Headers
+    const headerGroup = g.append("g").attr("class", "doc-headers");
+    data.docs.forEach((docRef, docIndex) => {
+      const x = width * (docIndex + 1) / (numDocs + 1);
+      const isEu = docRef.id.toLowerCase().includes("eu") || docRef.label.toLowerCase().includes("eu");
+
+      const colHeader = headerGroup.append("g")
+        .attr("transform", `translate(${x}, ${padding - 35})`)
+        .style("cursor", "default");
+
+      colHeader.append("rect")
+        .attr("x", -70)
+        .attr("y", -14)
+        .attr("width", 140)
+        .attr("height", 28)
+        .attr("rx", 8)
+        .attr("fill", isEu ? "#f0f9ff" : "#f8fafc")
+        .attr("stroke", docColorFor(data.docs, docRef.id))
+        .attr("stroke-width", 1.5);
+
+      colHeader.append("text")
+        .attr("text-anchor", "middle")
+        .attr("y", 4)
+        .attr("fill", isEu ? "#0369a1" : "#334155")
+        .attr("font-size", "11px")
+        .attr("font-weight", "bold")
+        .text(docLabel(data.docs, docRef.id, t));
     });
 
     const nodeMap = new Map<string, GraphNode>();
@@ -294,10 +370,43 @@ function CitationGraphCanvas({
       .attr("stroke", d => modalityColor(d.modality))
       .attr("stroke-opacity", 0)
       .attr("stroke-width", 1.5)
-      .attr("stroke-dasharray", d => d.modality === "Exception" ? "4, 2" : "none");
+      .attr("stroke-dasharray", d => d.modality === "Exception" ? "4, 2" : "none")
+      .style("cursor", "pointer");
 
-    // Fade links in smoothly on (re)draw, e.g. when filters change, rather than popping in instantly.
+    // Fade links in smoothly on (re)draw
     link.transition().duration(300).attr("stroke-opacity", 0.4);
+
+    // Link hover interactions
+    link.on("mouseenter", (event, d) => {
+      if (!tooltipRef.current) return;
+      const s = d.source as GraphNode;
+      const tNode = d.target as GraphNode;
+      const [mx, my] = d3.pointer(event, containerRef.current);
+      
+      const tooltip = d3.select(tooltipRef.current);
+      tooltip
+        .style("display", "block")
+        .style("left", `${mx + 12}px`)
+        .style("top", `${my + 12}px`)
+        .html(`
+          <div class="font-bold text-sky-400 text-xs mb-1">${s.label} ⟷ ${tNode.label}</div>
+          <div class="text-[11px] text-slate-300">
+            <span class="font-semibold text-amber-400">${t(d.modality.toLowerCase() as TranslationKey)}</span>
+            ${d.snippet ? `<p class="mt-1 italic text-slate-400 leading-snug">"${d.snippet.slice(0, 120)}..."</p>` : ""}
+          </div>
+        `);
+    })
+    .on("mousemove", (event) => {
+      if (!tooltipRef.current) return;
+      const [mx, my] = d3.pointer(event, containerRef.current);
+      d3.select(tooltipRef.current)
+        .style("left", `${mx + 12}px`)
+        .style("top", `${my + 12}px`);
+    })
+    .on("mouseleave", () => {
+      if (!tooltipRef.current) return;
+      d3.select(tooltipRef.current).style("display", "none");
+    });
 
     const node = g.append("g")
       .selectAll<SVGGElement, GraphNode>("g.node")
@@ -305,9 +414,29 @@ function CitationGraphCanvas({
       .join("g")
       .attr("class", "node")
       .attr("transform", d => `translate(${d.x || 0},${d.y || 0})`)
-      .style("cursor", "pointer");
+      .style("cursor", "pointer")
+      .style("opacity", d => {
+        if (isFleetFiltered) {
+          return matchesFleetCriteria(d, fleetCriteria!) ? 1.0 : 0.2;
+        }
+        return 1.0;
+      });
+
+    // Draw Conflict Dual-Ring Halos
+    node.filter(d => conflictTargets.has(d.id))
+      .append("circle")
+      .attr("class", "conflict-halo")
+      .attr("r", d => {
+        const deg = degree[d.id] || 0;
+        return 6 + Math.min(deg * 0.8, 18) + 4;
+      })
+      .attr("fill", "none")
+      .attr("stroke", "#e11d48")
+      .attr("stroke-width", 1.5)
+      .attr("stroke-dasharray", "3, 2");
 
     node.append("circle")
+      .attr("class", "primary-circle")
       .attr("r", d => {
         const deg = degree[d.id] || 0;
         return 6 + Math.min(deg * 0.8, 18);
@@ -316,9 +445,6 @@ function CitationGraphCanvas({
       .attr("stroke", "#ffffff")
       .attr("stroke-width", 1.5);
 
-    // Docs in the left half of the column order label to the left (anchor-end), the right
-    // half label to the right (anchor-start) — the natural N-way generalization of the old
-    // binary control=left/impl=right split. Odd numDocs: the middle column labels right.
     const docIndexOf = new Map(data.docs.map((d, i) => [d.id, i]));
     const isLeftHalf = (docId: string) => (docIndexOf.get(docId) ?? 0) < numDocs / 2;
 
@@ -361,7 +487,12 @@ function CitationGraphCanvas({
     node.on("mouseout", () => {
       if (selectedNodeRef.current) return;
       link.style("stroke-opacity", 0.4);
-      node.style("opacity", 1.0);
+      node.style("opacity", d => {
+        if (isFleetFiltered) {
+          return matchesFleetCriteria(d, fleetCriteria!) ? 1.0 : 0.2;
+        }
+        return 1.0;
+      });
     });
 
     const resizeObserver = new ResizeObserver((entries) => {
@@ -378,7 +509,7 @@ function CitationGraphCanvas({
     return () => {
       resizeObserver.disconnect();
     };
-  }, [data, activeDocFilter, activeCategoryFilter, searchQuery, setSelectedNode]);
+  }, [data, activeDocFilter, activeCategoryFilter, searchQuery, isFleetFiltered, fleetCriteria, conflictTargets, setSelectedNode, t]);
 
   const handleZoomIn = () => {
     if (!svgRef.current || !zoomBehaviorRef.current) return;
@@ -433,6 +564,12 @@ function CitationGraphCanvas({
   return (
     <div className="w-full h-full relative overflow-hidden bg-[#f8fafc]" ref={containerRef}>
       <svg ref={svgRef} className="w-full h-full block" style={{ outline: 'none' }} />
+
+      {/* Floating Citation Tooltip */}
+      <div 
+        ref={tooltipRef} 
+        className="pointer-events-none absolute z-30 hidden px-3.5 py-2.5 text-xs bg-slate-900/95 text-white rounded-xl shadow-2xl border border-slate-700 max-w-sm backdrop-blur-xs transition-opacity duration-150"
+      />
 
       {/* Zoom HUD Controls & Important Articles */}
       <div className="absolute top-6 right-6 flex flex-col gap-2 z-10 select-none">

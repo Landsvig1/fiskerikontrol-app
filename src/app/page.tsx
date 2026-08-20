@@ -18,6 +18,7 @@ import {
   Calendar,
   Lightbulb,
   Scale,
+  Filter,
 } from "lucide-react";
 import * as d3 from "d3";
 import { CitationGraphView } from "@/components/CitationGraphView";
@@ -240,8 +241,10 @@ export default function Home() {
             activeDocFilter={activeDocFilter}
             activeCategoryFilter={activeCategoryFilter}
             searchQuery={searchQuery}
+            fleetCriteria={fleetCriteria}
             setSelectedNode={setSelectedNode}
             t={t}
+            lang={lang}
           />
         )}
         {activeTab === "graph" && (
@@ -253,7 +256,9 @@ export default function Home() {
             setActiveDocFilter={setActiveDocFilter}
             activeCategoryFilter={activeCategoryFilter}
             setActiveCategoryFilter={setActiveCategoryFilter}
+            fleetCriteria={fleetCriteria}
             t={t}
+            lang={lang}
           />
         )}
         {activeTab === "overlaps" && (
@@ -555,8 +560,10 @@ interface D3GraphCanvasProps {
   activeDocFilter: "all" | string;
   activeCategoryFilter: string;
   searchQuery: string;
+  fleetCriteria?: FleetFilterCriteria;
   setSelectedNode: (node: GraphNode | null) => void;
   t: TranslateFn;
+  lang?: Lang;
 }
 
 const D3GraphCanvas = React.memo(function D3GraphCanvas({
@@ -565,13 +572,33 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
   activeDocFilter,
   activeCategoryFilter,
   searchQuery,
+  fleetCriteria,
   setSelectedNode,
-  t
+  t,
+  lang = "da"
 }: D3GraphCanvasProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
   const zoomBehaviorRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const selectedNodeRef = useRef<GraphNode | null>(null);
+
+  const isFleetFiltered = fleetCriteria && (
+    fleetCriteria.vesselLength !== "all" ||
+    fleetCriteria.gearType !== "all" ||
+    fleetCriteria.seaArea !== "all"
+  );
+
+  const conflictTargets = React.useMemo(() => {
+    return new Set(
+      data.conflicts
+        .filter(c => {
+          const tNode = data.nodes.find(n => n.id === c.target);
+          return tNode && !tNode.external && !tNode.id.startsWith("external_");
+        })
+        .map(c => c.target)
+    );
+  }, [data.conflicts, data.nodes]);
 
   // Get top 10 most connected (important) nodes in the current filtered view
   const top10Nodes = React.useMemo(() => {
@@ -582,18 +609,18 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       target: typeof l.target === 'object' ? l.target.id : l.target
     }));
 
-    const { filteredNodes, filteredLinks } = filterGraph(nodes, links, activeDocFilter, activeCategoryFilter, searchQuery);
+    const { filteredNodes, filteredLinks } = filterGraph(nodes, links, activeDocFilter, activeCategoryFilter, searchQuery, fleetCriteria);
     const degree = computeDegree(filteredLinks);
 
     return filteredNodes
       .map(n => ({ ...n, degree: degree[n.id] || 0 }))
       .sort((a, b) => b.degree - a.degree)
       .slice(0, 10);
-  }, [data, activeDocFilter, activeCategoryFilter, searchQuery]);
+  }, [data, activeDocFilter, activeCategoryFilter, searchQuery, fleetCriteria]);
 
   const handleFocusNode = (nodeId: string) => {
     if (!svgRef.current || !zoomBehaviorRef.current || !containerRef.current) return;
-    const circles = d3.select(svgRef.current).selectAll<SVGCircleElement, GraphNode>("circle");
+    const circles = d3.select(svgRef.current).selectAll<SVGCircleElement, GraphNode>("circle.primary-circle");
     let targetNode: GraphNode | undefined;
     circles.each(function(d) {
       if (d.id === nodeId) {
@@ -621,7 +648,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     selectedNodeRef.current = selectedNode;
   }, [selectedNode]);
 
-  // Secondary effect to handle persistent selections (nodes/links opacity & highlight) without resetting simulation
+  // Secondary effect to handle persistent selections without resetting simulation
   useEffect(() => {
     if (!svgRef.current) return;
     const svg = d3.select(svgRef.current);
@@ -640,15 +667,17 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
           connectedNodeIds.add(tId);
           return 1.0;
         }
-        return 0.08; // Dimmed
+        return 0.06; // Dimmed
       });
 
       // Highlight selected node and direct connections
-      svg.selectAll("circle")
+      svg.selectAll("g.node-group")
         .style("opacity", (d: unknown) => {
           const n = d as GraphNode;
-          return connectedNodeIds.has(n.id) ? 1.0 : 0.15;
-        })
+          return connectedNodeIds.has(n.id) ? 1.0 : 0.12;
+        });
+
+      svg.selectAll("circle.primary-circle")
         .attr("stroke-width", (d: unknown) => {
           const n = d as GraphNode;
           return n.id === selectedNode.id ? 2.5 : 1.5;
@@ -660,12 +689,19 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     } else {
       // Reset styling
       svg.selectAll("line").style("stroke-opacity", 0.4);
-      svg.selectAll("circle")
-        .style("opacity", 1.0)
+      svg.selectAll("g.node-group")
+        .style("opacity", (d: unknown) => {
+          const n = d as GraphNode;
+          if (isFleetFiltered) {
+            return matchesFleetCriteria(n, fleetCriteria!) ? 1.0 : 0.2;
+          }
+          return 1.0;
+        });
+      svg.selectAll("circle.primary-circle")
         .attr("stroke-width", 1.5)
         .attr("stroke", "#ffffff");
     }
-  }, [selectedNode]);
+  }, [selectedNode, isFleetFiltered, fleetCriteria]);
 
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return;
@@ -691,8 +727,8 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     svg.call(zoom);
     zoomBehaviorRef.current = zoom;
 
-    // Start zoomed out (scale of 0.3) centered
-    const initialTransform = d3.zoomIdentity.translate(0, 0).scale(0.3);
+    // Start zoomed out centered
+    const initialTransform = d3.zoomIdentity.translate(0, 0).scale(0.35);
     svg.call(zoom.transform, initialTransform);
 
     // Deep copy nodes and links for simulation run
@@ -709,15 +745,18 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     // Degree calculations for node sizing
     const degree = computeDegree(filteredLinks);
 
-    // Force simulation. Collision radius is degree-weighted so hub nodes (high citation
-    // count) reserve enough space to avoid overlapping smaller leaf nodes in dense graphs.
-    // velocityDecay adds friction so dynamic forces settle instead of vibrating/flying off-canvas.
+    // Force simulation with EU vs National cluster centers (EU left, National right)
     const simulation = d3.forceSimulation<GraphNode>(filteredNodes)
-      .force("link", d3.forceLink<GraphNode, GraphLink>(filteredLinks).id((d) => d.id).distance(100))
-      .force("charge", d3.forceManyBody().strength(-70))
+      .force("link", d3.forceLink<GraphNode, GraphLink>(filteredLinks).id((d) => d.id).distance(110))
+      .force("charge", d3.forceManyBody().strength(-80))
       .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("x", d3.forceX<GraphNode>(d => {
+        const isEu = d.doc.toLowerCase().includes("eu") || d.label.toLowerCase().includes("eu");
+        return isEu ? width * 0.35 : width * 0.65;
+      }).strength(0.14))
+      .force("y", d3.forceY(height / 2).strength(0.08))
       .force("collide", d3.forceCollide<GraphNode>()
-        .radius((d) => 8 + Math.min((degree[d.id] || 0) * 1.5, 30))
+        .radius((d) => 9 + Math.min((degree[d.id] || 0) * 1.5, 30))
         .iterations(2))
       .velocityDecay(0.35);
 
@@ -729,26 +768,93 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       .attr("stroke", d => modalityColor(d.modality))
       .attr("stroke-opacity", 0.4)
       .attr("stroke-width", 1.5)
-      .attr("stroke-dasharray", d => d.modality === "Exception" ? "4, 2" : "none");
+      .attr("stroke-dasharray", d => d.modality === "Exception" ? "4, 2" : "none")
+      .style("cursor", "pointer");
 
-    // Draw nodes
+    // Link hover tooltip interaction
+    link.on("mouseenter", (event, d) => {
+      if (!tooltipRef.current) return;
+      const s = typeof d.source === "object" ? (d.source as GraphNode) : data.nodes.find(n => n.id === d.source);
+      const tNode = typeof d.target === "object" ? (d.target as GraphNode) : data.nodes.find(n => n.id === d.target);
+      if (!s || !tNode) return;
+
+      const [mx, my] = d3.pointer(event, containerRef.current);
+      d3.select(tooltipRef.current)
+        .style("display", "block")
+        .style("left", `${mx + 12}px`)
+        .style("top", `${my + 12}px`)
+        .html(`
+          <div class="font-bold text-sky-400 text-xs mb-1">${s.label} ⟷ ${tNode.label}</div>
+          <div class="text-[11px] text-slate-300">
+            <span class="font-semibold text-amber-400">${t(d.modality.toLowerCase() as TranslationKey)}</span>
+            ${d.snippet ? `<p class="mt-1 italic text-slate-400 leading-snug">"${d.snippet.slice(0, 120)}..."</p>` : ""}
+          </div>
+        `);
+    })
+    .on("mousemove", (event) => {
+      if (!tooltipRef.current) return;
+      const [mx, my] = d3.pointer(event, containerRef.current);
+      d3.select(tooltipRef.current)
+        .style("left", `${mx + 12}px`)
+        .style("top", `${my + 12}px`);
+    })
+    .on("mouseleave", () => {
+      if (!tooltipRef.current) return;
+      d3.select(tooltipRef.current).style("display", "none");
+    });
+
+    // Draw node groups
     const node = g.append("g")
-      .selectAll<SVGCircleElement, GraphNode>("circle")
+      .selectAll<SVGGElement, GraphNode>("g.node-group")
       .data(filteredNodes)
-      .join("circle")
+      .join("g")
+      .attr("class", "node-group")
+      .style("cursor", "pointer")
+      .style("opacity", d => {
+        if (isFleetFiltered) {
+          return matchesFleetCriteria(d, fleetCriteria!) ? 1.0 : 0.2;
+        }
+        return 1.0;
+      })
+      .call(d3.drag<SVGGElement, GraphNode>()
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended)
+      );
+
+    // Conflict dual-ring halos
+    node.filter(d => conflictTargets.has(d.id))
+      .append("circle")
+      .attr("class", "conflict-halo")
+      .attr("r", d => {
+        const deg = degree[d.id] || 0;
+        return 6 + Math.min(deg * 0.8, 18) + 4;
+      })
+      .attr("fill", "none")
+      .attr("stroke", "#e11d48")
+      .attr("stroke-width", 1.5)
+      .attr("stroke-dasharray", "3, 2");
+
+    // Primary circle
+    node.append("circle")
+      .attr("class", "primary-circle")
       .attr("r", d => {
         const deg = degree[d.id] || 0;
         return 6 + Math.min(deg * 0.8, 18);
       })
       .attr("fill", d => docColorFor(data.docs, d.doc))
       .attr("stroke", "#ffffff")
-      .attr("stroke-width", 1.5)
-      .style("cursor", "pointer")
-      .call(d3.drag<SVGCircleElement, GraphNode>()
-        .on("start", dragstarted)
-        .on("drag", dragged)
-        .on("end", dragended)
-      );
+      .attr("stroke-width", 1.5);
+
+    // Node labels for prominent nodes (degree >= 3 or specific docs)
+    node.append("text")
+      .text(d => (degree[d.id] || 0) >= 3 ? d.label : "")
+      .attr("x", 12)
+      .attr("y", 4)
+      .attr("fill", "#475569")
+      .attr("font-size", "10px")
+      .attr("font-weight", "600")
+      .attr("pointer-events", "none");
 
     // Event listeners
     node.on("click", (event, d) => {
@@ -756,15 +862,14 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     });
 
     node.on("mouseover", (event, d) => {
-      // Highlight hover node and connections (if no node is persistently selected)
       if (selectedNodeRef.current) return;
       
       const connectedNodeIds = new Set<string>();
       connectedNodeIds.add(d.id);
 
       link.style("stroke-opacity", l => {
-        const sId = (l.source as GraphNode).id;
-        const tId = (l.target as GraphNode).id;
+        const sId = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+        const tId = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
         if (sId === d.id) {
           connectedNodeIds.add(tId);
           return 1.0;
@@ -782,11 +887,15 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     node.on("mouseout", () => {
       if (selectedNodeRef.current) return;
       link.style("stroke-opacity", 0.4);
-      node.style("opacity", 1.0);
+      node.style("opacity", d => {
+        if (isFleetFiltered) {
+          return matchesFleetCriteria(d, fleetCriteria!) ? 1.0 : 0.2;
+        }
+        return 1.0;
+      });
     });
 
-    // Update node positions on tick. Clamp to a generous canvas margin so nodes under
-    // strong dynamic forces settle within view instead of drifting off-canvas indefinitely.
+    // Update node positions on tick
     const boundsMargin = Math.max(width, height) * 2;
     simulation.on("tick", () => {
       for (const d of filteredNodes) {
@@ -800,24 +909,22 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
          .attr("x2", d => (d.target as GraphNode).x!)
          .attr("y2", d => (d.target as GraphNode).y!);
 
-      node
-         .attr("cx", d => d.x!)
-         .attr("cy", d => d.y!);
+      node.attr("transform", d => `translate(${d.x || 0},${d.y || 0})`);
     });
 
     // Drag helper functions
-    function dragstarted(event: d3.D3DragEvent<SVGCircleElement, GraphNode, unknown>, d: GraphNode) {
+    function dragstarted(event: d3.D3DragEvent<SVGGElement, GraphNode, unknown>, d: GraphNode) {
       if (!event.active) simulation.alphaTarget(0.3).restart();
       d.fx = d.x;
       d.fy = d.y;
     }
 
-    function dragged(event: d3.D3DragEvent<SVGCircleElement, GraphNode, unknown>, d: GraphNode) {
+    function dragged(event: d3.D3DragEvent<SVGGElement, GraphNode, unknown>, d: GraphNode) {
       d.fx = event.x;
       d.fy = event.y;
     }
 
-    function dragended(event: d3.D3DragEvent<SVGCircleElement, GraphNode, unknown>, d: GraphNode) {
+    function dragended(event: d3.D3DragEvent<SVGGElement, GraphNode, unknown>, d: GraphNode) {
       if (!event.active) simulation.alphaTarget(0);
       d.fx = null;
       d.fy = null;
@@ -842,7 +949,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       simulation.stop();
       resizeObserver.disconnect();
     };
-  }, [data, activeDocFilter, activeCategoryFilter, searchQuery, setSelectedNode]);
+  }, [data, activeDocFilter, activeCategoryFilter, searchQuery, isFleetFiltered, fleetCriteria, conflictTargets, setSelectedNode, t]);
 
   const handleZoomIn = () => {
     if (!svgRef.current || !zoomBehaviorRef.current) return;
@@ -862,7 +969,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
 
   const handleResetZoom = () => {
     if (!svgRef.current || !zoomBehaviorRef.current || !containerRef.current) return;
-    const initialTransform = d3.zoomIdentity.translate(0, 0).scale(0.3);
+    const initialTransform = d3.zoomIdentity.translate(0, 0).scale(0.35);
     d3.select(svgRef.current)
       .transition()
       .duration(250)
@@ -873,8 +980,21 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     <div ref={containerRef} className="flex-1 bg-[#f8fafc] relative overflow-hidden">
       <svg ref={svgRef} className="w-full h-full block" />
 
+      {/* Floating Citation Tooltip */}
+      <div 
+        ref={tooltipRef} 
+        className="pointer-events-none absolute z-30 hidden px-3.5 py-2.5 text-xs bg-slate-900/95 text-white rounded-xl shadow-2xl border border-slate-700 max-w-sm backdrop-blur-xs transition-opacity duration-150"
+      />
+
       {/* Zoom HUD Controls & Important Articles */}
       <div className="absolute top-6 right-6 flex flex-col gap-2 z-10 select-none">
+        {isFleetFiltered && (
+          <div className="bg-sky-50 border border-sky-200 px-3 py-1 rounded-xl text-[11px] font-bold text-sky-800 flex items-center gap-1.5 shadow-2xs">
+            <Filter className="w-3 h-3 text-sky-600" />
+            <span>{lang === "da" ? "Flådefilter aktivt" : "Fleet filter active"}</span>
+          </div>
+        )}
+
         <div className="flex flex-col gap-1.5 bg-white/95 border border-slate-200 p-1.5 rounded-xl backdrop-blur-xs shadow-sm">
           <button 
             onClick={handleZoomIn}
@@ -954,7 +1074,9 @@ interface InteractiveGraphViewProps {
   setActiveDocFilter: (val: "all" | string) => void;
   activeCategoryFilter: string;
   setActiveCategoryFilter: (val: string) => void;
+  fleetCriteria?: FleetFilterCriteria;
   t: TranslateFn;
+  lang?: Lang;
 }
 
 function InteractiveGraphView({ 
@@ -965,7 +1087,9 @@ function InteractiveGraphView({
   setActiveDocFilter,
   activeCategoryFilter,
   setActiveCategoryFilter,
-  t
+  fleetCriteria,
+  t,
+  lang = "da"
 }: InteractiveGraphViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [controlPanelOpen, setControlPanelOpen] = useState(false);
@@ -1067,8 +1191,10 @@ function InteractiveGraphView({
         activeDocFilter={activeDocFilter}
         activeCategoryFilter={activeCategoryFilter}
         searchQuery={searchQuery}
+        fleetCriteria={fleetCriteria}
         setSelectedNode={setSelectedNode}
         t={t}
+        lang={lang}
       />
 
       {/* Details sidebar drawer — full-width overlay on small screens, fixed w-96 on md+ */}
