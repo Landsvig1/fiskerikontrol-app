@@ -263,6 +263,8 @@ function CitationGraphCanvas({
     }
   }, [selectedNode, isFleetFiltered, fleetCriteria]);
 
+  const zoomToFitRef = useRef<((animate?: boolean) => void) | null>(null);
+
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return;
     d3.select(svgRef.current).selectAll("*").remove();
@@ -273,6 +275,22 @@ function CitationGraphCanvas({
     const svg = d3.select(svgRef.current)
       .attr("viewBox", [0, 0, width, height]);
 
+    // Arrowhead markers for citations
+    const defs = svg.append("defs");
+    MODALITY_LEGEND.forEach(({ modality, color }) => {
+      defs.append("marker")
+        .attr("id", `arrow-${modality.toLowerCase()}`)
+        .attr("viewBox", "0 -5 10 10")
+        .attr("refX", 16)
+        .attr("refY", 0)
+        .attr("markerWidth", 5)
+        .attr("markerHeight", 5)
+        .attr("orient", "auto")
+        .append("path")
+        .attr("d", "M0,-4L8,0L0,4")
+        .attr("fill", color);
+    });
+
     const g = svg.append("g");
 
     const zoom = d3.zoom<SVGSVGElement, unknown>()
@@ -282,10 +300,6 @@ function CitationGraphCanvas({
       });
     svg.call(zoom);
     zoomBehaviorRef.current = zoom;
-
-    // Initial Zoom
-    const initialTransform = d3.zoomIdentity.translate(0, 0).scale(1);
-    svg.call(zoom.transform, initialTransform);
 
     const nodes: GraphNode[] = data.nodes.map(n => ({ ...n }));
     const links: GraphLink[] = data.links.map(l => ({
@@ -341,6 +355,9 @@ function CitationGraphCanvas({
         .text(docLabel(data.docs, docRef.id, t));
     });
 
+    const docIndexOf = new Map(data.docs.map((d, i) => [d.id, i]));
+    const isLeftHalf = (docId: string) => (docIndexOf.get(docId) ?? 0) < numDocs / 2;
+
     const nodeMap = new Map<string, GraphNode>();
     filteredNodes.forEach(n => nodeMap.set(n.id, n));
 
@@ -354,6 +371,37 @@ function CitationGraphCanvas({
       };
     }).filter(l => l.source && l.target);
 
+    // Initial Zoom to Fit calculation
+    const zoomToFit = (animate = false) => {
+      if (!svgRef.current || !zoomBehaviorRef.current || !containerRef.current) return;
+      const currentWidth = containerRef.current.clientWidth || 800;
+      const currentHeight = containerRef.current.clientHeight || 600;
+
+      const maxColumnNodes = Math.max(...Array.from(nodesByDoc.values()).map(arr => arr.length), 1);
+      const totalContentHeight = padding + maxColumnNodes * nodeHeightSpacing + 50;
+
+      const scaleY = (currentHeight - 50) / totalContentHeight;
+      const scaleX = (currentWidth - 50) / width;
+      const fitScale = Math.max(0.2, Math.min(scaleX, scaleY, 1.0));
+
+      const tx = (currentWidth - width * fitScale) / 2;
+      const ty = 15;
+
+      const targetTransform = d3.zoomIdentity.translate(tx, ty).scale(fitScale);
+
+      if (animate) {
+        d3.select(svgRef.current)
+          .transition()
+          .duration(350)
+          .call(zoomBehaviorRef.current.transform, targetTransform);
+      } else {
+        d3.select(svgRef.current).call(zoomBehaviorRef.current.transform, targetTransform);
+      }
+    };
+
+    zoomToFitRef.current = zoomToFit;
+    zoomToFit(false);
+
     const link = g.append("g")
       .selectAll("path.citation-link")
       .data(resolvedLinks)
@@ -363,18 +411,32 @@ function CitationGraphCanvas({
         const s = d.source as GraphNode;
         const t = d.target as GraphNode;
         if (s.x === undefined || s.y === undefined || t.x === undefined || t.y === undefined) return "";
-        const cpOffset = Math.max(100, Math.abs(t.x - s.x) * 0.5);
-        return `M${s.x},${s.y} C${s.x + cpOffset},${s.y} ${t.x - cpOffset},${t.y} ${t.x},${t.y}`;
+        
+        // Intra-column (same document citation)
+        if (Math.abs(s.x - t.x) < 5) {
+          const left = isLeftHalf(s.doc);
+          const dy = Math.abs(t.y - s.y);
+          const curveRadius = Math.max(30, Math.min(dy * 0.4, 75));
+          const offset = left ? -curveRadius : curveRadius;
+          return `M${s.x},${s.y} C${s.x + offset},${s.y} ${s.x + offset},${t.y} ${t.x},${t.y}`;
+        }
+
+        // Inter-column (cross-document citation)
+        const dx = t.x - s.x;
+        const cp1x = s.x + dx * 0.45;
+        const cp2x = t.x - dx * 0.45;
+        return `M${s.x},${s.y} C${cp1x},${s.y} ${cp2x},${t.y} ${t.x},${t.y}`;
       })
       .attr("fill", "none")
       .attr("stroke", d => modalityColor(d.modality))
       .attr("stroke-opacity", 0)
-      .attr("stroke-width", 1.5)
+      .attr("stroke-width", 1.8)
       .attr("stroke-dasharray", d => d.modality === "Exception" ? "4, 2" : "none")
+      .attr("marker-end", d => `url(#arrow-${d.modality.toLowerCase()})`)
       .style("cursor", "pointer");
 
     // Fade links in smoothly on (re)draw
-    link.transition().duration(300).attr("stroke-opacity", 0.4);
+    link.transition().duration(300).attr("stroke-opacity", 0.5);
 
     // Link hover interactions
     link.on("mouseenter", (event, d) => {
@@ -445,9 +507,6 @@ function CitationGraphCanvas({
       .attr("stroke", "#ffffff")
       .attr("stroke-width", 1.5);
 
-    const docIndexOf = new Map(data.docs.map((d, i) => [d.id, i]));
-    const isLeftHalf = (docId: string) => (docIndexOf.get(docId) ?? 0) < numDocs / 2;
-
     node.append("text")
       .text(d => d.label)
       .attr("x", d => isLeftHalf(d.doc) ? -15 : 15)
@@ -486,7 +545,7 @@ function CitationGraphCanvas({
 
     node.on("mouseout", () => {
       if (selectedNodeRef.current) return;
-      link.style("stroke-opacity", 0.4);
+      link.style("stroke-opacity", 0.5);
       node.style("opacity", d => {
         if (isFleetFiltered) {
           return matchesFleetCriteria(d, fleetCriteria!) ? 1.0 : 0.2;
@@ -500,6 +559,9 @@ function CitationGraphCanvas({
       const { width: newWidth, height: newHeight } = entries[0].contentRect;
       if (newWidth === 0 || newHeight === 0) return;
       svg.attr("viewBox", [0, 0, newWidth, newHeight]);
+      if (zoomToFitRef.current) {
+        zoomToFitRef.current(false);
+      }
     });
 
     if (containerRef.current) {
@@ -528,12 +590,9 @@ function CitationGraphCanvas({
   };
 
   const handleResetZoom = () => {
-    if (!svgRef.current || !zoomBehaviorRef.current || !containerRef.current) return;
-    const initialTransform = d3.zoomIdentity.translate(0, 0).scale(1);
-    d3.select(svgRef.current)
-      .transition()
-      .duration(250)
-      .call(zoomBehaviorRef.current.transform, initialTransform);
+    if (zoomToFitRef.current) {
+      zoomToFitRef.current(true);
+    }
   };
 
   const handleFocusNode = (nodeId: string) => {

@@ -324,10 +324,8 @@ export function parsePdfTextIntoSections(
     .map(num => byNum[num]);
 }
 
-// Bilingual citation regex: matches article/artikel/section/§/clause/klausul/chapter/kapitel/annex/bilag/schedule + number + optional paragraph + optional sub-references (litra/point/lit.)
-// The § symbol is punctuation, not a word character, so \b never matches immediately before it
-// when preceded by whitespace (the common case) — it is given its own boundary-free alternative below.
-const CITATION_RE = /(?:\b(?:article|artikel|section|clause|klausul|chapter|kapitel|annex|bilag|schedule)\s+|§\s*)(\d+)\s*([a-z])?(?:\s*,\s*(?:paragraph|stk\.|para\.)\s*(\d+))?(?:\s*,\s*(?:litra|point|lit\.)\s*\(?([a-z])\)?)?\b/gi;
+// Bilingual citation regex: matches article/artikel/art./section/sec./§/clause/chapter/annex/bilag + number + optional paragraph + optional sub-references (litra/point/lit./nr.)
+const CITATION_RE = /(?:\b(?:artiklerne|artikels|artikler|artiklen|artikel|articles|article|art\.|arts\.|art|sections|section|sec\.|secs\.|sec|paragraf|paragraffer|klausul|clause|kapitel|kap\.|chapter|ch\.|annex|bilag|schedule)\s*|§§?\s*)(\d+)\s*([a-z])?(?:\s*,\s*(?:paragraph|stk\.|stk|stykke|para\.)\s*(\d+))?(?:\s*,\s*(?:litra|point|lit\.|nr\.|nr)\s*\(?([a-z0-9]+)\)?)?\b/gi;
 
 // Bilingual modality signal regexes — evaluated in priority order: Exception → Prohibition → Permission → Obligation
 const EXCEPTION_RE = /\b(?:undtagen|fritaget|fritages|uanset|afvige|undtagelse|dispensation|notwithstanding|except(?:ed)?|by\s+way\s+of\s+derogation|derogation|waiver)\b/i;
@@ -356,12 +354,6 @@ function parseCitations(
 ): CitationRecord[] {
   const citations: CitationRecord[] = [];
 
-  // Precompute once per call, not once per citation match: each label's lowercased form,
-  // and which other labels are strict supersets of it (used below to strip a superstring
-  // label before checking a substring label, e.g. "EU 1224/2009" vs. "EU 1224/2009
-  // Gennemførelse"). This relationship only depends on `labels`, not on where in the body
-  // the current match is, so recomputing it per match was O(numDocs^2) wasted work per
-  // citation occurrence.
   const lowerById = new Map(labels.map(l => [l.id, l.label.toLowerCase()]));
   const supersetsOf = new Map<string, string[]>();
   for (const l of labels) {
@@ -384,6 +376,7 @@ function parseCitations(
   let match: RegExpExecArray | null;
 
   while ((match = pattern.exec(body)) !== null) {
+    const matchedPrefix = match[0].toLowerCase();
     const artNum = parseInt(match[1], 10);
     const suffix = match[2] || null;
     const stkNum = match[3] || null;
@@ -396,45 +389,94 @@ function parseCitations(
     const endCtx = Math.min(body.length, matchIndex + matchLength + 100);
     const context = body.substring(startCtx, endCtx).toLowerCase();
 
-    const snippetStart = Math.max(0, matchIndex - 20);
-    const snippetEnd = Math.min(body.length, matchIndex + matchLength + 20);
+    const snippetStart = Math.max(0, matchIndex - 25);
+    const snippetEnd = Math.min(body.length, matchIndex + matchLength + 25);
     const snippet = body.substring(snippetStart, snippetEnd).trim();
 
-    // Determine target document. Step 1: proximity context signal (within 150 chars) — if
-    // exactly one document's label is mentioned nearby, that's an unambiguous, explicit
-    // signal and wins outright. Step 2 (structural fallback, only reached when zero or 2+
-    // labels matched nearby): check which *other* documents define a section numbered
-    // artNum. Exactly one candidate wins by elimination; zero or 2+ candidates fall back to
-    // self-reference — guessing wrong among ambiguous candidates would fabricate a specific
-    // incorrect cross-reference, while self-reference never actively misleads.
-    const proximityStart = Math.max(0, matchIndex - 150);
-    const proximityEnd = Math.min(body.length, matchIndex + matchLength + 150);
+    // Proximity window to identify referenced document
+    const proximityStart = Math.max(0, matchIndex - 160);
+    const proximityEnd = Math.min(body.length, matchIndex + matchLength + 160);
     const proximityText = body.substring(proximityStart, proximityEnd).toLowerCase();
 
-    // If one label is a substring of another (common for base-act vs. implementing-act
-    // naming, e.g. "EU 1224/2009" vs. "EU 1224/2009 Gennemførelse"), a mention of the longer
-    // label would otherwise also register as a match for the shorter one. Strip occurrences
-    // of any superstring label before searching for a given label so each check only counts
-    // a standalone mention.
     const proximityMatches: string[] = [];
     for (const l of labels) {
       const lLower = lowerById.get(l.id)!;
       if (!lLower) continue;
+
       let text = proximityText;
       for (const oLower of supersetsOf.get(l.id)!) {
         text = text.split(oLower).join(" ");
       }
-      if (text.includes(lLower)) proximityMatches.push(l.id);
+
+      if (text.includes(lLower)) {
+        proximityMatches.push(l.id);
+        continue;
+      }
+
+      // Check for standalone regulation/act number in proximity (e.g. "1224/2009", "2023/2842", "1197/2025")
+      const actNumMatch = l.label.match(/\b(\d{2,4}\/\d{2,4}|\d{3,5})\b/);
+      if (actNumMatch) {
+        const actNum = actNumMatch[1].toLowerCase();
+        if (text.includes(actNum)) {
+          proximityMatches.push(l.id);
+          continue;
+        }
+      }
+
+      // Specialized shorthand naming (e.g. "kontrolforordning", "grundforordning", "logbogbekendtgørelse")
+      if (l.label.toLowerCase().includes("1224") && (text.includes("kontrolforordning") || text.includes("forordning (ef) nr. 1224"))) {
+        proximityMatches.push(l.id);
+      } else if (l.label.toLowerCase().includes("1380") && (text.includes("grundforordning") || text.includes("cfp"))) {
+        proximityMatches.push(l.id);
+      }
     }
 
+    const uniqueProximityMatches = Array.from(new Set(proximityMatches));
+
     let targetDoc: string;
-    if (proximityMatches.length === 1) {
-      targetDoc = proximityMatches[0];
+    const isArtPrefix = matchedPrefix.startsWith("art") || matchedPrefix.includes("artikel") || matchedPrefix.includes("article");
+    const isParagraphPrefix = matchedPrefix.startsWith("§") || matchedPrefix.includes("paragraf");
+    const sourceLabel = lowerById.get(sourceDocId) || "";
+    const sourceIsDanishOrder = sourceLabel.includes("bek") || sourceLabel.includes("lov");
+    const sourceIsEuRegulation = sourceLabel.includes("eu") || sourceLabel.includes("forordning");
+
+    if (uniqueProximityMatches.length === 1) {
+      targetDoc = uniqueProximityMatches[0];
+    } else if (uniqueProximityMatches.length > 1) {
+      // Prioritize documents other than source if multiple mentioned
+      const foreign = uniqueProximityMatches.find(id => id !== sourceDocId && !!sectionMaps[id]?.[artNum]);
+      targetDoc = foreign || uniqueProximityMatches[0];
     } else {
-      const candidateDocIds = labels
-        .map(l => l.id)
-        .filter(id => id !== sourceDocId && !!sectionMaps[id]?.[artNum]);
-      targetDoc = candidateDocIds.length === 1 ? candidateDocIds[0] : sourceDocId;
+      // Structural and prefix type-aware fallback
+      if (isArtPrefix && sourceIsDanishOrder) {
+        // Danish order citing Art. X is referencing an EU Regulation
+        const euCandidates = labels
+          .map(l => l.id)
+          .filter(id => {
+            const lbl = lowerById.get(id) || "";
+            return (lbl.includes("eu") || lbl.includes("forordning")) && !!sectionMaps[id]?.[artNum];
+          });
+        targetDoc = euCandidates.length > 0 ? euCandidates[0] : (labels.find(l => (lowerById.get(l.id) || "").includes("eu"))?.id || sourceDocId);
+      } else if (isParagraphPrefix && sourceIsEuRegulation) {
+        // EU regulation citing § X is referencing a National Order
+        const natCandidates = labels
+          .map(l => l.id)
+          .filter(id => {
+            const lbl = lowerById.get(id) || "";
+            return (lbl.includes("bek") || lbl.includes("lov")) && !!sectionMaps[id]?.[artNum];
+          });
+        targetDoc = natCandidates.length > 0 ? natCandidates[0] : sourceDocId;
+      } else {
+        // Check if current doc defines artNum
+        if (sectionMaps[sourceDocId]?.[artNum]) {
+          targetDoc = sourceDocId;
+        } else {
+          const candidateDocIds = labels
+            .map(l => l.id)
+            .filter(id => id !== sourceDocId && !!sectionMaps[id]?.[artNum]);
+          targetDoc = candidateDocIds.length === 1 ? candidateDocIds[0] : sourceDocId;
+        }
+      }
     }
 
     // Determine modality — evaluate in priority order: Exception → Prohibition → Permission → Obligation
