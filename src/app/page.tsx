@@ -1280,6 +1280,11 @@ function ConflictsView({
   t: TranslateFn;
   lang: Lang;
 }) {
+  const realConflicts = data.conflicts.filter(record => {
+    const targetNode = data.nodes.find(n => n.id === record.target);
+    return targetNode && !targetNode.external && !targetNode.id.startsWith("external_");
+  });
+
   return (
     <div className="flex-1 overflow-y-auto p-8 bg-[#fafaf9] text-slate-900">
       {/* View Header with Domain Context */}
@@ -1293,7 +1298,7 @@ function ConflictsView({
               {t("conflictsHeaderTitle")}
             </h2>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
-              {data.conflicts.length} {lang === "da" ? "identificerede modstridskollisioner på tværs af retsakter" : "identified cross-act conflict collisions"}
+              {realConflicts.length} {lang === "da" ? "identificerede modstridskollisioner på tværs af retsakter" : "identified cross-act conflict collisions"}
             </p>
           </div>
         </div>
@@ -1303,12 +1308,12 @@ function ConflictsView({
       </div>
 
       <div className="grid grid-cols-1 gap-6 max-w-4xl">
-        {data.conflicts.length === 0 ? (
+        {realConflicts.length === 0 ? (
           <div className="bg-white border border-slate-200 p-12 rounded-2xl text-center text-slate-500 text-sm shadow-xs">
             {lang === "da" ? "Ingen retlige modstrid fundet i det indlæste korpus." : "No regulatory conflicts detected in loaded corpus."}
           </div>
         ) : (
-          data.conflicts.map((record, i) => {
+          realConflicts.map((record, i) => {
             const targetNode = data.nodes.find(n => n.id === record.target);
             if (!targetNode) return null;
 
@@ -1399,7 +1404,15 @@ function ConflictsView({
                     </div>
 
                     <div className="mt-3 p-3 bg-sky-50/50 rounded-lg text-xs leading-relaxed text-slate-800 border border-sky-100 border-l-2 border-l-sky-600">
-                      {highlightConflictKeywords(targetNode.body ? targetNode.body.slice(0, 220) + (targetNode.body.length > 220 ? "..." : "") : (record.description || ""))}
+                      {highlightConflictKeywords(
+                        (() => {
+                          const parentNode = targetNode.parent_id ? data.nodes.find(n => n.id === targetNode.parent_id) : undefined;
+                          const rawBody = targetNode.body && !targetNode.body.startsWith("See parent section") 
+                            ? targetNode.body 
+                            : (parentNode?.body || targetNode.body || record.description || "");
+                          return rawBody.slice(0, 240) + (rawBody.length > 240 ? "..." : "");
+                        })()
+                      )}
                     </div>
                   </div>
 

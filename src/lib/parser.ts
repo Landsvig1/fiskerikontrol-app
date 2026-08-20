@@ -640,18 +640,23 @@ export function analyzeCitationsAndBuildGraph(docs: { text: string; label: strin
       });
 
       const modalities = new Set(cits.map(c => c.modality));
-      if (modalities.has("Exception") && (modalities.has("Obligation") || modalities.has("Prohibition"))) {
-        conflicts.push({
-          target: targetId,
-          modalities: Array.from(modalities),
-          description: `Potential conflict: one section creates an exception/exemption while another imposes an obligation or prohibition regarding ${targetId}.`,
-          citations: cits.map(c => ({
-            source: c.source,
-            modality: c.modality,
-            snippet: c.snippet,
-            context: c.context
-          }))
-        });
+      const targetNode = nodes.find(n => n.id === targetId);
+
+      // Only generate conflicts on real substantive sections in the corpus (exclude external unresolved placeholders)
+      if (targetNode && !targetNode.external && !targetId.startsWith("external_")) {
+        if (modalities.has("Exception") && (modalities.has("Obligation") || modalities.has("Prohibition"))) {
+          conflicts.push({
+            target: targetId,
+            modalities: Array.from(modalities),
+            description: `Potential conflict: one section creates an exception/exemption while another imposes an obligation or prohibition regarding ${targetNode.label || targetId}.`,
+            citations: cits.map(c => ({
+              source: c.source,
+              modality: c.modality,
+              snippet: c.snippet,
+              context: c.context
+            }))
+          });
+        }
       }
     }
   }
