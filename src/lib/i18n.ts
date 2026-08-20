@@ -28,7 +28,10 @@ export type TranslationKey =
   | "baseProvision" | "derogatingProvision"
   | "copyConflictBrief" | "copiedToClipboard" | "closeModal"
   | "selectedPresetCount"
-  | "exportAuditMemo" | "fleetScenarios";
+  | "exportAuditMemo" | "fleetScenarios"
+  | "conflictsHeaderTitle" | "conflictsHeaderSubtitle"
+  | "euPrecedenceBadge" | "inspectionVerdictTitle"
+  | "euRuleLabel" | "nationalDeviationLabel";
 
 export type Translations = Record<TranslationKey, string>;
 
@@ -95,6 +98,12 @@ const da: Translations = {
   selectedPresetCount: "{count} valgt",
   exportAuditMemo: "Eksportér Tilsynsnotat",
   fleetScenarios: "Flådescenarier",
+  conflictsHeaderTitle: "Regulatoriske Modstrid & Retsrisici",
+  conflictsHeaderSubtitle: "Automatisk identifikation af modsigelser mellem bindende EU-forordninger og nationale bekendtgørelser. EU-forordninger har direkte retsvirkning og forrang frem for national ret.",
+  euPrecedenceBadge: "EU-forordning har forrang",
+  inspectionVerdictTitle: "Konklusion for Tilsynet",
+  euRuleLabel: "EU Hovedregel (Krav)",
+  nationalDeviationLabel: "National Undtagelse (Afvigelse)",
 };
 
 const en: Translations = {
@@ -160,6 +169,12 @@ const en: Translations = {
   selectedPresetCount: "{count} selected",
   exportAuditMemo: "Export Audit Memo",
   fleetScenarios: "Fleet Scenarios",
+  conflictsHeaderTitle: "Regulatory Conflicts & Legal Risks",
+  conflictsHeaderSubtitle: "Automated detection of contradictions between binding EU regulations and national orders. EU regulations take direct legal precedence over national law.",
+  euPrecedenceBadge: "EU Regulation Takes Precedence",
+  inspectionVerdictTitle: "Enforcement Assessment",
+  euRuleLabel: "EU Base Rule (Requirement)",
+  nationalDeviationLabel: "National Derogation (Exemption)",
 };
 
 export const translations: Record<Lang, Translations> = { da, en };

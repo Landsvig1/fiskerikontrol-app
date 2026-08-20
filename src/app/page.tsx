@@ -15,7 +15,8 @@ import {
   CheckCircle,
   ShieldAlert,
   FileText,
-  Calendar
+  Calendar,
+  Lightbulb,
 } from "lucide-react";
 import * as d3 from "d3";
 import { CitationGraphView } from "@/components/CitationGraphView";
@@ -269,6 +270,7 @@ export default function Home() {
             setActiveTab={setActiveTab} 
             onInspectConflict={setInspectingConflict}
             t={t}
+            lang={lang}
           />
         )}
         {activeTab === "browse" && (
@@ -1230,66 +1232,133 @@ function OverlapsView({
 }
 
 // ----------------------------------------------------
-// VIEW 4: CONFLICTS VIEW
+// VIEW 4: CONFLICTS VIEW (KRAV VS. UNDTAGELSE CONTRAST)
 // ----------------------------------------------------
+function highlightConflictKeywords(text: string) {
+  if (!text) return null;
+  const regex = /(skal|må ikke|forbudt|fritages|undtages|dispensation|betingelse|ikke omfattet|forpligtet|krav)/gi;
+  const parts = text.split(regex);
+  return parts.map((part, i) => {
+    if (regex.test(part)) {
+      const lower = part.toLowerCase();
+      if (lower === "skal" || lower === "forpligtet" || lower === "krav") {
+        return (
+          <span key={i} className="font-bold text-sky-900 bg-sky-100/90 px-1 py-0.5 rounded">
+            {part}
+          </span>
+        );
+      }
+      if (lower === "fritages" || lower === "undtages" || lower === "dispensation" || lower === "ikke omfattet") {
+        return (
+          <span key={i} className="font-bold text-amber-900 bg-amber-100/90 px-1 py-0.5 rounded">
+            {part}
+          </span>
+        );
+      }
+      return (
+        <span key={i} className="font-bold text-rose-900 bg-rose-100/90 px-1 py-0.5 rounded">
+          {part}
+        </span>
+      );
+    }
+    return part;
+  });
+}
+
 function ConflictsView({ 
   data, 
   setSelectedNode, 
   setActiveTab,
   onInspectConflict,
-  t
+  t,
+  lang,
 }: { 
   data: GraphData; 
   setSelectedNode: (node: GraphNode) => void;
   setActiveTab: (tab: TabType) => void;
   onInspectConflict: (conflict: ConflictRecord) => void;
   t: TranslateFn;
+  lang: Lang;
 }) {
   return (
     <div className="flex-1 overflow-y-auto p-8 bg-[#fafaf9] text-slate-900">
+      {/* View Header with Domain Context */}
       <div className="max-w-4xl space-y-2 mb-8">
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-          <AlertTriangle className="text-rose-600 w-6 h-6" /> {t("conflicts") /* Retlige Modstrid & Anomalier */}
-        </h2>
-        <p className="text-sm text-slate-600 leading-relaxed">
-          {t("noTitle") === "(No heading)"
-            ? "Collisions occur when one section imposes a requirement (Obligation), while another section independently grants an exception (Exception) or a prohibition (Prohibition) regarding the same reference."
-            : "Kollisioner sker, når en artikel i rammen pålægger krav (Obligation), mens underliggende bestemmelser eller relaterede artikler fritager eller undtager (Exception) for samme bestemmelse."
-          }
+        <div className="flex items-center gap-2">
+          <div className="p-2 rounded-xl bg-rose-100/80 text-rose-700 border border-rose-200">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+              {t("conflictsHeaderTitle")}
+            </h2>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              {data.conflicts.length} {lang === "da" ? "identificerede modstridskollisioner på tværs af retsakter" : "identified cross-act conflict collisions"}
+            </p>
+          </div>
+        </div>
+        <p className="text-sm text-slate-600 leading-relaxed max-w-3xl pt-1">
+          {t("conflictsHeaderSubtitle")}
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 max-w-4xl">
         {data.conflicts.length === 0 ? (
-          <div className="bg-white border border-slate-200 p-8 rounded-2xl text-center text-slate-500 text-sm shadow-xs">
-            {t("noTitle") === "(No heading)" ? "No conflicts detected." : "Ingen retlige modstrid fundet."}
+          <div className="bg-white border border-slate-200 p-12 rounded-2xl text-center text-slate-500 text-sm shadow-xs">
+            {lang === "da" ? "Ingen retlige modstrid fundet i det indlæste korpus." : "No regulatory conflicts detected in loaded corpus."}
           </div>
         ) : (
           data.conflicts.map((record, i) => {
             const targetNode = data.nodes.find(n => n.id === record.target);
             if (!targetNode) return null;
 
+            const primaryCitation = record.citations[0];
+            const sourceNode = primaryCitation ? data.nodes.find(n => n.id === primaryCitation.source) : undefined;
+            const isTargetEu = targetNode.doc.toLowerCase().includes("eu") || targetNode.label.includes("EU") || targetNode.doc.includes("doc0") || targetNode.doc.includes("doc1") || targetNode.doc.includes("doc2") || targetNode.doc.includes("doc3") || targetNode.doc.includes("doc4");
+            const isSourceNational = sourceNode ? (sourceNode.doc.toLowerCase().includes("bek") || sourceNode.doc.toLowerCase().includes("lov") || sourceNode.doc.includes("doc5") || sourceNode.doc.includes("doc6") || sourceNode.doc.includes("doc7") || sourceNode.doc.includes("doc8") || sourceNode.doc.includes("doc9")) : true;
+
+            const precedenceBadgeText = isTargetEu && isSourceNational 
+              ? (lang === "da" ? "⚖️ EU-forordning har forrang" : "⚖️ EU Regulation Takes Precedence")
+              : (lang === "da" ? "⚖️ Retslig afklaring påkrævet" : "⚖️ Clarification Required");
+
+            const verdictText = isTargetEu && isSourceNational
+              ? (lang === "da"
+                  ? `EU-forordningen (${targetNode.label}) er direkte gældende og har forrang over for dansk bekendtgørelse. Fiskeristyrelsens tilsyn kan ikke lovligt håndhæve en national dispensation i modstrid med EU-kravet, og fartøjer risikerer overtrædelsessag ved EU-inspektion eller ved landing i andre EU-medlemsstater.`
+                  : `The EU regulation (${targetNode.label}) applies directly and supersedes Danish national orders. The Danish Fisheries Agency cannot lawfully enforce a national exemption that contradicts mandatory EU requirements.`)
+              : (lang === "da"
+                  ? `Der foreligger modstridende modaliteter mellem bestemmelserne. Delegerede retsakter og bekendtgørelser skal fortolkes i overensstemmelse med grundforordningens kontrolformål.`
+                  : `Contradictory modalities detected between provisions. Secondary acts must be interpreted in compliance with baseline control objectives.`);
+
             return (
-              <div key={i} className="bg-white border border-rose-200/80 p-6 rounded-2xl space-y-4 shadow-xs hover:border-rose-300 transition-all duration-200">
-                <div className="flex items-start justify-between gap-4 flex-wrap md:flex-nowrap">
-                  <div className="space-y-2">
+              <div 
+                key={i} 
+                className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-xs hover:border-slate-300 transition-all duration-200"
+              >
+                {/* 1. Header Block: Conflict Pair & Supremacy Badge */}
+                <div className="p-5 border-b border-slate-200/80 bg-slate-50/60 flex items-start justify-between gap-4 flex-wrap">
+                  <div className="space-y-1.5">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-bold uppercase text-rose-900 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded">
-                        {t("noTitle") === "(No heading)" ? "Conflict Detected" : "Modstrid detekteret"} ({record.modalities.map(m => t(m.toLowerCase() as TranslationKey)).join(" / ")})
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-rose-900 bg-rose-100/80 border border-rose-200 px-2.5 py-0.5 rounded-md flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3 text-rose-600" />
+                        {lang === "da" ? "Modstrid: Krav vs. Undtagelse" : "Conflict: Rule vs. Exemption"}
                       </span>
-                      <span
-                        className="text-[10px] font-bold px-2 py-0.5 rounded border"
-                        style={docBadgeStyle(data.docs, targetNode.doc, { borderAlpha: "33" })}
-                      >
-                        {docLabel(data.docs, targetNode.doc, t)}
+                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md border ${
+                        isTargetEu && isSourceNational 
+                          ? "bg-sky-100 text-sky-900 border-sky-300"
+                          : "bg-amber-100 text-amber-900 border-amber-300"
+                      }`}>
+                        {precedenceBadgeText}
                       </span>
                     </div>
-                    <h3 className="text-lg font-bold mt-2 text-slate-900">
-                      {t("noTitle") === "(No heading)" ? "Conflict regarding:" : "Modstrid vedrørende:"} <span className="text-sky-800">{targetNode.label}</span>
+
+                    <h3 className="text-base font-bold text-slate-900 pt-0.5">
+                      <span className="text-sky-800">{targetNode.label}</span>
+                      <span className="text-slate-400 font-normal mx-2">⟷</span>
+                      <span className="text-amber-800">{sourceNode?.label || (lang === "da" ? "National bestemmelse" : "National rule")}</span>
                     </h3>
-                    <p className="text-xs text-slate-600 leading-relaxed font-medium">{targetNode.title}</p>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
+
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => onInspectConflict(record)}
                       className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
@@ -1309,43 +1378,70 @@ function ConflictsView({
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-700 bg-rose-50/40 p-3.5 rounded-xl border border-rose-200/60 leading-relaxed">
-                  {record.description}
-                </p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-200 pt-4">
-                  {record.citations.map((c, idx) => {
-                    const sourceNode = data.nodes.find(n => n.id === c.source);
-                    return (
-                      <div key={idx} className="bg-slate-50 p-4 border border-slate-200/80 rounded-xl flex flex-col justify-between">
-                        <div>
-                          <div className="flex justify-between items-center gap-2 mb-2 flex-wrap">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-slate-900">{sourceNode?.label}</span>
-                              {sourceNode && (
-                                <span
-                                  className="text-[9px] font-bold px-1.5 py-0.2 rounded border"
-                                  style={docBadgeStyle(data.docs, sourceNode.doc, { borderAlpha: "33" })}
-                                >
-                                  {docLabel(data.docs, sourceNode.doc, t)}
-                                </span>
-                              )}
-                            </div>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                              c.modality === "Exception" ? "bg-rose-50 text-rose-800 border border-rose-200" : "bg-sky-50 text-sky-800 border border-sky-200"
-                            }`}>
-                              {t(c.modality.toLowerCase() as TranslationKey)}
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-600 mt-1 leading-relaxed">{sourceNode?.title}</p>
-                        </div>
-                        
-                        <div className="mt-4 p-3 bg-white rounded-lg text-xs font-serif leading-relaxed text-slate-700 border border-slate-200 border-l-2 border-l-sky-600 whitespace-pre-wrap">
-                          ...{c.context}...
-                        </div>
+                {/* 2. Middle Block: Side-by-Side Direct 'Krav vs. Undtagelse' Contrast Grid */}
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 bg-[#fafaf9]">
+                  {/* Left Column: EU Rule (Skal-krav) */}
+                  <div className="bg-white p-4.5 rounded-xl border border-sky-300 shadow-xs flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="text-[11px] font-bold text-sky-950 uppercase tracking-wider flex items-center gap-1.5">
+                          <BookOpen className="w-3.5 h-3.5 text-sky-600" />
+                          {t("euRuleLabel")}
+                        </span>
+                        <span
+                          className="text-[10px] font-bold px-2 py-0.5 rounded border"
+                          style={docBadgeStyle(data.docs, targetNode.doc, { borderAlpha: "40" })}
+                        >
+                          {docLabel(data.docs, targetNode.doc, t)}
+                        </span>
                       </div>
-                    );
-                  })}
+                      <h4 className="text-xs font-bold text-slate-900 mt-1">{targetNode.label} {targetNode.title ? `— ${targetNode.title}` : ""}</h4>
+                    </div>
+
+                    <div className="mt-3 p-3 bg-sky-50/50 rounded-lg text-xs leading-relaxed text-slate-800 border border-sky-100 border-l-2 border-l-sky-600">
+                      {highlightConflictKeywords(targetNode.body ? targetNode.body.slice(0, 220) + (targetNode.body.length > 220 ? "..." : "") : (record.description || ""))}
+                    </div>
+                  </div>
+
+                  {/* Right Column: National Exemption (Dispensation/Undtagelse) */}
+                  <div className="bg-white p-4.5 rounded-xl border border-amber-300 shadow-xs flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="text-[11px] font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                          {t("nationalDeviationLabel")}
+                        </span>
+                        {sourceNode && (
+                          <span
+                            className="text-[10px] font-bold px-2 py-0.5 rounded border"
+                            style={docBadgeStyle(data.docs, sourceNode.doc, { borderAlpha: "40" })}
+                          >
+                            {docLabel(data.docs, sourceNode.doc, t)}
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-900 mt-1">{sourceNode?.label || "National sektion"} {sourceNode?.title ? `— ${sourceNode?.title}` : ""}</h4>
+                    </div>
+
+                    <div className="mt-3 p-3 bg-amber-50/50 rounded-lg text-xs leading-relaxed text-slate-800 border border-amber-100 border-l-2 border-l-amber-600">
+                      {highlightConflictKeywords(primaryCitation?.snippet || sourceNode?.body?.slice(0, 220) || (lang === "da" ? "Dispenserende bestemmelse" : "Exemption rule"))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Bottom Block: Plain-Danish Verdict Banner */}
+                <div className="px-6 py-4 bg-slate-100/70 border-t border-slate-200/80 flex items-start gap-3">
+                  <div className="p-1.5 rounded-lg bg-sky-100 text-sky-800 border border-sky-200 mt-0.5 shrink-0">
+                    <Lightbulb className="w-4 h-4" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      {t("inspectionVerdictTitle")}
+                    </h4>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      {verdictText}
+                    </p>
+                  </div>
                 </div>
               </div>
             );
