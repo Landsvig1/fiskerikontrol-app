@@ -504,6 +504,9 @@ function CitationGraphCanvas({
     );
   }, [data.conflicts, data.nodes]);
 
+  // The same panel in the force-directed view scopes its ranking to the selected fleet
+  // segment. Leaving fleetCriteria out here made the two views answer "which provisions
+  // matter most" differently for one and the same filter setting.
   const top10Nodes = useMemo(() => {
     const nodes: GraphNode[] = data.nodes.map(n => ({ ...n }));
     const links: GraphLink[] = data.links.map(l => ({
@@ -512,14 +515,14 @@ function CitationGraphCanvas({
       target: typeof l.target === 'object' ? l.target.id : l.target
     }));
 
-    const { filteredNodes, filteredLinks } = filterGraph(nodes, links, activeDocFilter, activeCategoryFilter, searchQuery);
+    const { filteredNodes, filteredLinks } = filterGraph(nodes, links, activeDocFilter, activeCategoryFilter, searchQuery, fleetCriteria);
     const degree = computeDegree(filteredLinks);
 
     return filteredNodes
       .map(n => ({ ...n, degree: degree[n.id] || 0 }))
       .sort((a, b) => (b.degree || 0) - (a.degree || 0))
       .slice(0, 10);
-  }, [data, activeDocFilter, activeCategoryFilter, searchQuery]);
+  }, [data, activeDocFilter, activeCategoryFilter, searchQuery, fleetCriteria]);
 
   const applyNodeSelectionRef = useRef<((node: GraphNode | null, animate?: boolean) => void) | null>(null);
   const zoomToFitRef = useRef<((animate?: boolean) => void) | null>(null);

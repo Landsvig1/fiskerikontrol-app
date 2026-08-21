@@ -35,7 +35,7 @@ import { EnforcementTimelineView } from "@/components/EnforcementTimelineView";
 import { AuditMemoModal } from "@/components/AuditMemoModal";
 import { FleetFilterCriteria, DEFAULT_FLEET_CRITERIA, matchesFleetCriteria } from "@/lib/fleetFilter";
 import { getT, Lang, TranslateFn, TranslationKey } from "@/lib/i18n";
-import { modalityColor, modalityBadgeClasses, MODALITY_LEGEND } from "@/lib/graphColors";
+import { modalityColor, modalityBadgeClasses } from "@/lib/graphColors";
 import { filterGraph, computeDegree } from "@/lib/graphFilter";
 import { docLabel, docColorFor, docBadgeStyle, DocRef } from "@/lib/docDisplay";
 import { explainConnection } from "@/lib/connectionExplainer";
@@ -681,22 +681,9 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     const svg = d3.select(svgRef.current)
       .attr("viewBox", [0, 0, width, height]);
 
-    // Arrowhead markers for links
-    const defs = svg.append("defs");
-    MODALITY_LEGEND.forEach(({ modality, color }) => {
-      defs.append("marker")
-        .attr("id", `d3-arrow-${modality.toLowerCase()}`)
-        .attr("viewBox", "0 -5 10 10")
-        .attr("refX", 22)
-        .attr("refY", 0)
-        .attr("markerWidth", 6)
-        .attr("markerHeight", 6)
-        .attr("orient", "auto")
-        .append("path")
-        .attr("d", "M0,-4L8,0L0,4")
-        .attr("fill", color);
-    });
-
+    // No arrowhead markers here: this view draws undirected straight lines and forces
+    // marker-end to none on every state change. Direction is conveyed by the connections
+    // drawer, not by the edges. The column view in CitationGraphView is the directed one.
     const g = svg.append("g");
 
     // Zoom setup
@@ -936,18 +923,14 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
         const connectedNodeIds = new Set<string>();
         connectedNodeIds.add(selectedId);
 
-        const nodeDirections = new Map<string, "outgoing" | "incoming">();
-
         filteredLinks.forEach((l) => {
           if (!l) return;
           const sId = typeof l.source === "object" && l.source ? (l.source as GraphNode).id : String(l.source);
           const tId = typeof l.target === "object" && l.target ? (l.target as GraphNode).id : String(l.target);
           if (sId === selectedId) {
             connectedNodeIds.add(tId);
-            nodeDirections.set(tId, "outgoing");
           } else if (tId === selectedId) {
             connectedNodeIds.add(sId);
-            nodeDirections.set(sId, "incoming");
           }
         });
 
