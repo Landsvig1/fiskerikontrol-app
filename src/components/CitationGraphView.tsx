@@ -471,16 +471,15 @@ export function CitationGraphView({
   );
 }
 
-function CitationGraphCanvas({
-  data,
+function CitationGraphCanvas({ 
+  data, 
   selectedNode,
-  activeDocFilter,
-  activeCategoryFilter,
-  searchQuery,
+  activeDocFilter, 
+  activeCategoryFilter, 
+  searchQuery, 
   fleetCriteria,
   setSelectedNode,
-  t,
-  lang = "da"
+  t
 }: CitationGraphViewProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);

@@ -39,7 +39,7 @@ import { modalityColor, modalityBadgeClasses, MODALITY_LEGEND } from "@/lib/grap
 import { filterGraph, computeDegree } from "@/lib/graphFilter";
 import { docLabel, docColorFor, docBadgeStyle, DocRef } from "@/lib/docDisplay";
 import { explainConnection } from "@/lib/connectionExplainer";
-import { themeLabel, formatConflictDescription, CANONICAL_PROCESS_ORDER } from "@/lib/labels";
+import { themeLabel, CANONICAL_PROCESS_ORDER } from "@/lib/labels";
 import {
   GraphNode,
   GraphLink,
@@ -803,8 +803,6 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       .attr("stroke", d => modalityColor(d.modality))
       .attr("stroke-opacity", 0.4)
       .attr("stroke-width", 1.5)
-      .attr("stroke-dasharray", d => d.modality === "Exception" ? "4, 2" : "none")
-      .style("cursor", "pointer");
       .attr("stroke-dasharray", d => d.modality === "Exception" ? "4, 2" : "none")
       .style("cursor", "pointer");
 

@@ -51,12 +51,13 @@ export function explainConnection(
   let legalRole = "";
 
   if (lang === "da") {
-    const targetTheme = themeLabel(otherNode.theme, "da");
+    const targetTheme = otherNode.theme ? themeLabel(otherNode.theme, "da") : "";
+    const themeNote = targetTheme ? ` (vedr. ${targetTheme.toLowerCase()})` : "";
     if (isOutgoing) {
       switch (modality) {
         case "exception":
           headline = `${selectedNode.label} fraviger kravene i ${otherNode.label}`;
-          summary = `Bestemmelsen i ${selectedNode.label} (${selectedDocTitle}) udgør en specifik undtagelse eller lempelse fra hovedreglen fastsat i ${otherNode.label}.`;
+          summary = `Bestemmelsen i ${selectedNode.label} (${selectedDocTitle}) udgør en specifik undtagelse eller lempelse fra hovedreglen fastsat i ${otherNode.label}${themeNote}.`;
           legalRole = `Undtagelsesbestemmelse (Fravigelse af almindelig kontrolforpligtelse).`;
           break;
         case "authorization":
