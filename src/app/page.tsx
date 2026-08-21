@@ -649,179 +649,14 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       .call(zoomBehaviorRef.current.transform, transform);
   };
 
-  // Keep ref updated
+  const applyNodeSelectionRef = useRef<((node: GraphNode | null, animate?: boolean) => void) | null>(null);
+  const zoomToFitRef = useRef<((animate?: boolean) => void) | null>(null);
+
+  // Keep ref updated and apply selection
   useEffect(() => {
     selectedNodeRef.current = selectedNode;
+    applyNodeSelectionRef.current?.(selectedNode, true);
   }, [selectedNode]);
-
-  const prevSelectedNodeRef = useRef<GraphNode | null>(null);
-
-  // Secondary effect to handle persistent selections without resetting simulation
-  useEffect(() => {
-    if (!svgRef.current || !containerRef.current) return;
-    const svg = d3.select(svgRef.current);
-    const wasSelected = prevSelectedNodeRef.current;
-    prevSelectedNodeRef.current = selectedNode;
-
-    if (selectedNode) {
-      const connectedNodeIds = new Set<string>();
-      connectedNodeIds.add(selectedNode.id);
-
-      // Identify all directly connected links and direction
-      const nodeDirections = new Map<string, "outgoing" | "incoming">();
-
-      svg.selectAll<SVGLineElement, GraphLink>("line").each(function(l) {
-        const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
-        const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
-        if (sId === selectedNode.id) {
-          connectedNodeIds.add(tId);
-          nodeDirections.set(tId, "outgoing");
-        } else if (tId === selectedNode.id) {
-          connectedNodeIds.add(sId);
-          nodeDirections.set(sId, "incoming");
-        }
-      });
-
-      // Completely hide all unconnected links, make connected links bold & vibrant with arrowheads
-      svg.selectAll<SVGLineElement, GraphLink>("line")
-        .style("display", (l) => {
-          const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
-          const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
-          return (sId === selectedNode.id || tId === selectedNode.id) ? "inline" : "none";
-        })
-        .style("stroke-opacity", 1.0)
-        .attr("stroke-width", 3.0)
-        .attr("marker-end", (l) => `url(#d3-arrow-${l.modality.toLowerCase()})`);
-
-      // Completely hide all unconnected nodes, display only connected nodes
-      svg.selectAll<SVGGElement, GraphNode>("g.node-group")
-        .style("display", (n) => connectedNodeIds.has(n.id) ? "inline" : "none")
-        .style("opacity", 1.0);
-
-      // Show crisp, informative contextual labels on the selected node and connected neighbors
-      svg.selectAll<SVGTextElement, GraphNode>("g.node-group text")
-        .text((n) => {
-          if (!connectedNodeIds.has(n.id)) return "";
-          if (n.id === selectedNode.id) {
-            return `★ ${n.label} (Valgt)`;
-          }
-          const dir = nodeDirections.get(n.id);
-          const prefix = dir === "outgoing" ? "→ Refererer til: " : "← Citeret af: ";
-          const titleSnippet = n.title ? ` (${n.title.slice(0, 32)}${n.title.length > 32 ? '...' : ''})` : '';
-          return `${prefix}${n.label}${titleSnippet}`;
-        })
-        .style("opacity", 1.0)
-        .style("font-size", (n) => n.id === selectedNode.id ? "12px" : "11px")
-        .style("font-weight", (n) => n.id === selectedNode.id ? "800" : "700")
-        .attr("fill", (n) => n.id === selectedNode.id ? "#0284c7" : "#0f172a");
-
-      // Selected node focal ring
-      svg.selectAll<SVGCircleElement, GraphNode>("circle.primary-circle")
-        .attr("stroke-width", (n) => n.id === selectedNode.id ? 4.0 : 2.5)
-        .attr("stroke", (n) => n.id === selectedNode.id ? "#0284c7" : "#ffffff");
-
-      // Hide halos for unconnected nodes
-      svg.selectAll<SVGCircleElement, GraphNode>("circle.conflict-halo")
-        .style("display", (n) => connectedNodeIds.has(n.id) ? "inline" : "none")
-        .style("opacity", 1.0);
-
-      // Center on selected node and zoom so the furthest connected node is just in the corner of the visual
-      if (zoomBehaviorRef.current) {
-        let centerNode: GraphNode | undefined;
-        const neighborNodes: GraphNode[] = [];
-
-        svg.selectAll<SVGGElement, GraphNode>("g.node-group").each(function(d) {
-          if (d.id === selectedNode.id) {
-            centerNode = d;
-          } else if (connectedNodeIds.has(d.id)) {
-            neighborNodes.push(d);
-          }
-        });
-
-        if (centerNode && centerNode.x !== undefined && centerNode.y !== undefined) {
-          const width = containerRef.current.clientWidth || 800;
-          const height = containerRef.current.clientHeight || 600;
-
-          // Margin from viewport edge for the furthest node in the corner
-          const marginX = 90; // room for node circle + labels
-          const marginY = 80;
-
-          const availHalfW = Math.max(width / 2 - marginX, 100);
-          const availHalfH = Math.max(height / 2 - marginY, 100);
-
-          let targetScale = 1.35;
-
-          if (neighborNodes.length > 0) {
-            let minAllowedScale = Infinity;
-
-            for (const n of neighborNodes) {
-              if (n.x === undefined || n.y === undefined) continue;
-              const dx = Math.abs(n.x - centerNode.x);
-              const dy = Math.abs(n.y - centerNode.y);
-
-              const scaleForX = dx > 1 ? availHalfW / dx : Infinity;
-              const scaleForY = dy > 1 ? availHalfH / dy : Infinity;
-
-              const nodeScale = Math.min(scaleForX, scaleForY);
-              if (nodeScale < minAllowedScale) {
-                minAllowedScale = nodeScale;
-              }
-            }
-
-            if (minAllowedScale !== Infinity) {
-              targetScale = Math.max(0.35, Math.min(minAllowedScale, 1.75));
-            }
-          }
-
-          // Exact center placement on selected node
-          const tx = width / 2 - centerNode.x * targetScale;
-          const ty = height / 2 - centerNode.y * targetScale;
-
-          svg.transition()
-            .duration(500)
-            .call(zoomBehaviorRef.current.transform, d3.zoomIdentity.translate(tx, ty).scale(targetScale));
-        }
-      }
-    } else {
-      // Reset styling when no node is selected: restore all nodes and links to visible
-      svg.selectAll<SVGLineElement, GraphLink>("line")
-        .style("display", "inline")
-        .style("stroke-opacity", 0.4)
-        .attr("stroke-width", 1.5)
-        .attr("marker-end", "none");
-
-      svg.selectAll<SVGGElement, GraphNode>("g.node-group")
-        .style("display", "inline")
-        .style("opacity", (n) => {
-          if (isFleetFiltered) {
-            return matchesFleetCriteria(n, fleetCriteria!) ? 1.0 : 0.2;
-          }
-          return 1.0;
-        });
-
-      svg.selectAll<SVGTextElement, GraphNode>("g.node-group text")
-        .text((n) => (computeDegree(data.links)[n.id] || 0) >= 3 ? n.label : "")
-        .style("opacity", 1.0)
-        .style("font-size", "10px")
-        .style("font-weight", "600")
-        .attr("fill", "#475569");
-
-      svg.selectAll<SVGCircleElement, GraphNode>("circle.primary-circle")
-        .attr("stroke-width", 1.5)
-        .attr("stroke", "#ffffff");
-
-      svg.selectAll<SVGCircleElement, GraphNode>("circle.conflict-halo")
-        .style("display", "inline")
-        .style("opacity", 1.0);
-
-      // Smoothly zoom back out to full graph overview if we were previously focused on a node
-      if (wasSelected && zoomToFitRef.current) {
-        zoomToFitRef.current(true);
-      }
-    }
-  }, [selectedNode, isFleetFiltered, fleetCriteria, data.links]);
-
-  const zoomToFitRef = useRef<((animate?: boolean) => void) | null>(null);
 
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return;
@@ -898,11 +733,13 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       .velocityDecay(0.4);
 
     // Pre-warm simulation so nodes expand into settled spacious positions before initial view calculation
-    for (let i = 0; i < 90; ++i) simulation.tick();
-
-    // Zoom-to-fit calculation to ensure outer edges of the graph are visible in screen corners
+    for (let i = 0; i < 90; ++    // Zoom-to-fit calculation to ensure outer edges of the graph are visible in screen corners
     const zoomToFit = (animate = false) => {
       if (!svgRef.current || !zoomBehaviorRef.current || !containerRef.current) return;
+      if (selectedNodeRef.current) {
+        applyNodeSelection(selectedNodeRef.current, animate);
+        return;
+      }
       const currentWidth = containerRef.current.clientWidth || 800;
       const currentHeight = containerRef.current.clientHeight || 600;
 
@@ -948,7 +785,159 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     };
 
     zoomToFitRef.current = zoomToFit;
-    zoomToFit(false);
+
+    // Dedicated node selection and camera centering function
+    const applyNodeSelection = (node: GraphNode | null, animate = true) => {
+      if (!svgRef.current || !containerRef.current) return;
+      const svg = d3.select(svgRef.current);
+
+      if (node) {
+        simulation.stop();
+
+        const connectedNodeIds = new Set<string>();
+        connectedNodeIds.add(node.id);
+
+        const nodeDirections = new Map<string, "outgoing" | "incoming">();
+
+        filteredLinks.forEach((l) => {
+          const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
+          const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
+          if (sId === node.id) {
+            connectedNodeIds.add(tId);
+            nodeDirections.set(tId, "outgoing");
+          } else if (tId === node.id) {
+            connectedNodeIds.add(sId);
+            nodeDirections.set(sId, "incoming");
+          }
+        });
+
+        // Hide unconnected links, highlight connected links with directional arrowheads
+        svg.selectAll<SVGLineElement, GraphLink>("line")
+          .style("display", (l) => {
+            const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
+            const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
+            return (sId === node.id || tId === node.id) ? "inline" : "none";
+          })
+          .style("stroke-opacity", (l) => {
+            const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
+            const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
+            return (sId === node.id || tId === node.id) ? 1.0 : 0;
+          })
+          .attr("stroke-width", 3.0)
+          .attr("marker-end", (l) => `url(#d3-arrow-${l.modality.toLowerCase()})`);
+
+        // Hide unconnected nodes completely, display only connected nodes
+        svg.selectAll<SVGGElement, GraphNode>("g.node-group")
+          .style("display", (n) => connectedNodeIds.has(n.id) ? "inline" : "none")
+          .style("opacity", (n) => connectedNodeIds.has(n.id) ? 1.0 : 0);
+
+        // Show informative contextual labels
+        svg.selectAll<SVGTextElement, GraphNode>("g.node-group text")
+          .text((n) => {
+            if (!connectedNodeIds.has(n.id)) return "";
+            if (n.id === node.id) {
+              return `★ ${n.label} (Valgt)`;
+            }
+            const dir = nodeDirections.get(n.id);
+            const prefix = dir === "outgoing" ? "→ Refererer til: " : "← Citeret af: ";
+            const titleSnippet = n.title ? ` (${n.title.slice(0, 32)}${n.title.length > 32 ? '...' : ''})` : '';
+            return `${prefix}${n.label}${titleSnippet}`;
+          })
+          .style("opacity", 1.0)
+          .style("font-size", (n) => n.id === node.id ? "12px" : "11px")
+          .style("font-weight", (n) => n.id === node.id ? "800" : "700")
+          .attr("fill", (n) => n.id === node.id ? "#0284c7" : "#0f172a");
+
+        // Primary circle styling
+        svg.selectAll<SVGCircleElement, GraphNode>("circle.primary-circle")
+          .attr("stroke-width", (n) => n.id === node.id ? 4.0 : 2.5)
+          .attr("stroke", (n) => n.id === node.id ? "#0284c7" : "#ffffff");
+
+        // Conflict halos
+        svg.selectAll<SVGCircleElement, GraphNode>("circle.conflict-halo")
+          .style("display", (n) => connectedNodeIds.has(n.id) ? "inline" : "none")
+          .style("opacity", 1.0);
+
+        // Center on selected node and zoom so the furthest connected node is in the corner of the visual
+        const centerNode = filteredNodes.find(n => n.id === node.id);
+        const neighborNodes = filteredNodes.filter(n => n.id !== node.id && connectedNodeIds.has(n.id));
+
+        if (centerNode && centerNode.x !== undefined && centerNode.y !== undefined && zoomBehaviorRef.current) {
+          const currentW = containerRef.current.clientWidth || 800;
+          const currentH = containerRef.current.clientHeight || 600;
+
+          const marginX = 100;
+          const marginY = 85;
+          const availHalfW = Math.max(currentW / 2 - marginX, 80);
+          const availHalfH = Math.max(currentH / 2 - marginY, 80);
+
+          let targetScale = 1.35;
+
+          if (neighborNodes.length > 0) {
+            let minScale = Infinity;
+            for (const n of neighborNodes) {
+              if (n.x === undefined || n.y === undefined) continue;
+              const dx = Math.abs(n.x - centerNode.x);
+              const dy = Math.abs(n.y - centerNode.y);
+              const scaleX = dx > 1 ? availHalfW / dx : Infinity;
+              const scaleY = dy > 1 ? availHalfH / dy : Infinity;
+              const s = Math.min(scaleX, scaleY);
+              if (s < minScale) minScale = s;
+            }
+            if (minScale !== Infinity) {
+              targetScale = Math.max(0.35, Math.min(minScale, 1.75));
+            }
+          }
+
+          const tx = currentW / 2 - centerNode.x * targetScale;
+          const ty = currentH / 2 - centerNode.y * targetScale;
+          const targetTransform = d3.zoomIdentity.translate(tx, ty).scale(targetScale);
+
+          if (animate) {
+            svg.transition().duration(500).call(zoomBehaviorRef.current.transform, targetTransform);
+          } else {
+            svg.call(zoomBehaviorRef.current.transform, targetTransform);
+          }
+        }
+      } else {
+        // Reset styling
+        svg.selectAll<SVGLineElement, GraphLink>("line")
+          .style("display", "inline")
+          .style("stroke-opacity", 0.4)
+          .attr("stroke-width", 1.5)
+          .attr("marker-end", "none");
+
+        svg.selectAll<SVGGElement, GraphNode>("g.node-group")
+          .style("display", "inline")
+          .style("opacity", (n) => {
+            if (isFleetFiltered) {
+              return matchesFleetCriteria(n, fleetCriteria!) ? 1.0 : 0.2;
+            }
+            return 1.0;
+          });
+
+        svg.selectAll<SVGTextElement, GraphNode>("g.node-group text")
+          .text((n) => (computeDegree(data.links)[n.id] || 0) >= 3 ? n.label : "")
+          .style("opacity", 1.0)
+          .style("font-size", "10px")
+          .style("font-weight", "600")
+          .attr("fill", "#475569");
+
+        svg.selectAll<SVGCircleElement, GraphNode>("circle.primary-circle")
+          .attr("stroke-width", 1.5)
+          .attr("stroke", "#ffffff");
+
+        svg.selectAll<SVGCircleElement, GraphNode>("circle.conflict-halo")
+          .style("display", "inline")
+          .style("opacity", 1.0);
+
+        if (animate && zoomToFitRef.current) {
+          zoomToFitRef.current(true);
+        }
+      }
+    };
+
+    applyNodeSelectionRef.current = applyNodeSelection;
 
     // Draw links
     const link = g.append("g")
@@ -993,7 +982,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       d3.select(tooltipRef.current).style("display", "none");
     });
 
-    // Draw node groups
+    // Draw nodes
     const node = g.append("g")
       .selectAll<SVGGElement, GraphNode>("g.node-group")
       .data(filteredNodes)
@@ -1049,6 +1038,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     // Event listeners
     node.on("click", (event, d) => {
       setSelectedNode(d);
+      applyNodeSelection(d, true);
     });
 
     node.on("mouseover", (event, d) => {
@@ -1120,6 +1110,13 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       d.fy = null;
     }
 
+    // Initial positioning
+    if (selectedNodeRef.current) {
+      applyNodeSelection(selectedNodeRef.current, false);
+    } else {
+      zoomToFit(false);
+    }
+
     // Resize observer to handle drawer opening/closing and window resize
     const resizeObserver = new ResizeObserver((entries) => {
       if (!entries || entries.length === 0) return;
@@ -1128,8 +1125,10 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       
       svg.attr("viewBox", [0, 0, newWidth, newHeight]);
       simulation.force("center", d3.forceCenter(newWidth / 2, newHeight / 2));
-      simulation.alpha(0.1).restart();
-      if (zoomToFitRef.current) {
+      
+      if (selectedNodeRef.current) {
+        applyNodeSelection(selectedNodeRef.current, false);
+      } else if (zoomToFitRef.current) {
         zoomToFitRef.current(false);
       }
     });
