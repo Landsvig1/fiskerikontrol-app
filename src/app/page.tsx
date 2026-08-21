@@ -1588,6 +1588,83 @@ function InteractiveGraphView({
           </div>
         </div>
       )}
+
+      {/* Floating Bottom Quick Dock for Connected Nodes */}
+      {selectedNode && !isRightDrawerOpen && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 w-full max-w-2xl px-4 select-none animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <div className="bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl shadow-xl p-3.5 flex flex-col gap-2">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <div className="flex items-center gap-2">
+                <GitBranch className="w-4 h-4 text-sky-600" />
+                <span className="text-xs font-bold text-slate-800">
+                  {t("connectedProvisions")} ({nodeConnections.length})
+                </span>
+                <span className="text-[11px] text-slate-400">• {t("selectedProvision")}: <strong className="text-slate-700">{selectedNode.label}</strong></span>
+              </div>
+              <button
+                onClick={() => setIsRightDrawerOpen(true)}
+                className="text-[11px] font-semibold text-sky-600 hover:text-sky-800 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <span>{t("showDetailsPanel")}</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+
+            {nodeConnections.length === 0 ? (
+              <p className="text-xs text-slate-500 italic py-1 text-center">
+                {t("noConnections")}
+              </p>
+            ) : (
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-thin">
+                {nodeConnections.map((item, idx) => {
+                  const { link, isOutgoing, otherNode } = item;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedNode(otherNode)}
+                      className="flex-shrink-0 flex flex-col gap-1 p-2.5 rounded-xl border border-slate-200 hover:border-sky-400 bg-slate-50/60 hover:bg-sky-50/40 text-left transition-all duration-150 cursor-pointer max-w-[240px] group"
+                      title={`${t("jumpToProvision")}: ${otherNode.label} - ${otherNode.title || ''}`}
+                    >
+                      <div className="flex items-center justify-between gap-1.5 w-full">
+                        <div className="flex items-center gap-1 min-w-0">
+                          {isOutgoing ? (
+                            <span className="text-[10px] font-bold text-sky-700 flex items-center gap-0.5">
+                              <ArrowUpRight className="w-3 h-3 text-sky-600" />
+                              {t("outgoingCitation")}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-indigo-700 flex items-center gap-0.5">
+                              <ArrowDownLeft className="w-3 h-3 text-indigo-600" />
+                              {t("incomingCitation")}
+                            </span>
+                          )}
+                          <span 
+                            className="text-[9px] font-bold px-1 py-0.2 rounded border"
+                            style={docBadgeStyle(data.docs, otherNode.doc, { borderAlpha: "4d" })}
+                          >
+                            {docLabel(data.docs, otherNode.doc, t)}
+                          </span>
+                        </div>
+                        <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${modalityBadgeClasses(link.modality)}`}>
+                          {t(link.modality.toLowerCase() as TranslationKey)}
+                        </span>
+                      </div>
+                      <div className="text-xs font-bold text-slate-900 group-hover:text-sky-600 truncate">
+                        {otherNode.label}
+                      </div>
+                      {otherNode.title && (
+                        <div className="text-[10px] text-slate-500 truncate">
+                          {otherNode.title}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

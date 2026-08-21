@@ -118,6 +118,8 @@ const da: Translations = {
   hideDetailsPanel: "Skjul detaljer",
   clearSelection: "Ryd valg",
   selectedProvision: "Valgt bestemmelse",
+  connectedProvisions: "Forbundne bestemmelser",
+  jumpToProvision: "Fokusér bestemmelse",
 };
 
 const en: Translations = {
@@ -199,6 +201,8 @@ const en: Translations = {
   hideDetailsPanel: "Hide details",
   clearSelection: "Clear selection",
   selectedProvision: "Selected provision",
+  connectedProvisions: "Connected provisions",
+  jumpToProvision: "Focus provision",
 };
 
 export const translations: Record<Lang, Translations> = { da, en };
