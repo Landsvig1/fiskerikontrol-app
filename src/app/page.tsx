@@ -788,159 +788,6 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
 
     zoomToFitRef.current = zoomToFit;
 
-    // Dedicated node selection and camera centering function
-    const applyNodeSelection = (node: GraphNode | null, animate = true) => {
-      if (!svgRef.current || !containerRef.current) return;
-      const svg = d3.select(svgRef.current);
-
-      if (node) {
-        simulation.stop();
-
-        const connectedNodeIds = new Set<string>();
-        connectedNodeIds.add(node.id);
-
-        const nodeDirections = new Map<string, "outgoing" | "incoming">();
-
-        filteredLinks.forEach((l) => {
-          const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
-          const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
-          if (sId === node.id) {
-            connectedNodeIds.add(tId);
-            nodeDirections.set(tId, "outgoing");
-          } else if (tId === node.id) {
-            connectedNodeIds.add(sId);
-            nodeDirections.set(sId, "incoming");
-          }
-        });
-
-        // Hide unconnected links, highlight connected links with directional arrowheads
-        svg.selectAll<SVGLineElement, GraphLink>("line")
-          .style("display", (l) => {
-            const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
-            const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
-            return (sId === node.id || tId === node.id) ? "inline" : "none";
-          })
-          .style("stroke-opacity", (l) => {
-            const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
-            const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
-            return (sId === node.id || tId === node.id) ? 1.0 : 0;
-          })
-          .attr("stroke-width", 3.0)
-          .attr("marker-end", (l) => `url(#d3-arrow-${l.modality.toLowerCase()})`);
-
-        // Hide unconnected nodes completely, display only connected nodes
-        svg.selectAll<SVGGElement, GraphNode>("g.node-group")
-          .style("display", (n) => connectedNodeIds.has(n.id) ? "inline" : "none")
-          .style("opacity", (n) => connectedNodeIds.has(n.id) ? 1.0 : 0);
-
-        // Show informative contextual labels
-        svg.selectAll<SVGTextElement, GraphNode>("g.node-group text")
-          .text((n) => {
-            if (!connectedNodeIds.has(n.id)) return "";
-            if (n.id === node.id) {
-              return `★ ${n.label} (Valgt)`;
-            }
-            const dir = nodeDirections.get(n.id);
-            const prefix = dir === "outgoing" ? "→ Refererer til: " : "← Citeret af: ";
-            const titleSnippet = n.title ? ` (${n.title.slice(0, 32)}${n.title.length > 32 ? '...' : ''})` : '';
-            return `${prefix}${n.label}${titleSnippet}`;
-          })
-          .style("opacity", 1.0)
-          .style("font-size", (n) => n.id === node.id ? "12px" : "11px")
-          .style("font-weight", (n) => n.id === node.id ? "800" : "700")
-          .attr("fill", (n) => n.id === node.id ? "#0284c7" : "#0f172a");
-
-        // Primary circle styling
-        svg.selectAll<SVGCircleElement, GraphNode>("circle.primary-circle")
-          .attr("stroke-width", (n) => n.id === node.id ? 4.0 : 2.5)
-          .attr("stroke", (n) => n.id === node.id ? "#0284c7" : "#ffffff");
-
-        // Conflict halos
-        svg.selectAll<SVGCircleElement, GraphNode>("circle.conflict-halo")
-          .style("display", (n) => connectedNodeIds.has(n.id) ? "inline" : "none")
-          .style("opacity", 1.0);
-
-        // Center on selected node and zoom so the furthest connected node is in the corner of the visual
-        const centerNode = filteredNodes.find(n => n.id === node.id);
-        const neighborNodes = filteredNodes.filter(n => n.id !== node.id && connectedNodeIds.has(n.id));
-
-        if (centerNode && centerNode.x !== undefined && centerNode.y !== undefined && zoomBehaviorRef.current) {
-          const currentW = containerRef.current.clientWidth || 800;
-          const currentH = containerRef.current.clientHeight || 600;
-
-          const marginX = 100;
-          const marginY = 85;
-          const availHalfW = Math.max(currentW / 2 - marginX, 80);
-          const availHalfH = Math.max(currentH / 2 - marginY, 80);
-
-          let targetScale = 1.35;
-
-          if (neighborNodes.length > 0) {
-            let minScale = Infinity;
-            for (const n of neighborNodes) {
-              if (n.x === undefined || n.y === undefined) continue;
-              const dx = Math.abs(n.x - centerNode.x);
-              const dy = Math.abs(n.y - centerNode.y);
-              const scaleX = dx > 1 ? availHalfW / dx : Infinity;
-              const scaleY = dy > 1 ? availHalfH / dy : Infinity;
-              const s = Math.min(scaleX, scaleY);
-              if (s < minScale) minScale = s;
-            }
-            if (minScale !== Infinity) {
-              targetScale = Math.max(0.35, Math.min(minScale, 1.75));
-            }
-          }
-
-          const tx = currentW / 2 - centerNode.x * targetScale;
-          const ty = currentH / 2 - centerNode.y * targetScale;
-          const targetTransform = d3.zoomIdentity.translate(tx, ty).scale(targetScale);
-
-          if (animate) {
-            svg.transition().duration(500).call(zoomBehaviorRef.current.transform, targetTransform);
-          } else {
-            svg.call(zoomBehaviorRef.current.transform, targetTransform);
-          }
-        }
-      } else {
-        // Reset styling
-        svg.selectAll<SVGLineElement, GraphLink>("line")
-          .style("display", "inline")
-          .style("stroke-opacity", 0.4)
-          .attr("stroke-width", 1.5)
-          .attr("marker-end", "none");
-
-        svg.selectAll<SVGGElement, GraphNode>("g.node-group")
-          .style("display", "inline")
-          .style("opacity", (n) => {
-            if (isFleetFiltered) {
-              return matchesFleetCriteria(n, fleetCriteria!) ? 1.0 : 0.2;
-            }
-            return 1.0;
-          });
-
-        svg.selectAll<SVGTextElement, GraphNode>("g.node-group text")
-          .text((n) => (computeDegree(data.links)[n.id] || 0) >= 3 ? n.label : "")
-          .style("opacity", 1.0)
-          .style("font-size", "10px")
-          .style("font-weight", "600")
-          .attr("fill", "#475569");
-
-        svg.selectAll<SVGCircleElement, GraphNode>("circle.primary-circle")
-          .attr("stroke-width", 1.5)
-          .attr("stroke", "#ffffff");
-
-        svg.selectAll<SVGCircleElement, GraphNode>("circle.conflict-halo")
-          .style("display", "inline")
-          .style("opacity", 1.0);
-
-        if (animate && zoomToFitRef.current) {
-          zoomToFitRef.current(true);
-        }
-      }
-    };
-
-    applyNodeSelectionRef.current = applyNodeSelection;
-
     // Draw links
     const link = g.append("g")
       .selectAll<SVGLineElement, GraphLink>("line")
@@ -1037,10 +884,179 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       .attr("font-weight", "600")
       .attr("pointer-events", "none");
 
+    // Dedicated node selection and camera centering function
+    const applyNodeSelection = (targetNode: GraphNode | null, animate = true) => {
+      if (!svgRef.current || !containerRef.current) return;
+      const svg = d3.select(svgRef.current);
+
+      if (targetNode && targetNode.id) {
+        const selectedId = targetNode.id;
+        const connectedNodeIds = new Set<string>();
+        connectedNodeIds.add(selectedId);
+
+        const nodeDirections = new Map<string, "outgoing" | "incoming">();
+
+        filteredLinks.forEach((l) => {
+          if (!l) return;
+          const sId = typeof l.source === "object" && l.source ? (l.source as GraphNode).id : String(l.source);
+          const tId = typeof l.target === "object" && l.target ? (l.target as GraphNode).id : String(l.target);
+          if (sId === selectedId) {
+            connectedNodeIds.add(tId);
+            nodeDirections.set(tId, "outgoing");
+          } else if (tId === selectedId) {
+            connectedNodeIds.add(sId);
+            nodeDirections.set(sId, "incoming");
+          }
+        });
+
+        // Hide unconnected links, highlight connected links with directional arrowheads
+        link
+          .style("display", (l) => {
+            if (!l) return "none";
+            const sId = typeof l.source === "object" && l.source ? (l.source as GraphNode).id : String(l.source);
+            const tId = typeof l.target === "object" && l.target ? (l.target as GraphNode).id : String(l.target);
+            return (sId === selectedId || tId === selectedId) ? "inline" : "none";
+          })
+          .style("stroke-opacity", (l) => {
+            if (!l) return 0;
+            const sId = typeof l.source === "object" && l.source ? (l.source as GraphNode).id : String(l.source);
+            const tId = typeof l.target === "object" && l.target ? (l.target as GraphNode).id : String(l.target);
+            return (sId === selectedId || tId === selectedId) ? 1.0 : 0;
+          })
+          .attr("stroke-width", 2.8)
+          .attr("marker-end", (l) => {
+            if (!l || !l.modality) return "none";
+            const sId = typeof l.source === "object" && l.source ? (l.source as GraphNode).id : String(l.source);
+            const tId = typeof l.target === "object" && l.target ? (l.target as GraphNode).id : String(l.target);
+            return (sId === selectedId || tId === selectedId) ? `url(#d3-arrow-${l.modality.toLowerCase()})` : "none";
+          });
+
+        // Hide unconnected nodes completely, display only connected nodes
+        node
+          .style("display", (n) => (n && n.id && connectedNodeIds.has(n.id)) ? "inline" : "none")
+          .style("opacity", (n) => (n && n.id && connectedNodeIds.has(n.id)) ? 1.0 : 0);
+
+        // Informative, clean contextual labels
+        node.select<SVGTextElement>("text")
+          .text((n) => {
+            if (!n || !n.id || !connectedNodeIds.has(n.id)) return "";
+            if (n.id === selectedId) {
+              return `★ ${n.label || n.id}`;
+            }
+            const dir = nodeDirections.get(n.id);
+            const prefix = dir === "outgoing" ? "➔ " : "⬅ ";
+            return `${prefix}${n.label || n.id}`;
+          })
+          .style("opacity", 1.0)
+          .style("font-size", (n) => (n && n.id === selectedId) ? "12px" : "11px")
+          .style("font-weight", (n) => (n && n.id === selectedId) ? "800" : "700")
+          .attr("fill", (n) => (n && n.id === selectedId) ? "#0284c7" : "#0f172a");
+
+        // Primary circle focal styling
+        node.select<SVGCircleElement>("circle.primary-circle")
+          .attr("stroke-width", (n) => (n && n.id === selectedId) ? 3.5 : 1.8)
+          .attr("stroke", (n) => (n && n.id === selectedId) ? "#0284c7" : "#ffffff");
+
+        // Conflict halos
+        node.select<SVGCircleElement>("circle.conflict-halo")
+          .style("display", (n) => (n && n.id && connectedNodeIds.has(n.id)) ? "inline" : "none");
+
+        // Center on selected node and frame connected neighbors comfortably
+        const centerNode = filteredNodes.find(n => n.id === selectedId);
+        const neighborNodes = filteredNodes.filter(n => n.id !== selectedId && connectedNodeIds.has(n.id));
+
+        if (centerNode && centerNode.x !== undefined && centerNode.y !== undefined && zoomBehaviorRef.current) {
+          const currentW = containerRef.current.clientWidth || 800;
+          const currentH = containerRef.current.clientHeight || 600;
+
+          const marginX = 120;
+          const marginY = 90;
+          const availHalfW = Math.max(currentW / 2 - marginX, 100);
+          const availHalfH = Math.max(currentH / 2 - marginY, 80);
+
+          let targetScale = 1.35;
+
+          if (neighborNodes.length > 0) {
+            let maxDx = 0;
+            let maxDy = 0;
+            for (const n of neighborNodes) {
+              if (n.x === undefined || n.y === undefined) continue;
+              const dx = Math.abs(n.x - centerNode.x);
+              const dy = Math.abs(n.y - centerNode.y);
+              if (dx > maxDx) maxDx = dx;
+              if (dy > maxDy) maxDy = dy;
+            }
+
+            if (maxDx > 0 || maxDy > 0) {
+              const scaleX = maxDx > 1 ? availHalfW / maxDx : Infinity;
+              const scaleY = maxDy > 1 ? availHalfH / maxDy : Infinity;
+              const fitScale = Math.min(scaleX, scaleY);
+              if (fitScale !== Infinity && !isNaN(fitScale)) {
+                targetScale = Math.max(0.65, Math.min(fitScale, 1.8));
+              }
+            }
+          }
+
+          const tx = currentW / 2 - centerNode.x * targetScale;
+          const ty = currentH / 2 - centerNode.y * targetScale;
+          const targetTransform = d3.zoomIdentity.translate(tx, ty).scale(targetScale);
+
+          if (animate) {
+            svg.transition().duration(400).call(zoomBehaviorRef.current.transform, targetTransform);
+          } else {
+            svg.call(zoomBehaviorRef.current.transform, targetTransform);
+          }
+        }
+      } else {
+        // Reset styling when no node is selected
+        link
+          .style("display", "inline")
+          .style("stroke-opacity", 0.4)
+          .attr("stroke-width", 1.5)
+          .attr("marker-end", "none");
+
+        node
+          .style("display", "inline")
+          .style("opacity", (n) => {
+            if (!n) return 1.0;
+            if (isFleetFiltered) {
+              return matchesFleetCriteria(n, fleetCriteria!) ? 1.0 : 0.2;
+            }
+            return 1.0;
+          });
+
+        node.select<SVGTextElement>("text")
+          .text((n) => (n && (degree[n.id] || 0) >= 3) ? n.label : "")
+          .style("opacity", 1.0)
+          .style("font-size", "10px")
+          .style("font-weight", "600")
+          .attr("fill", "#475569");
+
+        node.select<SVGCircleElement>("circle.primary-circle")
+          .attr("stroke-width", 1.5)
+          .attr("stroke", "#ffffff");
+
+        node.select<SVGCircleElement>("circle.conflict-halo")
+          .style("display", "inline");
+
+        if (animate && zoomToFitRef.current) {
+          zoomToFitRef.current(true);
+        }
+      }
+    };
+
+    applyNodeSelectionRef.current = applyNodeSelection;
+
     // Event listeners
     node.on("click", (event, d) => {
+      event.stopPropagation();
       setSelectedNode(d);
-      applyNodeSelection(d, true);
+    });
+
+    svg.on("click", (event) => {
+      if (event.target === svgRef.current || (event.target as HTMLElement).tagName === "svg") {
+        setSelectedNode(null);
+      }
     });
 
     node.on("mouseover", (event, d) => {
