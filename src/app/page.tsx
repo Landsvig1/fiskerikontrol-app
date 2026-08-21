@@ -735,9 +735,9 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       .velocityDecay(0.4);
 
     // Pre-warm simulation so nodes expand into settled spacious positions before initial view calculation
-    for (let i = 0; i < 90; ++i) simulation.tick();
+    for (let i = 0; i < 180; ++i) simulation.tick();
 
-    // Zoom-to-fit calculation to ensure outer edges of the graph are visible in screen corners
+    // Zoom-to-fit calculation to ensure outer edges of the graph are visible in screen corners and middle node centered
     const zoomToFit = (animate = false) => {
       if (!svgRef.current || !zoomBehaviorRef.current || !containerRef.current) return;
       if (selectedNodeRef.current) {
@@ -763,7 +763,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
         if (d.y + r > maxY) maxY = d.y + r;
       }
 
-      const margin = 70;
+      const margin = 80;
       const graphWidth = Math.max(maxX - minX + margin * 2, 100);
       const graphHeight = Math.max(maxY - minY + margin * 2, 100);
       const midX = (minX + maxX) / 2;
@@ -771,7 +771,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
 
       const scaleX = currentWidth / graphWidth;
       const scaleY = currentHeight / graphHeight;
-      const fitScale = Math.max(0.12, Math.min(scaleX, scaleY, 1.15));
+      const fitScale = Math.max(0.08, Math.min(scaleX, scaleY, 0.95));
 
       const tx = currentWidth / 2 - midX * fitScale;
       const ty = currentHeight / 2 - midY * fitScale;
@@ -935,7 +935,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
 
         // Keep standard clean text labels without heavy prefixes
         node.select<SVGTextElement>("text")
-          .text((n) => (n && (connectedNodeIds.has(n.id) || (degree[n.id] || 0) >= 3)) ? n.label : "")
+          .text((n) => (n && connectedNodeIds.has(n.id)) ? n.label : "")
           .style("opacity", 1.0)
           .style("font-size", "10px")
           .style("font-weight", "600")
@@ -950,20 +950,20 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
         node.select<SVGCircleElement>("circle.conflict-halo")
           .style("display", (n) => (n && n.id && connectedNodeIds.has(n.id)) ? "inline" : "none");
 
-        // Center on selected node and frame connected neighbors comfortably
-        const centerNode = filteredNodes.find(n => n.id === selectedId);
+        // Center on selected node and frame all connected neighbors comfortably
+        const centerNode = filteredNodes.find(n => n.id === selectedId) || nodes.find(n => n.id === selectedId);
         const neighborNodes = filteredNodes.filter(n => n.id !== selectedId && connectedNodeIds.has(n.id));
 
         if (centerNode && centerNode.x !== undefined && centerNode.y !== undefined && zoomBehaviorRef.current) {
           const currentW = containerRef.current.clientWidth || 800;
           const currentH = containerRef.current.clientHeight || 600;
 
-          const marginX = 120;
-          const marginY = 90;
+          const marginX = 140;
+          const marginY = 100;
           const availHalfW = Math.max(currentW / 2 - marginX, 100);
           const availHalfH = Math.max(currentH / 2 - marginY, 80);
 
-          let targetScale = 1.35;
+          let targetScale = 1.15;
 
           if (neighborNodes.length > 0) {
             let maxDx = 0;
@@ -981,7 +981,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
               const scaleY = maxDy > 1 ? availHalfH / maxDy : Infinity;
               const fitScale = Math.min(scaleX, scaleY);
               if (fitScale !== Infinity && !isNaN(fitScale)) {
-                targetScale = Math.max(0.65, Math.min(fitScale, 1.8));
+                targetScale = Math.max(0.35, Math.min(fitScale, 1.35));
               }
             }
           }
@@ -1097,6 +1097,12 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
          .attr("y2", d => (d.target as GraphNode).y!);
 
       node.attr("transform", d => `translate(${d.x || 0},${d.y || 0})`);
+    });
+
+    simulation.on("end", () => {
+      if (!selectedNodeRef.current && zoomToFitRef.current) {
+        zoomToFitRef.current(false);
+      }
     });
 
     // Drag helper functions
