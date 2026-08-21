@@ -36,6 +36,14 @@ export async function POST(request: Request) {
 const MAX_DOCS = 12;
 
 async function handleParse(request: Request) {
+  const contentType = request.headers.get("content-type") || "";
+  if (!contentType.includes("multipart/form-data")) {
+    return NextResponse.json(
+      { error: "Content-Type must be multipart/form-data" },
+      { status: 400 }
+    );
+  }
+
   const formData = await request.formData();
 
   const docs: { file: File; label: string }[] = [];
