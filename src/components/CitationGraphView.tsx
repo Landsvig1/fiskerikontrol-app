@@ -217,45 +217,61 @@ function CitationGraphCanvas({
         .style("display", (n) => connectedNodeIds.has(n.id) ? "inline" : "none")
         .style("opacity", 1.0);
 
-      // Frame the entire connected subgraph (selected node + all connected neighbors) into the viewport
+      // Center on selected node and zoom so the furthest connected node is just in the corner of the visual
       if (zoomBehaviorRef.current) {
-        const connectedNodesList: GraphNode[] = [];
+        let centerNode: GraphNode | undefined;
+        const neighborNodes: GraphNode[] = [];
+
         svg.selectAll<SVGGElement, GraphNode>("g.node").each(function(d) {
-          if (connectedNodeIds.has(d.id)) {
-            connectedNodesList.push(d);
+          if (d.id === selectedNode.id) {
+            centerNode = d;
+          } else if (connectedNodeIds.has(d.id)) {
+            neighborNodes.push(d);
           }
         });
 
-        if (connectedNodesList.length > 0) {
-          let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-          for (const n of connectedNodesList) {
-            if (n.x === undefined || n.y === undefined) continue;
-            if (n.x < minX) minX = n.x;
-            if (n.x > maxX) maxX = n.x;
-            if (n.y < minY) minY = n.y;
-            if (n.y > maxY) maxY = n.y;
-          }
-
+        if (centerNode && centerNode.x !== undefined && centerNode.y !== undefined) {
           const width = containerRef.current.clientWidth || 800;
           const height = containerRef.current.clientHeight || 600;
-          const padX = 220;
-          const padY = 160;
-          const clusterWidth = Math.max(maxX - minX + padX * 2, 280);
-          const clusterHeight = Math.max(maxY - minY + padY * 2, 240);
 
-          const scaleX = width / clusterWidth;
-          const scaleY = height / clusterHeight;
-          const fitScale = Math.max(0.65, Math.min(scaleX, scaleY, 1.35));
+          // Margin from viewport edge for the furthest node in the corner
+          const marginX = 110; // room for column labels + node circle + labels
+          const marginY = 80;
 
-          const midX = (minX + maxX) / 2;
-          const midY = (minY + maxY) / 2;
+          const availHalfW = Math.max(width / 2 - marginX, 100);
+          const availHalfH = Math.max(height / 2 - marginY, 100);
 
-          const tx = width / 2 - midX * fitScale;
-          const ty = height / 2 - midY * fitScale;
+          let targetScale = 1.35;
+
+          if (neighborNodes.length > 0) {
+            let minAllowedScale = Infinity;
+
+            for (const n of neighborNodes) {
+              if (n.x === undefined || n.y === undefined) continue;
+              const dx = Math.abs(n.x - centerNode.x);
+              const dy = Math.abs(n.y - centerNode.y);
+
+              const scaleForX = dx > 1 ? availHalfW / dx : Infinity;
+              const scaleForY = dy > 1 ? availHalfH / dy : Infinity;
+
+              const nodeScale = Math.min(scaleForX, scaleForY);
+              if (nodeScale < minAllowedScale) {
+                minAllowedScale = nodeScale;
+              }
+            }
+
+            if (minAllowedScale !== Infinity) {
+              targetScale = Math.max(0.35, Math.min(minAllowedScale, 1.75));
+            }
+          }
+
+          // Exact center placement on selected node
+          const tx = width / 2 - centerNode.x * targetScale;
+          const ty = height / 2 - centerNode.y * targetScale;
 
           svg.transition()
             .duration(500)
-            .call(zoomBehaviorRef.current.transform, d3.zoomIdentity.translate(tx, ty).scale(fitScale));
+            .call(zoomBehaviorRef.current.transform, d3.zoomIdentity.translate(tx, ty).scale(targetScale));
         }
       }
     } else {
