@@ -1,4 +1,4 @@
-import { GraphData, GraphNode, GraphLink } from "./types";
+import { GraphData, GraphNode } from "./types";
 import { FleetFilterCriteria, matchesFleetCriteria } from "./fleetFilter";
 import { Lang } from "./i18n";
 
@@ -30,29 +30,25 @@ export function generateAuditMemoMarkdown(options: AuditMemoOptions): string {
   const filteredNodes = data.nodes.filter((node) => matchesFleetCriteria(node, criteria));
   const nodeMap = new Map(data.nodes.map((n) => [n.id, n]));
 
-  // Find cross-document conflicts
-  const conflicts: Array<{ source: GraphNode; target: GraphNode; link: GraphLink }> = [];
-  data.links.forEach((l) => {
-    if (!l.isCrossDoc) return;
-    const sourceId = typeof l.source === "string" ? l.source : l.source.id;
-    const targetId = typeof l.target === "string" ? l.target : l.target.id;
-    const sourceNode = nodeMap.get(sourceId);
-    const targetNode = nodeMap.get(targetId);
-    if (!sourceNode || !targetNode) return;
+  // Conflicts come from the parser's ConflictRecord set (data.conflicts) so the memo,
+  // the Conflicts view and the Conflict Inspector always agree on what a conflict is.
+  // Each record is a target section that received both an Exception and an
+  // Obligation/Prohibition citation; we expand it into one entry per citing section.
+  const conflicts: Array<{ source: GraphNode; target: GraphNode; modality: string }> = [];
+  data.conflicts.forEach((record) => {
+    const targetNode = nodeMap.get(record.target);
+    if (!targetNode) return;
 
-    // Filter by criteria if applicable
-    if (!matchesFleetCriteria(sourceNode, criteria) && !matchesFleetCriteria(targetNode, criteria)) {
-      return;
-    }
+    for (const citation of record.citations) {
+      const sourceNode = nodeMap.get(citation.source);
+      if (!sourceNode) continue;
 
-    const isConflict =
-      (l.modality === "Exception" &&
-        (sourceNode.theme.includes("Obligation") || sourceNode.body.toLowerCase().includes("skal"))) ||
-      (l.modality === "Prohibition" &&
-        (targetNode.theme.includes("Permission") || targetNode.body.toLowerCase().includes("kan")));
+      // Keep the conflict if either side is in scope for the selected fleet segment.
+      if (!matchesFleetCriteria(sourceNode, criteria) && !matchesFleetCriteria(targetNode, criteria)) {
+        continue;
+      }
 
-    if (isConflict) {
-      conflicts.push({ source: sourceNode, target: targetNode, link: l });
+      conflicts.push({ source: sourceNode, target: targetNode, modality: citation.modality });
     }
   });
 
@@ -101,7 +97,7 @@ export function generateAuditMemoMarkdown(options: AuditMemoOptions): string {
       lines.push(`### 3.${index + 1} ${c.source.label} ⟷ ${c.target.label}`);
       lines.push(`- **${lang === "da" ? "Citerende sektion" : "Citing Section"}:** ${c.source.label} (${c.source.title || "Uden titel"})`);
       lines.push(`- **${lang === "da" ? "Citeret målsektion" : "Cited Section"}:** ${c.target.label} (${c.target.title || "Uden titel"})`);
-      lines.push(`- **${lang === "da" ? "Modalitetsrelation" : "Modality Relation"}:** ${c.link.modality}`);
+      lines.push(`- **${lang === "da" ? "Modalitetsrelation" : "Modality Relation"}:** ${c.modality}`);
       lines.push(`\n**${c.source.label} ${lang === "da" ? "lovtekst" : "text"}:**`);
       lines.push(`> "${c.source.body.slice(0, 300)}..."`);
       lines.push(`\n**${c.target.label} ${lang === "da" ? "lovtekst" : "text"}:**`);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   X,
   Printer,
@@ -34,13 +34,14 @@ export function AuditMemoModal({
 }: AuditMemoModalProps) {
   const [copied, setCopied] = useState(false);
 
-  if (!isOpen) return null;
+  // Memoized because generateAuditMemoMarkdown stamps a random case reference: regenerating
+  // it on every render made the memo's case number change while the user was reading it.
+  const markdownContent = useMemo(
+    () => (isOpen ? generateAuditMemoMarkdown({ data, criteria, lang }) : ""),
+    [isOpen, data, criteria, lang]
+  );
 
-  const markdownContent = generateAuditMemoMarkdown({
-    data,
-    criteria,
-    lang,
-  });
+  if (!isOpen) return null;
 
   const handleCopy = async () => {
     try {
