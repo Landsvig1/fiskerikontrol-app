@@ -47,15 +47,45 @@ export function CitationGraphView({
   t,
   lang = "da",
 }: CitationGraphViewProps) {
+  const [isRightDrawerOpen, setIsRightDrawerOpen] = useState(false);
+  const [showDocText, setShowDocText] = useState(false);
+  const [expandedConnectionIndex, setExpandedConnectionIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    setShowDocText(false);
+    setExpandedConnectionIndex(null);
+  }, [selectedNode?.id]);
+
   const isFleetFiltered = fleetCriteria && (
     fleetCriteria.vesselLength !== "all" ||
     fleetCriteria.gearType !== "all" ||
     fleetCriteria.seaArea !== "all"
   );
 
+  const nodeConnections = useMemo(() => {
+    if (!selectedNode) return [];
+    return data.links.filter(l => {
+      const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+      const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+      return s === selectedNode.id || t === selectedNode.id;
+    }).map(l => {
+      const sId = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+      const tId = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+      const isOutgoing = sId === selectedNode.id;
+      const otherNodeId = isOutgoing ? tId : sId;
+      const otherNode = data.nodes.find(n => n.id === otherNodeId);
+      return {
+        link: l,
+        isOutgoing,
+        otherNode
+      };
+    }).filter((item): item is { link: GraphLink; isOutgoing: boolean; otherNode: GraphNode } => item.otherNode !== undefined);
+  }, [selectedNode, data.links, data.nodes]);
+
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-[#fafaf9] relative border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-      <div className="absolute top-6 left-6 z-10 flex gap-4 pointer-events-none">
+      {/* Top Left Modality & Document Legend */}
+      <div className="absolute top-6 left-6 z-10 flex gap-4 pointer-events-none select-none">
         <div className="bg-white/95 backdrop-blur-xs p-4 rounded-xl border border-slate-200 pointer-events-auto shadow-sm">
           <div className="flex items-center justify-between gap-3 mb-2">
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">{t("citationGraph")}</h3>
@@ -84,641 +114,6 @@ export function CitationGraphView({
           </div>
         </div>
       </div>
-      <div className="flex-1 bg-[#f8fafc]">
-        <CitationGraphCanvas 
-          data={data}
-          selectedNode={selectedNode}
-          activeDocFilter={activeDocFilter}
-          activeCategoryFilter={activeCategoryFilter}
-          searchQuery={searchQuery}
-          fleetCriteria={fleetCriteria}
-          setSelectedNode={setSelectedNode}
-          t={t}
-          lang={lang}
-        />
-      </div>
-    </div>
-  );
-}
-
-function CitationGraphCanvas({
-  data,
-  selectedNode,
-  activeDocFilter,
-  activeCategoryFilter,
-  searchQuery,
-  fleetCriteria,
-  setSelectedNode,
-  t
-}: CitationGraphViewProps) {
-  const svgRef = useRef<SVGSVGElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const tooltipRef = useRef<HTMLDivElement | null>(null);
-  const zoomBehaviorRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
-  const selectedNodeRef = useRef<GraphNode | null>(null);
-
-  const isFleetFiltered = fleetCriteria && (
-    fleetCriteria.vesselLength !== "all" ||
-    fleetCriteria.gearType !== "all" ||
-    fleetCriteria.seaArea !== "all"
-  );
-
-  const conflictTargets = useMemo(() => {
-    return new Set(
-      data.conflicts
-        .filter(c => {
-          const tNode = data.nodes.find(n => n.id === c.target);
-          return tNode && !tNode.external && !tNode.id.startsWith("external_");
-        })
-        .map(c => c.target)
-    );
-  }, [data.conflicts, data.nodes]);
-
-  const top10Nodes = useMemo(() => {
-    const nodes: GraphNode[] = data.nodes.map(n => ({ ...n }));
-    const links: GraphLink[] = data.links.map(l => ({
-      ...l,
-      source: typeof l.source === 'object' ? l.source.id : l.source,
-      target: typeof l.target === 'object' ? l.target.id : l.target
-    }));
-
-    const { filteredNodes, filteredLinks } = filterGraph(nodes, links, activeDocFilter, activeCategoryFilter, searchQuery);
-    const degree = computeDegree(filteredLinks);
-
-    return filteredNodes
-      .map(n => ({ ...n, degree: degree[n.id] || 0 }))
-      .sort((a, b) => (b.degree || 0) - (a.degree || 0))
-      .slice(0, 10);
-  }, [data, activeDocFilter, activeCategoryFilter, searchQuery]);
-
-  const applyNodeSelectionRef = useRef<((node: GraphNode | null, animate?: boolean) => void) | null>(null);
-  const zoomToFitRef = useRef<((animate?: boolean) => void) | null>(null);
-
-  useEffect(() => {
-    selectedNodeRef.current = selectedNode;
-    applyNodeSelectionRef.current?.(selectedNode, true);
-  }, [selectedNode]);
-
-  useEffect(() => {
-    if (!svgRef.current || !containerRef.current) return;
-    d3.select(svgRef.current).selectAll("*").remove();
-
-    const width = containerRef.current.clientWidth || 800;
-    const height = containerRef.current.clientHeight || 600;
-
-    const svg = d3.select(svgRef.current)
-      .attr("viewBox", [0, 0, width, height]);
-
-    // Arrowhead markers for citations
-    const defs = svg.append("defs");
-    MODALITY_LEGEND.forEach(({ modality, color }) => {
-      defs.append("marker")
-        .attr("id", `arrow-${modality.toLowerCase()}`)
-        .attr("viewBox", "0 -5 10 10")
-        .attr("refX", 16)
-        .attr("refY", 0)
-        .attr("markerWidth", 5)
-        .attr("markerHeight", 5)
-        .attr("orient", "auto")
-        .append("path")
-        .attr("d", "M0,-4L8,0L0,4")
-        .attr("fill", color);
-    });
-
-    const g = svg.append("g");
-
-    const zoom = d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.1, 4])
-      .on("zoom", (event) => {
-        g.attr("transform", event.transform);
-      });
-    svg.call(zoom);
-    zoomBehaviorRef.current = zoom;
-
-    const nodes: GraphNode[] = data.nodes.map(n => ({ ...n }));
-    const links: GraphLink[] = data.links.map(l => ({
-      ...l,
-      source: typeof l.source === 'object' ? l.source.id : l.source,
-      target: typeof l.target === 'object' ? l.target.id : l.target
-    }));
-
-    const { filteredNodes, filteredLinks } = filterGraph(nodes, links, activeDocFilter, activeCategoryFilter, searchQuery);
-    const degree = computeDegree(filteredLinks);
-
-    const padding = 70;
-    const nodeHeightSpacing = 26;
-    const numDocs = data.docs.length;
-
-    const nodesByDoc = d3.group(filteredNodes, n => n.doc);
-    data.docs.forEach((docRef, docIndex) => {
-      const x = width * (docIndex + 1) / (numDocs + 1);
-      (nodesByDoc.get(docRef.id) ?? [])
-        .sort((a, b) => a.number - b.number)
-        .forEach((n, i) => {
-          n.x = x;
-          n.y = padding + i * nodeHeightSpacing;
-        });
-    });
-
-    // Draw Column Headers
-    const headerGroup = g.append("g").attr("class", "doc-headers");
-    data.docs.forEach((docRef, docIndex) => {
-      const x = width * (docIndex + 1) / (numDocs + 1);
-      const isEu = docRef.id.toLowerCase().includes("eu") || docRef.label.toLowerCase().includes("eu");
-
-      const colHeader = headerGroup.append("g")
-        .attr("transform", `translate(${x}, ${padding - 35})`)
-        .style("cursor", "default");
-
-      colHeader.append("rect")
-        .attr("x", -70)
-        .attr("y", -14)
-        .attr("width", 140)
-        .attr("height", 28)
-        .attr("rx", 8)
-        .attr("fill", isEu ? "#f0f9ff" : "#f8fafc")
-        .attr("stroke", docColorFor(data.docs, docRef.id))
-        .attr("stroke-width", 1.5);
-
-      colHeader.append("text")
-        .attr("text-anchor", "middle")
-        .attr("y", 4)
-        .attr("fill", isEu ? "#0369a1" : "#334155")
-        .attr("font-size", "11px")
-        .attr("font-weight", "bold")
-        .text(docLabel(data.docs, docRef.id, t));
-    });
-
-    const docIndexOf = new Map(data.docs.map((d, i) => [d.id, i]));
-    const isLeftHalf = (docId: string) => (docIndexOf.get(docId) ?? 0) < numDocs / 2;
-
-    const nodeMap = new Map<string, GraphNode>();
-    filteredNodes.forEach(n => nodeMap.set(n.id, n));
-
-    const resolvedLinks = filteredLinks.map(l => {
-      const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
-      const targetId = typeof l.target === 'object' ? l.target.id : l.target;
-      return {
-        ...l,
-        source: nodeMap.get(sourceId) as GraphNode,
-        target: nodeMap.get(targetId) as GraphNode
-      };
-    }).filter(l => l.source && l.target);
-
-    // Initial Zoom to Fit calculation
-    const zoomToFit = (animate = false) => {
-      if (!svgRef.current || !zoomBehaviorRef.current || !containerRef.current) return;
-      if (selectedNodeRef.current) {
-        applyNodeSelection(selectedNodeRef.current, animate);
-        return;
-      }
-      const currentWidth = containerRef.current.clientWidth || 800;
-      const currentHeight = containerRef.current.clientHeight || 600;
-
-      const maxColumnNodes = Math.max(...Array.from(nodesByDoc.values()).map(arr => arr.length), 1);
-      const totalContentHeight = padding + maxColumnNodes * nodeHeightSpacing + 50;
-
-      const scaleY = (currentHeight - 50) / totalContentHeight;
-      const scaleX = (currentWidth - 50) / width;
-      const fitScale = Math.max(0.2, Math.min(scaleX, scaleY, 1.0));
-
-      const tx = (currentWidth - width * fitScale) / 2;
-      const ty = 15;
-
-      const targetTransform = d3.zoomIdentity.translate(tx, ty).scale(fitScale);
-
-      if (animate) {
-        d3.select(svgRef.current)
-          .transition()
-          .duration(350)
-          .call(zoomBehaviorRef.current.transform, targetTransform);
-      } else {
-        d3.select(svgRef.current).call(zoomBehaviorRef.current.transform, targetTransform);
-      }
-    };
-
-    zoomToFitRef.current = zoomToFit;
-
-    const link = g.append("g")
-      .selectAll("path.citation-link")
-      .data(resolvedLinks)
-      .join("path")
-      .attr("class", "citation-link")
-      .attr("d", d => {
-        const s = d.source as GraphNode;
-        const t = d.target as GraphNode;
-        if (!s || !t || s.x === undefined || s.y === undefined || t.x === undefined || t.y === undefined) return "";
-        
-        // Intra-column (same document citation)
-        if (Math.abs(s.x - t.x) < 5) {
-          const left = isLeftHalf(s.doc);
-          const dy = Math.abs(t.y - s.y);
-          const curveRadius = Math.max(30, Math.min(dy * 0.4, 75));
-          const offset = left ? -curveRadius : curveRadius;
-          return `M${s.x},${s.y} C${s.x + offset},${s.y} ${s.x + offset},${t.y} ${t.x},${t.y}`;
-        }
-
-        // Inter-column (cross-document citation)
-        const dx = t.x - s.x;
-        const cp1x = s.x + dx * 0.45;
-        const cp2x = t.x - dx * 0.45;
-        return `M${s.x},${s.y} C${cp1x},${s.y} ${cp2x},${t.y} ${t.x},${t.y}`;
-      })
-      .attr("fill", "none")
-      .attr("stroke", d => modalityColor(d.modality))
-      .attr("stroke-opacity", 0)
-      .attr("stroke-width", 1.8)
-      .attr("stroke-dasharray", d => d.modality === "Exception" ? "4, 2" : "none")
-      .attr("marker-end", d => `url(#arrow-${d.modality.toLowerCase()})`)
-      .style("cursor", "pointer");
-
-    // Fade links in smoothly on (re)draw
-    link.transition().duration(300).attr("stroke-opacity", 0.5);
-
-    // Link hover interactions
-    link.on("mouseenter", (event, d) => {
-      if (!tooltipRef.current || !d || !d.source || !d.target) return;
-      const s = d.source as GraphNode;
-      const tNode = d.target as GraphNode;
-      const [mx, my] = d3.pointer(event, containerRef.current);
-      
-      const tooltip = d3.select(tooltipRef.current);
-      tooltip
-        .style("display", "block")
-        .style("left", `${mx + 12}px`)
-        .style("top", `${my + 12}px`)
-        .html(`
-          <div class="font-bold text-sky-400 text-xs mb-1">${s.label || s.id} ⟷ ${tNode.label || tNode.id}</div>
-          <div class="text-[11px] text-slate-300">
-            <span class="font-semibold text-amber-400">${t(d.modality.toLowerCase() as TranslationKey)}</span>
-            ${d.snippet ? `<p class="mt-1 italic text-slate-400 leading-snug">"${d.snippet.slice(0, 120)}..."</p>` : ""}
-          </div>
-        `);
-    })
-    .on("mousemove", (event) => {
-      if (!tooltipRef.current) return;
-      const [mx, my] = d3.pointer(event, containerRef.current);
-      d3.select(tooltipRef.current)
-        .style("left", `${mx + 12}px`)
-        .style("top", `${my + 12}px`);
-    })
-    .on("mouseleave", () => {
-      if (!tooltipRef.current) return;
-      d3.select(tooltipRef.current).style("display", "none");
-    });
-
-    const node = g.append("g")
-      .selectAll<SVGGElement, GraphNode>("g.node")
-      .data(filteredNodes)
-      .join("g")
-      .attr("class", "node")
-      .attr("transform", d => `translate(${d.x || 0},${d.y || 0})`)
-      .style("cursor", "pointer")
-      .style("opacity", d => {
-        if (isFleetFiltered) {
-          return matchesFleetCriteria(d, fleetCriteria!) ? 1.0 : 0.2;
-        }
-        return 1.0;
-      });
-
-    // Draw Conflict Dual-Ring Halos
-    node.filter(d => conflictTargets.has(d.id))
-      .append("circle")
-      .attr("class", "conflict-halo")
-      .attr("r", d => {
-        const deg = degree[d.id] || 0;
-        return 6 + Math.min(deg * 0.8, 18) + 4;
-      })
-      .attr("fill", "none")
-      .attr("stroke", "#e11d48")
-      .attr("stroke-width", 1.5)
-      .attr("stroke-dasharray", "3, 2");
-
-    node.append("circle")
-      .attr("class", "primary-circle")
-      .attr("r", d => {
-        const deg = degree[d.id] || 0;
-        return 6 + Math.min(deg * 0.8, 18);
-      })
-      .attr("fill", d => docColorFor(data.docs, d.doc))
-      .attr("stroke", "#ffffff")
-      .attr("stroke-width", 1.5);
-
-    node.append("text")
-      .text(d => d.label)
-      .attr("x", d => isLeftHalf(d.doc) ? -15 : 15)
-      .attr("y", 4)
-      .attr("text-anchor", d => isLeftHalf(d.doc) ? "end" : "start")
-      .attr("fill", "#475569")
-      .attr("font-size", "11px")
-      .attr("font-weight", "600");
-
-    // Dedicated node selection and camera centering function
-    const applyNodeSelection = (targetNode: GraphNode | null, animate = true) => {
-      if (!svgRef.current || !containerRef.current) return;
-      const svg = d3.select(svgRef.current);
-
-      if (targetNode && targetNode.id) {
-        const selectedId = targetNode.id;
-        const connectedNodeIds = new Set<string>();
-        connectedNodeIds.add(selectedId);
-
-        const nodeDirections = new Map<string, "outgoing" | "incoming">();
-
-        resolvedLinks.forEach((l) => {
-          if (!l || !l.source || !l.target) return;
-          const sId = (l.source as GraphNode).id;
-          const tId = (l.target as GraphNode).id;
-          if (sId === selectedId) {
-            connectedNodeIds.add(tId);
-            nodeDirections.set(tId, "outgoing");
-          } else if (tId === selectedId) {
-            connectedNodeIds.add(sId);
-            nodeDirections.set(sId, "incoming");
-          }
-        });
-
-        // Hide unconnected links, keep same aesthetic for connected links
-        link
-          .style("display", (l) => {
-            if (!l || !l.source || !l.target) return "none";
-            const sId = (l.source as GraphNode).id;
-            const tId = (l.target as GraphNode).id;
-            return (sId === selectedId || tId === selectedId) ? "inline" : "none";
-          })
-          .style("stroke-opacity", (l) => {
-            if (!l || !l.source || !l.target) return 0;
-            const sId = (l.source as GraphNode).id;
-            const tId = (l.target as GraphNode).id;
-            return (sId === selectedId || tId === selectedId) ? 0.6 : 0;
-          })
-          .attr("stroke-width", 1.8)
-          .attr("marker-end", (d) => `url(#arrow-${d.modality.toLowerCase()})`);
-
-        // Hide unconnected nodes completely, display only connected nodes
-        node
-          .style("display", (n) => (n && n.id && connectedNodeIds.has(n.id)) ? "inline" : "none")
-          .style("opacity", (n) => (n && n.id && connectedNodeIds.has(n.id)) ? 1.0 : 0);
-
-        // Keep clean standard node text labels
-        node.select<SVGTextElement>("text")
-          .text((n) => (n && connectedNodeIds.has(n.id)) ? n.label : "")
-          .style("opacity", 1.0)
-          .style("font-size", "11px")
-          .style("font-weight", "600")
-          .attr("fill", (n) => (n && n.id === selectedId) ? "#0284c7" : "#475569");
-
-        // Primary circle styling - keep same clean aesthetic
-        node.select<SVGCircleElement>("circle.primary-circle")
-          .attr("stroke-width", (n) => (n && n.id === selectedId) ? 2.5 : 1.5)
-          .attr("stroke", (n) => (n && n.id === selectedId) ? "#0284c7" : "#ffffff");
-
-        // Conflict halos
-        node.select<SVGCircleElement>("circle.conflict-halo")
-          .style("display", (n) => (n && n.id && connectedNodeIds.has(n.id)) ? "inline" : "none");
-
-        // Center on selected node and zoom so furthest connected node is framed nicely
-        const centerNode = nodeMap.get(selectedId) || filteredNodes.find(n => n.id === selectedId);
-        const neighborNodes = filteredNodes.filter(n => n.id !== selectedId && connectedNodeIds.has(n.id));
-
-        if (centerNode && centerNode.x !== undefined && centerNode.y !== undefined && zoomBehaviorRef.current) {
-          const currentW = containerRef.current.clientWidth || 800;
-          const currentH = containerRef.current.clientHeight || 600;
-
-          const marginX = 130;
-          const marginY = 90;
-          const availHalfW = Math.max(currentW / 2 - marginX, 100);
-          const availHalfH = Math.max(currentH / 2 - marginY, 80);
-
-          let targetScale = 1.35;
-
-          if (neighborNodes.length > 0) {
-            let maxDx = 0;
-            let maxDy = 0;
-            for (const n of neighborNodes) {
-              if (n.x === undefined || n.y === undefined) continue;
-              const dx = Math.abs(n.x - centerNode.x);
-              const dy = Math.abs(n.y - centerNode.y);
-              if (dx > maxDx) maxDx = dx;
-              if (dy > maxDy) maxDy = dy;
-            }
-
-            if (maxDx > 0 || maxDy > 0) {
-              const scaleX = maxDx > 1 ? availHalfW / maxDx : Infinity;
-              const scaleY = maxDy > 1 ? availHalfH / maxDy : Infinity;
-              const fitScale = Math.min(scaleX, scaleY);
-              if (fitScale !== Infinity && !isNaN(fitScale)) {
-                targetScale = Math.max(0.65, Math.min(fitScale, 1.8));
-              }
-            }
-          }
-
-          const tx = currentW / 2 - centerNode.x * targetScale;
-          const ty = currentH / 2 - centerNode.y * targetScale;
-          const targetTransform = d3.zoomIdentity.translate(tx, ty).scale(targetScale);
-
-          if (animate) {
-            svg.transition().duration(400).call(zoomBehaviorRef.current.transform, targetTransform);
-          } else {
-            svg.call(zoomBehaviorRef.current.transform, targetTransform);
-          }
-        }
-      } else {
-        // Reset styling
-        link
-          .style("display", "inline")
-          .style("stroke-opacity", 0.5)
-          .attr("stroke-width", 1.8)
-          .attr("marker-end", (d) => `url(#arrow-${d.modality.toLowerCase()})`);
-
-        node
-          .style("display", "inline")
-          .style("opacity", (n) => {
-            if (!n) return 1.0;
-            if (isFleetFiltered) {
-              return matchesFleetCriteria(n, fleetCriteria!) ? 1.0 : 0.2;
-            }
-            return 1.0;
-          });
-
-        node.select<SVGTextElement>("text")
-          .text((n) => n ? n.label : "")
-          .style("opacity", 1.0)
-          .style("font-size", "11px")
-          .style("font-weight", "600")
-          .attr("fill", "#475569");
-
-        node.select<SVGCircleElement>("circle.primary-circle")
-          .attr("stroke-width", 1.5)
-          .attr("stroke", "#ffffff");
-
-        node.select<SVGCircleElement>("circle.conflict-halo")
-          .style("display", "inline");
-
-        if (animate && zoomToFitRef.current) {
-          zoomToFitRef.current(true);
-        }
-      }
-    };
-
-    applyNodeSelectionRef.current = applyNodeSelection;
-
-    node.on("click", (event, d) => {
-      event.stopPropagation();
-      setSelectedNode(d);
-    });
-
-    svg.on("click", (event) => {
-      if (event.target === svgRef.current || (event.target as HTMLElement).tagName === "svg") {
-        setSelectedNode(null);
-      }
-    });
-
-    node.on("mouseover", (event, d) => {
-      if (selectedNodeRef.current) return;
-      
-      const connectedNodeIds = new Set<string>();
-      connectedNodeIds.add(d.id);
-
-      link.style("stroke-opacity", l => {
-        const sId = (l.source as GraphNode).id;
-        const tId = (l.target as GraphNode).id;
-        if (sId === d.id) {
-          connectedNodeIds.add(tId);
-          return 1.0;
-        }
-        if (tId === d.id) {
-          connectedNodeIds.add(sId);
-          return 1.0;
-        }
-        return 0.05;
-      });
-
-      node.style("opacity", n => connectedNodeIds.has(n.id) ? 1.0 : 0.15);
-    });
-
-    node.on("mouseout", () => {
-      if (selectedNodeRef.current) return;
-      link.style("stroke-opacity", 0.5);
-      node.style("opacity", d => {
-        if (isFleetFiltered) {
-          return matchesFleetCriteria(d, fleetCriteria!) ? 1.0 : 0.2;
-        }
-        return 1.0;
-      });
-    });
-
-    // Initial positioning
-    if (selectedNodeRef.current) {
-      applyNodeSelection(selectedNodeRef.current, false);
-    } else {
-      zoomToFit(false);
-    }
-
-    const resizeObserver = new ResizeObserver((entries) => {
-      if (!entries || entries.length === 0) return;
-      const { width: newWidth, height: newHeight } = entries[0].contentRect;
-      if (newWidth === 0 || newHeight === 0) return;
-      svg.attr("viewBox", [0, 0, newWidth, newHeight]);
-      if (selectedNodeRef.current) {
-        applyNodeSelection(selectedNodeRef.current, false);
-      } else if (zoomToFitRef.current) {
-        zoomToFitRef.current(false);
-      }
-    });
-
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current);
-    }
-
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [data, activeDocFilter, activeCategoryFilter, searchQuery, isFleetFiltered, fleetCriteria, conflictTargets, setSelectedNode, t]);
-
-  const handleZoomIn = () => {
-    if (!svgRef.current || !zoomBehaviorRef.current) return;
-    d3.select(svgRef.current)
-      .transition()
-      .duration(250)
-      .call(zoomBehaviorRef.current.scaleBy, 1.3);
-  };
-
-  const handleZoomOut = () => {
-    if (!svgRef.current || !zoomBehaviorRef.current) return;
-    d3.select(svgRef.current)
-      .transition()
-      .duration(250)
-      .call(zoomBehaviorRef.current.scaleBy, 1 / 1.3);
-  };
-
-  const handleResetZoom = () => {
-    if (zoomToFitRef.current) {
-      zoomToFitRef.current(true);
-    }
-  };
-
-  const handleFocusNode = (nodeId: string) => {
-    if (!svgRef.current || !zoomBehaviorRef.current || !containerRef.current) return;
-    const gNodes = d3.select(svgRef.current).selectAll<SVGGElement, GraphNode>("g.node");
-    let targetNode: GraphNode | undefined;
-    gNodes.each(function(d) {
-      if (d.id === nodeId) {
-        targetNode = d;
-      }
-    });
-    if (!targetNode || targetNode.x === undefined || targetNode.y === undefined) return;
-    const width = containerRef.current.clientWidth || 800;
-    const height = containerRef.current.clientHeight || 600;
-    setSelectedNode(targetNode);
-    
-    const targetScale = 1.5;
-    const transform = d3.zoomIdentity
-      .translate(width / 2 - targetNode.x * targetScale, height / 2 - targetNode.y * targetScale)
-      .scale(targetScale);
-
-    d3.select(svgRef.current)
-      .transition()
-      .duration(500)
-      .call(zoomBehaviorRef.current.transform, transform);
-  };
-
-  const [isRightDrawerOpen, setIsRightDrawerOpen] = useState(false);
-  const [showDocText, setShowDocText] = useState(false);
-
-  useEffect(() => {
-    setShowDocText(false);
-  }, [selectedNode?.id]);
-
-  const nodeConnections = useMemo(() => {
-    if (!selectedNode) return [];
-    return data.links.filter(l => {
-      const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
-      const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
-      return s === selectedNode.id || t === selectedNode.id;
-    }).map(l => {
-      const sId = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
-      const tId = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
-      const isOutgoing = sId === selectedNode.id;
-      const otherNodeId = isOutgoing ? tId : sId;
-      const otherNode = data.nodes.find(n => n.id === otherNodeId);
-      return {
-        link: l,
-        isOutgoing,
-        otherNode
-      };
-    }).filter((item): item is { link: GraphLink; isOutgoing: boolean; otherNode: GraphNode } => item.otherNode !== undefined);
-  }, [selectedNode, data.links, data.nodes]);
-
-  return (
-    <div className="w-full h-full relative overflow-hidden bg-[#f8fafc]" ref={containerRef}>
-      <svg ref={svgRef} className="w-full h-full block" style={{ outline: 'none' }} />
-
-      {/* Floating Citation Tooltip */}
-      <div 
-        ref={tooltipRef} 
-        className="pointer-events-none absolute z-30 hidden px-3.5 py-2.5 text-xs bg-slate-900/95 text-white rounded-xl shadow-2xl border border-slate-700 max-w-sm backdrop-blur-xs transition-opacity duration-150"
-      />
 
       {/* Top Center Selected Node HUD Bar */}
       {selectedNode && (
@@ -745,7 +140,7 @@ function CitationGraphCanvas({
 
       {/* Floating Toggle Button on Right for Details / Connections Panel */}
       {selectedNode && !isRightDrawerOpen && (
-        <div className="absolute top-4 right-4 z-20 select-none">
+        <div className="absolute top-6 right-20 z-20 select-none">
           <button
             onClick={() => setIsRightDrawerOpen(true)}
             className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/95 hover:bg-white text-slate-800 border border-slate-200 shadow-md backdrop-blur-xs transition-all cursor-pointer hover:border-sky-400 group"
@@ -759,34 +154,19 @@ function CitationGraphCanvas({
         </div>
       )}
 
-      {/* Graph Canvas */}
-      <CitationGraphCanvas
-        data={data}
-        selectedNode={selectedNode}
-        activeDocFilter={activeDocFilter}
-        activeCategoryFilter={activeCategoryFilter}
-        searchQuery={searchQuery}
-        fleetCriteria={fleetCriteria}
-        setSelectedNode={setSelectedNode}
-        conflictTargets={conflictTargets}
-        t={t}
-      />
-
-      {/* Document Columns Legend / Quick Reference Bottom Panel */}
-      <div className="absolute bottom-4 left-4 z-10 flex flex-wrap gap-2 max-w-[calc(100vw-32px)] pointer-events-auto select-none">
-        {data.docs.map((doc) => {
-          const count = data.nodes.filter(n => n.doc === doc.id).length;
-          return (
-            <div
-              key={doc.id}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/90 border border-slate-200 shadow-2xs backdrop-blur-xs text-[11px] font-semibold text-slate-700"
-            >
-              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: docColorFor(data.docs, doc.id) }} />
-              <span className="truncate max-w-40">{docLabel(data.docs, doc.id, t)}</span>
-              <span className="text-[10px] text-slate-400 font-bold">({count})</span>
-            </div>
-          );
-        })}
+      {/* Main Canvas Area */}
+      <div className="flex-1 bg-[#f8fafc] overflow-hidden relative">
+        <CitationGraphCanvas 
+          data={data}
+          selectedNode={selectedNode}
+          activeDocFilter={activeDocFilter}
+          activeCategoryFilter={activeCategoryFilter}
+          searchQuery={searchQuery}
+          fleetCriteria={fleetCriteria}
+          setSelectedNode={setSelectedNode}
+          t={t}
+          lang={lang}
+        />
       </div>
 
       {/* Optional Details sidebar drawer — toggled via button */}
@@ -1087,6 +467,676 @@ function CitationGraphCanvas({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function CitationGraphCanvas({
+  data,
+  selectedNode,
+  activeDocFilter,
+  activeCategoryFilter,
+  searchQuery,
+  fleetCriteria,
+  setSelectedNode,
+  t,
+  lang = "da"
+}: CitationGraphViewProps) {
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
+  const zoomBehaviorRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const selectedNodeRef = useRef<GraphNode | null>(null);
+
+  const isFleetFiltered = fleetCriteria && (
+    fleetCriteria.vesselLength !== "all" ||
+    fleetCriteria.gearType !== "all" ||
+    fleetCriteria.seaArea !== "all"
+  );
+
+  const conflictTargets = useMemo(() => {
+    return new Set(
+      data.conflicts
+        .filter(c => {
+          const tNode = data.nodes.find(n => n.id === c.target);
+          return tNode && !tNode.external && !tNode.id.startsWith("external_");
+        })
+        .map(c => c.target)
+    );
+  }, [data.conflicts, data.nodes]);
+
+  const top10Nodes = useMemo(() => {
+    const nodes: GraphNode[] = data.nodes.map(n => ({ ...n }));
+    const links: GraphLink[] = data.links.map(l => ({
+      ...l,
+      source: typeof l.source === 'object' ? l.source.id : l.source,
+      target: typeof l.target === 'object' ? l.target.id : l.target
+    }));
+
+    const { filteredNodes, filteredLinks } = filterGraph(nodes, links, activeDocFilter, activeCategoryFilter, searchQuery);
+    const degree = computeDegree(filteredLinks);
+
+    return filteredNodes
+      .map(n => ({ ...n, degree: degree[n.id] || 0 }))
+      .sort((a, b) => (b.degree || 0) - (a.degree || 0))
+      .slice(0, 10);
+  }, [data, activeDocFilter, activeCategoryFilter, searchQuery]);
+
+  const applyNodeSelectionRef = useRef<((node: GraphNode | null, animate?: boolean) => void) | null>(null);
+  const zoomToFitRef = useRef<((animate?: boolean) => void) | null>(null);
+
+  useEffect(() => {
+    selectedNodeRef.current = selectedNode;
+    applyNodeSelectionRef.current?.(selectedNode, true);
+  }, [selectedNode]);
+
+  useEffect(() => {
+    if (!svgRef.current || !containerRef.current) return;
+    d3.select(svgRef.current).selectAll("*").remove();
+
+    const width = containerRef.current.clientWidth || 800;
+    const height = containerRef.current.clientHeight || 600;
+
+    const svg = d3.select(svgRef.current)
+      .attr("viewBox", [0, 0, width, height]);
+
+    // Arrowhead markers for citations
+    const defs = svg.append("defs");
+    MODALITY_LEGEND.forEach(({ modality, color }) => {
+      defs.append("marker")
+        .attr("id", `arrow-${modality.toLowerCase()}`)
+        .attr("viewBox", "0 -5 10 10")
+        .attr("refX", 16)
+        .attr("refY", 0)
+        .attr("markerWidth", 5)
+        .attr("markerHeight", 5)
+        .attr("orient", "auto")
+        .append("path")
+        .attr("d", "M0,-4L8,0L0,4")
+        .attr("fill", color);
+    });
+
+    const g = svg.append("g");
+
+    const zoom = d3.zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.1, 4])
+      .on("zoom", (event) => {
+        g.attr("transform", event.transform);
+      });
+    svg.call(zoom);
+    zoomBehaviorRef.current = zoom;
+
+    const nodes: GraphNode[] = data.nodes.map(n => ({ ...n }));
+    const links: GraphLink[] = data.links.map(l => ({
+      ...l,
+      source: typeof l.source === 'object' ? l.source.id : l.source,
+      target: typeof l.target === 'object' ? l.target.id : l.target
+    }));
+
+    const { filteredNodes, filteredLinks } = filterGraph(nodes, links, activeDocFilter, activeCategoryFilter, searchQuery);
+    const degree = computeDegree(filteredLinks);
+
+    const docOrder = data.docs.map(d => d.id);
+    const numDocs = Math.max(docOrder.length, 1);
+    const colSpacing = width / (numDocs + 1);
+
+    const nodeHeightSpacing = 36;
+    const padding = 50;
+
+    const nodesByDoc = new Map<string, GraphNode[]>();
+    docOrder.forEach(docId => nodesByDoc.set(docId, []));
+
+    filteredNodes.forEach(node => {
+      if (!nodesByDoc.has(node.doc)) {
+        nodesByDoc.set(node.doc, []);
+      }
+      nodesByDoc.get(node.doc)!.push(node);
+    });
+
+    nodesByDoc.forEach((docNodes) => {
+      docNodes.sort((a, b) => a.number - b.number);
+    });
+
+    // Compute column layouts
+    docOrder.forEach((docId, colIndex) => {
+      const colX = colSpacing * (colIndex + 1);
+      const docNodes = nodesByDoc.get(docId) || [];
+
+      // Column Header Group
+      const headerGroup = g.append("g")
+        .attr("transform", `translate(${colX}, 25)`)
+        .attr("class", "column-header");
+
+      headerGroup.append("circle")
+        .attr("r", 4.5)
+        .attr("cx", -8)
+        .attr("cy", -1)
+        .attr("fill", docColorFor(data.docs, docId));
+
+      headerGroup.append("text")
+        .text(docLabel(data.docs, docId, t))
+        .attr("x", 4)
+        .attr("y", 3)
+        .attr("text-anchor", "start")
+        .attr("fill", "#0f172a")
+        .attr("font-size", "12px")
+        .attr("font-weight", "bold");
+
+      // Position nodes
+      docNodes.forEach((node, rowIndex) => {
+        node.x = colX;
+        node.y = padding + rowIndex * nodeHeightSpacing;
+      });
+    });
+
+    const isLeftHalf = (docId: string) => {
+      const idx = docOrder.indexOf(docId);
+      return idx < numDocs / 2;
+    };
+
+    const nodeMap = new Map<string, GraphNode>();
+    filteredNodes.forEach(n => nodeMap.set(n.id, n));
+
+    const resolvedLinks = filteredLinks.map(l => {
+      const sourceId = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+      const targetId = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+      return {
+        ...l,
+        source: nodeMap.get(sourceId) as GraphNode,
+        target: nodeMap.get(targetId) as GraphNode
+      };
+    }).filter(l => l.source && l.target);
+
+    // Zoom to Fit calculation
+    const zoomToFit = (animate = false) => {
+      if (!svgRef.current || !zoomBehaviorRef.current || !containerRef.current) return;
+      if (selectedNodeRef.current) {
+        applyNodeSelection(selectedNodeRef.current, animate);
+        return;
+      }
+      const currentWidth = containerRef.current.clientWidth || 800;
+      const currentHeight = containerRef.current.clientHeight || 600;
+
+      const maxColumnNodes = Math.max(...Array.from(nodesByDoc.values()).map(arr => arr.length), 1);
+      const totalContentHeight = padding + maxColumnNodes * nodeHeightSpacing + 50;
+
+      const scaleY = (currentHeight - 50) / totalContentHeight;
+      const scaleX = (currentWidth - 50) / width;
+      const fitScale = Math.max(0.2, Math.min(scaleX, scaleY, 1.0));
+
+      const tx = (currentWidth - width * fitScale) / 2;
+      const ty = 15;
+
+      const targetTransform = d3.zoomIdentity.translate(tx, ty).scale(fitScale);
+
+      if (animate) {
+        d3.select(svgRef.current)
+          .transition()
+          .duration(350)
+          .call(zoomBehaviorRef.current.transform, targetTransform);
+      } else {
+        d3.select(svgRef.current).call(zoomBehaviorRef.current.transform, targetTransform);
+      }
+    };
+
+    zoomToFitRef.current = zoomToFit;
+
+    const link = g.append("g")
+      .selectAll("path.citation-link")
+      .data(resolvedLinks)
+      .join("path")
+      .attr("class", "citation-link")
+      .attr("d", d => {
+        const s = d.source as GraphNode;
+        const tNode = d.target as GraphNode;
+        if (!s || !tNode || s.x === undefined || s.y === undefined || tNode.x === undefined || tNode.y === undefined) return "";
+        
+        // Intra-column (same document citation)
+        if (Math.abs(s.x - tNode.x) < 5) {
+          const left = isLeftHalf(s.doc);
+          const dy = Math.abs(tNode.y - s.y);
+          const curveRadius = Math.max(30, Math.min(dy * 0.4, 75));
+          const offset = left ? -curveRadius : curveRadius;
+          return `M${s.x},${s.y} C${s.x + offset},${s.y} ${s.x + offset},${tNode.y} ${tNode.x},${tNode.y}`;
+        }
+
+        // Inter-column (cross-document citation)
+        const dx = tNode.x - s.x;
+        const cp1x = s.x + dx * 0.45;
+        const cp2x = tNode.x - dx * 0.45;
+        return `M${s.x},${s.y} C${cp1x},${s.y} ${cp2x},${tNode.y} ${tNode.x},${tNode.y}`;
+      })
+      .attr("fill", "none")
+      .attr("stroke", d => modalityColor(d.modality))
+      .attr("stroke-opacity", 0)
+      .attr("stroke-width", 1.8)
+      .attr("stroke-dasharray", d => d.modality === "Exception" ? "4, 2" : "none")
+      .attr("marker-end", d => `url(#arrow-${d.modality.toLowerCase()})`)
+      .style("cursor", "pointer");
+
+    // Fade links in smoothly on (re)draw
+    link.transition().duration(300).attr("stroke-opacity", 0.5);
+
+    // Link hover interactions
+    link.on("mouseenter", (event, d) => {
+      if (!tooltipRef.current || !d || !d.source || !d.target) return;
+      const s = d.source as GraphNode;
+      const tNode = d.target as GraphNode;
+      const [mx, my] = d3.pointer(event, containerRef.current);
+      
+      const tooltip = d3.select(tooltipRef.current);
+      tooltip
+        .style("display", "block")
+        .style("left", `${mx + 12}px`)
+        .style("top", `${my + 12}px`)
+        .html(`
+          <div class="font-bold text-sky-400 text-xs mb-1">${s.label || s.id} ⟷ ${tNode.label || tNode.id}</div>
+          <div class="text-[11px] text-slate-300">
+            <span class="font-semibold text-amber-400">${t(d.modality.toLowerCase() as TranslationKey)}</span>
+            ${d.snippet ? `<p class="mt-1 italic text-slate-400 leading-snug">"${d.snippet.slice(0, 120)}..."</p>` : ""}
+          </div>
+        `);
+    })
+    .on("mousemove", (event) => {
+      if (!tooltipRef.current) return;
+      const [mx, my] = d3.pointer(event, containerRef.current);
+      d3.select(tooltipRef.current)
+        .style("left", `${mx + 12}px`)
+        .style("top", `${my + 12}px`);
+    })
+    .on("mouseleave", () => {
+      if (!tooltipRef.current) return;
+      d3.select(tooltipRef.current).style("display", "none");
+    });
+
+    const node = g.append("g")
+      .selectAll<SVGGElement, GraphNode>("g.node")
+      .data(filteredNodes)
+      .join("g")
+      .attr("class", "node")
+      .attr("transform", d => `translate(${d.x || 0},${d.y || 0})`)
+      .style("cursor", "pointer")
+      .style("opacity", d => {
+        if (isFleetFiltered) {
+          return matchesFleetCriteria(d, fleetCriteria!) ? 1.0 : 0.2;
+        }
+        return 1.0;
+      });
+
+    // Draw Conflict Dual-Ring Halos
+    node.filter(d => conflictTargets.has(d.id))
+      .append("circle")
+      .attr("class", "conflict-halo")
+      .attr("r", d => {
+        const deg = degree[d.id] || 0;
+        return 6 + Math.min(deg * 0.8, 18) + 4;
+      })
+      .attr("fill", "none")
+      .attr("stroke", "#e11d48")
+      .attr("stroke-width", 1.5)
+      .attr("stroke-dasharray", "3, 2");
+
+    node.append("circle")
+      .attr("class", "primary-circle")
+      .attr("r", d => {
+        const deg = degree[d.id] || 0;
+        return 6 + Math.min(deg * 0.8, 18);
+      })
+      .attr("fill", d => docColorFor(data.docs, d.doc))
+      .attr("stroke", "#ffffff")
+      .attr("stroke-width", 1.5);
+
+    node.append("text")
+      .text(d => d.label)
+      .attr("x", d => isLeftHalf(d.doc) ? -15 : 15)
+      .attr("y", 4)
+      .attr("text-anchor", d => isLeftHalf(d.doc) ? "end" : "start")
+      .attr("fill", "#475569")
+      .attr("font-size", "11px")
+      .attr("font-weight", "600");
+
+    // Dedicated node selection and camera centering function
+    const applyNodeSelection = (targetNode: GraphNode | null, animate = true) => {
+      if (!svgRef.current || !containerRef.current) return;
+      const svgEl = d3.select(svgRef.current);
+
+      if (targetNode && targetNode.id) {
+        const selectedId = targetNode.id;
+        const connectedNodeIds = new Set<string>();
+        connectedNodeIds.add(selectedId);
+
+        resolvedLinks.forEach((l) => {
+          if (!l || !l.source || !l.target) return;
+          const sId = (l.source as GraphNode).id;
+          const tId = (l.target as GraphNode).id;
+          if (sId === selectedId) {
+            connectedNodeIds.add(tId);
+          } else if (tId === selectedId) {
+            connectedNodeIds.add(sId);
+          }
+        });
+
+        // Hide unconnected links, keep same aesthetic for connected links
+        link
+          .style("display", (l) => {
+            if (!l || !l.source || !l.target) return "none";
+            const sId = (l.source as GraphNode).id;
+            const tId = (l.target as GraphNode).id;
+            return (sId === selectedId || tId === selectedId) ? "inline" : "none";
+          })
+          .style("stroke-opacity", (l) => {
+            if (!l || !l.source || !l.target) return 0;
+            const sId = (l.source as GraphNode).id;
+            const tId = (l.target as GraphNode).id;
+            return (sId === selectedId || tId === selectedId) ? 0.6 : 0;
+          })
+          .attr("stroke-width", 1.8)
+          .attr("marker-end", (d) => `url(#arrow-${d.modality.toLowerCase()})`);
+
+        // Hide unconnected nodes completely, display only connected nodes
+        node
+          .style("display", (n) => (n && n.id && connectedNodeIds.has(n.id)) ? "inline" : "none")
+          .style("opacity", (n) => (n && n.id && connectedNodeIds.has(n.id)) ? 1.0 : 0);
+
+        // Keep clean standard node text labels
+        node.select<SVGTextElement>("text")
+          .text((n) => (n && connectedNodeIds.has(n.id)) ? n.label : "")
+          .style("opacity", 1.0)
+          .style("font-size", "11px")
+          .style("font-weight", "600")
+          .attr("fill", (n) => (n && n.id === selectedId) ? "#0284c7" : "#475569");
+
+        // Primary circle styling - keep same clean aesthetic
+        node.select<SVGCircleElement>("circle.primary-circle")
+          .attr("stroke-width", (n) => (n && n.id === selectedId) ? 2.5 : 1.5)
+          .attr("stroke", (n) => (n && n.id === selectedId) ? "#0284c7" : "#ffffff");
+
+        // Conflict halos
+        node.select<SVGCircleElement>("circle.conflict-halo")
+          .style("display", (n) => (n && n.id && connectedNodeIds.has(n.id)) ? "inline" : "none");
+
+        // Center on selected node and zoom so furthest connected node is framed nicely
+        const centerNode = nodeMap.get(selectedId) || filteredNodes.find(n => n.id === selectedId);
+        const neighborNodes = filteredNodes.filter(n => n.id !== selectedId && connectedNodeIds.has(n.id));
+
+        if (centerNode && centerNode.x !== undefined && centerNode.y !== undefined && zoomBehaviorRef.current) {
+          const currentW = containerRef.current.clientWidth || 800;
+          const currentH = containerRef.current.clientHeight || 600;
+
+          const marginX = 130;
+          const marginY = 90;
+          const availHalfW = Math.max(currentW / 2 - marginX, 100);
+          const availHalfH = Math.max(currentH / 2 - marginY, 80);
+
+          let targetScale = 1.35;
+
+          if (neighborNodes.length > 0) {
+            let maxDx = 0;
+            let maxDy = 0;
+            for (const n of neighborNodes) {
+              if (n.x === undefined || n.y === undefined) continue;
+              const dx = Math.abs(n.x - centerNode.x);
+              const dy = Math.abs(n.y - centerNode.y);
+              if (dx > maxDx) maxDx = dx;
+              if (dy > maxDy) maxDy = dy;
+            }
+
+            if (maxDx > 0 || maxDy > 0) {
+              const scaleX = maxDx > 1 ? availHalfW / maxDx : Infinity;
+              const scaleY = maxDy > 1 ? availHalfH / maxDy : Infinity;
+              const fitScale = Math.min(scaleX, scaleY);
+              if (fitScale !== Infinity && !isNaN(fitScale)) {
+                targetScale = Math.max(0.65, Math.min(fitScale, 1.8));
+              }
+            }
+          }
+
+          const tx = currentW / 2 - centerNode.x * targetScale;
+          const ty = currentH / 2 - centerNode.y * targetScale;
+          const targetTransform = d3.zoomIdentity.translate(tx, ty).scale(targetScale);
+
+          if (animate) {
+            svgEl.transition().duration(400).call(zoomBehaviorRef.current.transform, targetTransform);
+          } else {
+            svgEl.call(zoomBehaviorRef.current.transform, targetTransform);
+          }
+        }
+      } else {
+        // Reset styling
+        link
+          .style("display", "inline")
+          .style("stroke-opacity", 0.5)
+          .attr("stroke-width", 1.8)
+          .attr("marker-end", (d) => `url(#arrow-${d.modality.toLowerCase()})`);
+
+        node
+          .style("display", "inline")
+          .style("opacity", (n) => {
+            if (!n) return 1.0;
+            if (isFleetFiltered) {
+              return matchesFleetCriteria(n, fleetCriteria!) ? 1.0 : 0.2;
+            }
+            return 1.0;
+          });
+
+        node.select<SVGTextElement>("text")
+          .text((n) => n ? n.label : "")
+          .style("opacity", 1.0)
+          .style("font-size", "11px")
+          .style("font-weight", "600")
+          .attr("fill", "#475569");
+
+        node.select<SVGCircleElement>("circle.primary-circle")
+          .attr("stroke-width", 1.5)
+          .attr("stroke", "#ffffff");
+
+        node.select<SVGCircleElement>("circle.conflict-halo")
+          .style("display", "inline");
+
+        if (animate && zoomToFitRef.current) {
+          zoomToFitRef.current(true);
+        }
+      }
+    };
+
+    applyNodeSelectionRef.current = applyNodeSelection;
+
+    node.on("click", (event, d) => {
+      event.stopPropagation();
+      setSelectedNode(d);
+    });
+
+    svg.on("click", (event) => {
+      if (event.target === svgRef.current || (event.target as HTMLElement).tagName === "svg") {
+        setSelectedNode(null);
+      }
+    });
+
+    node.on("mouseover", (event, d) => {
+      if (selectedNodeRef.current) return;
+      
+      const connectedNodeIds = new Set<string>();
+      connectedNodeIds.add(d.id);
+
+      link.style("stroke-opacity", l => {
+        const sId = (l.source as GraphNode).id;
+        const tId = (l.target as GraphNode).id;
+        if (sId === d.id) {
+          connectedNodeIds.add(tId);
+          return 1.0;
+        }
+        if (tId === d.id) {
+          connectedNodeIds.add(sId);
+          return 1.0;
+        }
+        return 0.05;
+      });
+
+      node.style("opacity", n => connectedNodeIds.has(n.id) ? 1.0 : 0.15);
+    });
+
+    node.on("mouseout", () => {
+      if (selectedNodeRef.current) return;
+      link.style("stroke-opacity", 0.5);
+      node.style("opacity", d => {
+        if (isFleetFiltered) {
+          return matchesFleetCriteria(d, fleetCriteria!) ? 1.0 : 0.2;
+        }
+        return 1.0;
+      });
+    });
+
+    // Initial positioning
+    if (selectedNodeRef.current) {
+      applyNodeSelection(selectedNodeRef.current, false);
+    } else {
+      zoomToFit(false);
+    }
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (!entries || entries.length === 0) return;
+      const { width: newWidth, height: newHeight } = entries[0].contentRect;
+      if (newWidth === 0 || newHeight === 0) return;
+      svg.attr("viewBox", [0, 0, newWidth, newHeight]);
+      if (selectedNodeRef.current) {
+        applyNodeSelection(selectedNodeRef.current, false);
+      } else if (zoomToFitRef.current) {
+        zoomToFitRef.current(false);
+      }
+    });
+
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [data, activeDocFilter, activeCategoryFilter, searchQuery, isFleetFiltered, fleetCriteria, conflictTargets, setSelectedNode, t]);
+
+  const handleZoomIn = () => {
+    if (!svgRef.current || !zoomBehaviorRef.current) return;
+    d3.select(svgRef.current)
+      .transition()
+      .duration(250)
+      .call(zoomBehaviorRef.current.scaleBy, 1.3);
+  };
+
+  const handleZoomOut = () => {
+    if (!svgRef.current || !zoomBehaviorRef.current) return;
+    d3.select(svgRef.current)
+      .transition()
+      .duration(250)
+      .call(zoomBehaviorRef.current.scaleBy, 1 / 1.3);
+  };
+
+  const handleResetZoom = () => {
+    if (zoomToFitRef.current) {
+      zoomToFitRef.current(true);
+    }
+  };
+
+  const handleFocusNode = (nodeId: string) => {
+    if (!svgRef.current || !zoomBehaviorRef.current || !containerRef.current) return;
+    const gNodes = d3.select(svgRef.current).selectAll<SVGGElement, GraphNode>("g.node");
+    let targetNode: GraphNode | undefined;
+    gNodes.each(function(d) {
+      if (d.id === nodeId) {
+        targetNode = d;
+      }
+    });
+    if (!targetNode || targetNode.x === undefined || targetNode.y === undefined) return;
+    const width = containerRef.current.clientWidth || 800;
+    const height = containerRef.current.clientHeight || 600;
+    setSelectedNode(targetNode);
+    
+    const targetScale = 1.5;
+    const transform = d3.zoomIdentity
+      .translate(width / 2 - targetNode.x * targetScale, height / 2 - targetNode.y * targetScale)
+      .scale(targetScale);
+
+    d3.select(svgRef.current)
+      .transition()
+      .duration(500)
+      .call(zoomBehaviorRef.current.transform, transform);
+  };
+
+  return (
+    <div className="w-full h-full relative overflow-hidden bg-[#f8fafc]" ref={containerRef}>
+      <svg ref={svgRef} className="w-full h-full block" style={{ outline: 'none' }} />
+
+      {/* Floating Citation Tooltip */}
+      <div 
+        ref={tooltipRef} 
+        className="pointer-events-none absolute z-30 hidden px-3.5 py-2.5 text-xs bg-slate-900/95 text-white rounded-xl shadow-2xl border border-slate-700 max-w-sm backdrop-blur-xs transition-opacity duration-150"
+      />
+
+      {/* Zoom HUD Controls & Important Articles */}
+      <div className="absolute top-6 right-6 flex flex-col gap-2 z-10 select-none">
+        <div className="flex flex-col gap-1.5 bg-white/95 border border-slate-200 p-1.5 rounded-xl backdrop-blur-xs shadow-sm">
+          <button 
+            onClick={handleZoomIn}
+            className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm font-semibold flex items-center justify-center transition-all cursor-pointer border border-slate-200 text-slate-800 shadow-2xs"
+            title="Zoom ind"
+          >
+            +
+          </button>
+          <button 
+            onClick={handleZoomOut}
+            className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm font-semibold flex items-center justify-center transition-all cursor-pointer border border-slate-200 text-slate-800 shadow-2xs"
+            title="Zoom ud"
+          >
+            &minus;
+          </button>
+          <button 
+            onClick={handleResetZoom}
+            className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 text-[10px] font-semibold flex items-center justify-center transition-all cursor-pointer border border-slate-200 text-slate-600 shadow-2xs"
+            title="Nulstil zoom"
+          >
+            Reset
+          </button>
+        </div>
+
+        {/* Top 10 nodes */}
+        {top10Nodes.length > 0 && (
+          <div className="flex flex-col gap-1.5 bg-white/95 border border-slate-200 p-2 rounded-xl backdrop-blur-xs shadow-sm max-h-[calc(100vh-250px)] overflow-y-auto">
+            <div className="text-[10px] uppercase font-bold text-slate-400 text-center mb-0.5">
+              Top 10
+            </div>
+            {top10Nodes.map(node => (
+              <button
+                key={node.id}
+                onClick={() => handleFocusNode(node.id)}
+                className={`w-8 h-8 rounded-lg text-xs font-semibold flex items-center justify-center transition-all cursor-pointer border text-center ${
+                  selectedNode?.id === node.id 
+                    ? "bg-slate-900 text-white border-slate-900 shadow-xs" 
+                    : "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 shadow-2xs"
+                }`}
+                title={`Art. ${node.number}: ${node.title} (${node.degree} links)`}
+              >
+                {node.number}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Document Columns Legend / Quick Reference Bottom Panel */}
+      <div className="absolute bottom-4 left-4 z-10 flex flex-wrap gap-2 max-w-[calc(100vw-32px)] pointer-events-auto select-none">
+        {data.docs.map((doc) => {
+          const count = data.nodes.filter(n => n.doc === doc.id).length;
+          return (
+            <div
+              key={doc.id}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/90 border border-slate-200 shadow-2xs backdrop-blur-xs text-[11px] font-semibold text-slate-700"
+            >
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: docColorFor(data.docs, doc.id) }} />
+              <span className="truncate max-w-40">{docLabel(data.docs, doc.id, t)}</span>
+              <span className="text-[10px] text-slate-400 font-bold">({count})</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
