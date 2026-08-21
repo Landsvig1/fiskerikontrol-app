@@ -1,6 +1,7 @@
 import { GraphNode, GraphLink, ConflictRecord, DocRef } from "./types";
 import { docLabel } from "./docDisplay";
 import { formatConflictDescription, themeLabel } from "./labels";
+import { nodeJurisdiction } from "./jurisdiction";
 
 export interface ConnectionExplanation {
   headline: string;
@@ -28,8 +29,8 @@ export function explainConnection(
   const selectedDocTitle = docLabel(docs, selectedNode.doc, (k) => k);
   const otherDocTitle = docLabel(docs, otherNode.doc, (k) => k);
 
-  const isEuSelected = selectedNode.doc.toLowerCase().includes("eu") || selectedNode.label.toLowerCase().includes("eu");
-  const isEuOther = otherNode.doc.toLowerCase().includes("eu") || otherNode.label.toLowerCase().includes("eu");
+  const isEuSelected = nodeJurisdiction(docs, selectedNode) === "eu";
+  const isEuOther = nodeJurisdiction(docs, otherNode) === "eu";
 
   // Check if there is an active recorded conflict between these two specific provisions
   const relevantConflict = conflicts.find((c) => {
@@ -80,6 +81,17 @@ export function explainConnection(
           summary = `Termer og begreber i ${selectedNode.label} fortolkes og anvendes i overensstemmelse med de legale definitioner fastlagt i ${otherNode.label}.`;
           legalRole = `Legal definition og begrebsapparat.`;
           break;
+        case "prohibition":
+          headline = `${selectedNode.label} forbyder forhold reguleret i ${otherNode.label}`;
+          summary = `Bestemmelsen i ${selectedNode.label} (${selectedDocTitle}) opstiller et forbud, der begrænser de handlinger eller aktiviteter, som ${otherNode.label} omhandler${themeNote}.`;
+          legalRole = `Forbudsbestemmelse (Negativ handlepligt).`;
+          break;
+        case "permission":
+          headline = `${selectedNode.label} giver adgang eller hjemmel efter ${otherNode.label}`;
+          summary = `Bestemmelsen i ${selectedNode.label} (${selectedDocTitle}) tillader en handling eller tildeler en beføjelse inden for rammerne af ${otherNode.label}${themeNote}.`;
+          legalRole = `Tilladelses- og hjemmelsbestemmelse (Fakultativ adgang).`;
+          break;
+        case "obligation":
         case "direct":
         default:
           headline = `${selectedNode.label} henviser direkte til ${otherNode.label}`;
@@ -105,6 +117,17 @@ export function explainConnection(
           summary = `${otherNode.label} fastsætter kontrol- og straffebestemmelser for overtrædelse af forpligtelserne i ${selectedNode.label}.`;
           legalRole = `Den valgte bestemmelse håndhæves via den forbundne kontrolregel.`;
           break;
+        case "prohibition":
+          headline = `${otherNode.label} forbyder forhold reguleret i ${selectedNode.label}`;
+          summary = `${otherNode.label} (${otherDocTitle}) opstiller et forbud, der begrænser rækkevidden af den valgte bestemmelse (${selectedNode.label}).`;
+          legalRole = `Den valgte bestemmelse er indskrænket af et forbud i den forbundne retsakt.`;
+          break;
+        case "permission":
+          headline = `${otherNode.label} tillader fravigelse af ${selectedNode.label}`;
+          summary = `${otherNode.label} (${otherDocTitle}) giver adgang til en handling eller beføjelse med udgangspunkt i den valgte bestemmelse (${selectedNode.label}).`;
+          legalRole = `Den valgte bestemmelse udgør rammen for en fakultativ adgang i den forbundne regel.`;
+          break;
+        case "obligation":
         case "direct":
         default:
           headline = `${otherNode.label} henviser til ${selectedNode.label}`;

@@ -4,8 +4,8 @@ import { GraphNode, GraphLink, ConflictRecord, DocRef } from "./types";
 
 describe("explainConnection", () => {
   const docs: DocRef[] = [
-    { id: "doc_eu", title: "EU 2023/2842", short: "EU", color: "#0284c7" },
-    { id: "doc_dk", title: "Bekendtgørelse 1224/2009", short: "DK", color: "#16a34a" }
+    { id: "doc_eu", label: "EU 2023/2842" },
+    { id: "doc_dk", label: "Bekendtgørelse 1224/2009" }
   ];
 
   const nodeA: GraphNode = {
@@ -49,7 +49,7 @@ describe("explainConnection", () => {
     const link: GraphLink = {
       source: nodeB.id,
       target: nodeA.id,
-      modality: "Direct"
+      modality: "Obligation"
     };
 
     const explanation = explainConnection(nodeA, nodeB, link, false, [], docs, "da");
