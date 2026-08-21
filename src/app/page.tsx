@@ -733,7 +733,9 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       .velocityDecay(0.4);
 
     // Pre-warm simulation so nodes expand into settled spacious positions before initial view calculation
-    for (let i = 0; i < 90; ++    // Zoom-to-fit calculation to ensure outer edges of the graph are visible in screen corners
+    for (let i = 0; i < 90; ++i) simulation.tick();
+
+    // Zoom-to-fit calculation to ensure outer edges of the graph are visible in screen corners
     const zoomToFit = (animate = false) => {
       if (!svgRef.current || !zoomBehaviorRef.current || !containerRef.current) return;
       if (selectedNodeRef.current) {
