@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { classifyDocLabel, docJurisdiction, nodeJurisdiction } from "./jurisdiction";
+import { classifyDocLabel, docJurisdiction, euSupremacyApplies, nodeJurisdiction } from "./jurisdiction";
 import type { DocRef } from "./docDisplay";
 import { PRESET_DOCUMENTS } from "./presetCorpus";
 
@@ -132,5 +132,52 @@ describe("classifyDocLabel against the bundled corpus", () => {
     // Guards the deliberate omission of "act" from the national markers.
     expect(classifyDocLabel("EU Delegated Act")).toBe("eu");
     expect(classifyDocLabel("Delegated Regulation (Control)")).toBe("eu");
+  });
+});
+
+describe("euSupremacyApplies", () => {
+  const docs: DocRef[] = [
+    { id: "doc0", label: "EU 1224/2009" },
+    { id: "doc1", label: "BEK 1197/2025" },
+    { id: "doc2", label: "EU 2023/2842" },
+    { id: "doc3", label: "Logbogbekendtgørelsen" },
+  ];
+  const node = (doc: string, label: string) => ({ doc, label });
+
+  it("holds when a national order derogates from an EU regulation", () => {
+    expect(euSupremacyApplies(docs, node("doc1", "§ 4"), node("doc0", "Art. 9"))).toBe(true);
+  });
+
+  it("does not hold between two EU regulations", () => {
+    expect(euSupremacyApplies(docs, node("doc2", "Art. 3"), node("doc0", "Art. 9"))).toBe(false);
+  });
+
+  it("does not hold between two national orders", () => {
+    expect(euSupremacyApplies(docs, node("doc3", "§ 2"), node("doc1", "§ 4"))).toBe(false);
+  });
+
+  it("does not hold when an EU regulation cites a national order", () => {
+    // The direction matters: EU law does not gain precedence from being the citing side.
+    expect(euSupremacyApplies(docs, node("doc0", "Art. 9"), node("doc1", "§ 4"))).toBe(false);
+  });
+
+  it("does not hold when either side classifies as unknown", () => {
+    const withUnknown: DocRef[] = [...docs, { id: "doc4", label: "Annex III" }];
+    expect(euSupremacyApplies(withUnknown, node("doc4", "Annex III"), node("doc0", "Art. 9"))).toBe(false);
+    expect(euSupremacyApplies(withUnknown, node("doc1", "§ 4"), node("doc4", "Annex III"))).toBe(false);
+  });
+
+  it("does not hold when the citing section is missing from the graph", () => {
+    // A conflict record can name a source node that was filtered out; absence is not evidence.
+    expect(euSupremacyApplies(docs, null, node("doc0", "Art. 9"))).toBe(false);
+    expect(euSupremacyApplies(docs, undefined, node("doc0", "Art. 9"))).toBe(false);
+  });
+
+  it("uses the authoritative preset type over a misleading label", () => {
+    const preset: DocRef[] = [
+      { id: "doc0", label: "Kontrolforordningen", type: "eu" },
+      { id: "doc1", label: "Fisheries Regulation Act", type: "lov" },
+    ];
+    expect(euSupremacyApplies(preset, node("doc1", "§ 4"), node("doc0", "Art. 9"))).toBe(true);
   });
 });

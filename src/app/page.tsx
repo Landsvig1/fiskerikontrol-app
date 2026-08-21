@@ -39,7 +39,7 @@ import { modalityColor, modalityBadgeClasses, MODALITY_LEGEND } from "@/lib/grap
 import { filterGraph, computeDegree } from "@/lib/graphFilter";
 import { docLabel, docColorFor, docBadgeStyle, DocRef } from "@/lib/docDisplay";
 import { explainConnection } from "@/lib/connectionExplainer";
-import { nodeJurisdiction } from "@/lib/jurisdiction";
+import { euSupremacyApplies } from "@/lib/jurisdiction";
 import { themeLabel, CANONICAL_PROCESS_ORDER } from "@/lib/labels";
 import {
   GraphNode,
@@ -2033,14 +2033,14 @@ function ConflictsView({
             const primaryCitation = record.citations[0];
             const sourceNode = primaryCitation ? nodeById.get(primaryCitation.source) : undefined;
             // Precedence is derived from the document labels, never from docId ordering.
-            const isTargetEu = nodeJurisdiction(data.docs, targetNode) === "eu";
-            const isSourceNational = sourceNode ? nodeJurisdiction(data.docs, sourceNode) === "national" : false;
+            // Same gate as the audit memo, so the screen and the memo cannot diverge.
+            const euSupremacy = euSupremacyApplies(data.docs, sourceNode, targetNode);
 
-            const precedenceBadgeText = isTargetEu && isSourceNational 
+            const precedenceBadgeText = euSupremacy
               ? (lang === "da" ? "⚖️ EU-forordning har forrang" : "⚖️ EU Regulation Takes Precedence")
               : (lang === "da" ? "⚖️ Retslig afklaring påkrævet" : "⚖️ Clarification Required");
 
-            const verdictText = isTargetEu && isSourceNational
+            const verdictText = euSupremacy
               ? (lang === "da"
                   ? `EU-forordningen (${targetNode.label}) er direkte gældende og har forrang over for dansk bekendtgørelse. Fiskeristyrelsens tilsyn kan ikke lovligt håndhæve en national dispensation i modstrid med EU-kravet, og fartøjer risikerer overtrædelsessag ved EU-inspektion eller ved landing i andre EU-medlemsstater.`
                   : `The EU regulation (${targetNode.label}) applies directly and supersedes Danish national orders. The Danish Fisheries Agency cannot lawfully enforce a national exemption that contradicts mandatory EU requirements.`)
@@ -2062,7 +2062,7 @@ function ConflictsView({
                         {lang === "da" ? "Modstrid: Krav vs. Undtagelse" : "Conflict: Rule vs. Exemption"}
                       </span>
                       <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md border shrink-0 ${
-                        isTargetEu && isSourceNational 
+                        euSupremacy
                           ? "bg-sky-100 text-sky-900 border-sky-300"
                           : "bg-amber-100 text-amber-900 border-amber-300"
                       }`}>

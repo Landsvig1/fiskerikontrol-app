@@ -92,18 +92,30 @@ describe("generateAuditMemoMarkdown", () => {
     expect(memo).toContain("Ingen direkte retskonflikter");
   });
 
-  it("keeps a conflict when only one side matches the fleet criteria", () => {
+  // A conflict survives the fleet filter when EITHER side is in scope: a gillnet operator
+  // still needs to see a trawl-specific derogation from a rule that binds them, and vice
+  // versa. nodes[0] is the cited target (Art. 9), nodes[1] the citing source (§ 3).
+  // "bomtrawl" puts a section out of scope for the passive_nets segment.
+  const passiveNets = { vesselLength: "all", gearType: "passive_nets", seaArea: "all" } as const;
+
+  it("keeps a conflict when only the source section matches the fleet criteria", () => {
     const data = mockData();
-    // Target is trawl-specific (out of scope for a gillnet operator), source stays generic.
     data.nodes[0].body = "Fartøjer med bomtrawl skal have VMS installeret.";
 
-    const memo = generateAuditMemoMarkdown({
-      data,
-      lang: "da",
-      criteria: { vesselLength: "all", gearType: "passive_nets", seaArea: "all" },
-    });
+    const memo = generateAuditMemoMarkdown({ data, lang: "da", criteria: passiveNets });
 
     expect(memo).toContain("Identificerede modsigelser / konflikter:** 1");
+    expect(memo).toContain("§ 3 ⟷ Art. 9");
+  });
+
+  it("keeps a conflict when only the target section matches the fleet criteria", () => {
+    const data = mockData();
+    data.nodes[1].body = "Uanset regler kan fartøjer med bomtrawl undtages.";
+
+    const memo = generateAuditMemoMarkdown({ data, lang: "da", criteria: passiveNets });
+
+    expect(memo).toContain("Identificerede modsigelser / konflikter:** 1");
+    expect(memo).toContain("§ 3 ⟷ Art. 9");
   });
 
   it("drops conflicts where neither side matches the fleet criteria", () => {
@@ -111,13 +123,10 @@ describe("generateAuditMemoMarkdown", () => {
     data.nodes[0].body = "Fartøjer med bomtrawl skal have VMS installeret.";
     data.nodes[1].body = "Uanset regler kan fartøjer med bomtrawl undtages.";
 
-    const memo = generateAuditMemoMarkdown({
-      data,
-      lang: "da",
-      criteria: { vesselLength: "all", gearType: "passive_nets", seaArea: "all" },
-    });
+    const memo = generateAuditMemoMarkdown({ data, lang: "da", criteria: passiveNets });
 
     expect(memo).toContain("Ingen direkte retskonflikter");
+    expect(memo).not.toContain("§ 3 ⟷ Art. 9");
   });
 });
 

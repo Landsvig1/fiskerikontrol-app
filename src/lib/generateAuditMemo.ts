@@ -1,5 +1,5 @@
 import { GraphData, GraphNode } from "./types";
-import { nodeJurisdiction } from "./jurisdiction";
+import { euSupremacyApplies } from "./jurisdiction";
 import { FleetFilterCriteria, matchesFleetCriteria } from "./fleetFilter";
 import { Lang } from "./i18n";
 
@@ -109,14 +109,10 @@ export function generateAuditMemoMarkdown(options: AuditMemoOptions): string {
       lines.push(`\n**${c.target.label} ${lang === "da" ? "lovtekst" : "text"}:**`);
       lines.push(`> "${c.target.body.slice(0, 300)}..."`);
       lines.push(`\n**${lang === "da" ? "Juridisk vurdering & forrang" : "Legal Assessment & Precedence"}:**`);
-      // EU supremacy is only a defensible claim when a national act cites an EU act. Asserting
-      // it for an EU-to-EU or national-to-national conflict is a confidently wrong legal
-      // statement in a document that carries the agency's letterhead. Same gate as the
-      // Conflicts view in page.tsx, so the memo and the screen cannot diverge.
-      const targetIsEu = nodeJurisdiction(data.docs, c.target) === "eu";
-      const sourceIsNational = nodeJurisdiction(data.docs, c.source) === "national";
+      // Same gate as the Conflicts view in page.tsx, so the memo and the screen cannot diverge.
+      const euSupremacy = euSupremacyApplies(data.docs, c.source, c.target);
       lines.push(
-        targetIsEu && sourceIsNational
+        euSupremacy
           ? (lang === "da"
               ? `Ved modstrid har EU-forordninger forrang frem for nationale bekendtgørelser (*EU-retlig forrang*). Sagsbehandlere og kontrolførere bør sikre, at nationale dispensationsbestemmelser ikke undergraver EU-harmoniserede kontrolkrav.`
               : `In case of contradiction, EU regulations take precedence over national orders (EU legal supremacy). Enforcement officers must verify national derogations conform to EU mandates.`)

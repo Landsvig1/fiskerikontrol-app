@@ -62,3 +62,23 @@ export function nodeJurisdiction(
   if (fromDoc !== "unknown") return fromDoc;
   return classifyDocLabel(node.label);
 }
+
+/**
+ * Decides whether the EU supremacy verdict is defensible for a single conflict pair.
+ *
+ * The claim only holds when a national instrument derogates from an EU one. Asserting it
+ * for an EU-to-EU or a national-to-national conflict is a confidently wrong legal statement
+ * in a document that carries the agency's letterhead, so the Conflicts view and the audit
+ * memo share this gate rather than each inlining the same two comparisons.
+ *
+ * A conflict record whose citing section is missing from the graph carries no evidence
+ * either way, so an absent source yields false.
+ */
+export function euSupremacyApplies(
+  docs: DocRef[],
+  source: { doc: string; label: string } | null | undefined,
+  target: { doc: string; label: string }
+): boolean {
+  if (!source) return false;
+  return nodeJurisdiction(docs, target) === "eu" && nodeJurisdiction(docs, source) === "national";
+}
