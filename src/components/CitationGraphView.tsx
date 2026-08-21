@@ -146,13 +146,13 @@ function CitationGraphCanvas({
       .slice(0, 10);
   }, [data, activeDocFilter, activeCategoryFilter, searchQuery]);
 
-  useEffect(() => {
-    selectedNodeRef.current = selectedNode;
-  }, [selectedNode]);
+  const prevSelectedNodeRef = useRef<GraphNode | null>(null);
 
   useEffect(() => {
-    if (!svgRef.current) return;
+    if (!svgRef.current || !containerRef.current) return;
     const svg = d3.select(svgRef.current);
+    const wasSelected = prevSelectedNodeRef.current;
+    prevSelectedNodeRef.current = selectedNode;
 
     if (selectedNode) {
       const connectedNodeIds = new Set<string>();
@@ -168,57 +168,77 @@ function CitationGraphCanvas({
         }
       });
 
-      // Highlight connected links and demote unconnected links
+      // Completely hide all unconnected links
       svg.selectAll<SVGPathElement, GraphLink>("path.citation-link")
-        .style("stroke-opacity", (l) => {
+        .style("display", (l) => {
           const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
           const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
-          return (sId === selectedNode.id || tId === selectedNode.id) ? 1.0 : 0.03;
+          return (sId === selectedNode.id || tId === selectedNode.id) ? "inline" : "none";
         })
-        .attr("stroke-width", (l) => {
-          const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
-          const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
-          return (sId === selectedNode.id || tId === selectedNode.id) ? 2.8 : 1.0;
-        })
-        .attr("marker-end", (l) => {
-          const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
-          const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
-          return (sId === selectedNode.id || tId === selectedNode.id) ? `url(#arrow-${l.modality.toLowerCase()})` : "none";
-        });
+        .style("stroke-opacity", 1.0)
+        .attr("stroke-width", 2.8)
+        .attr("marker-end", (l) => `url(#arrow-${l.modality.toLowerCase()})`);
 
-      // Highlight connected nodes, heavily demote unconnected nodes
+      // Completely hide all unconnected nodes, display only connected nodes
       svg.selectAll<SVGGElement, GraphNode>("g.node")
-        .style("opacity", (n) => {
-          return connectedNodeIds.has(n.id) ? 1.0 : 0.06;
-        });
+        .style("display", (n) => connectedNodeIds.has(n.id) ? "inline" : "none")
+        .style("opacity", 1.0);
 
       // Show crisp labels only on connected nodes
       svg.selectAll<SVGTextElement, GraphNode>("g.node text")
-        .style("opacity", (n) => connectedNodeIds.has(n.id) ? 1.0 : 0)
+        .style("opacity", 1.0)
         .style("font-weight", (n) => n.id === selectedNode.id ? "800" : "600")
-        .attr("fill", (n) => n.id === selectedNode.id ? "#0284c7" : "#334155");
+        .attr("fill", (n) => n.id === selectedNode.id ? "#0284c7" : "#1e293b");
 
       // Selected node focal ring
       svg.selectAll<SVGCircleElement, GraphNode>("circle.primary-circle")
-        .attr("stroke-width", (n) => n.id === selectedNode.id ? 3.5 : (connectedNodeIds.has(n.id) ? 2.2 : 1.0))
+        .attr("stroke-width", (n) => n.id === selectedNode.id ? 3.5 : 2.2)
         .attr("stroke", (n) => n.id === selectedNode.id ? "#0284c7" : "#ffffff");
 
       // Hide halos for unconnected nodes
       svg.selectAll<SVGCircleElement, GraphNode>("circle.conflict-halo")
-        .style("opacity", (n) => connectedNodeIds.has(n.id) ? 1.0 : 0);
+        .style("display", (n) => connectedNodeIds.has(n.id) ? "inline" : "none")
+        .style("opacity", 1.0);
+
+      // Smooth pan to center of focus with a slight zoom in
+      if (zoomBehaviorRef.current) {
+        let targetNode: GraphNode | undefined;
+        svg.selectAll<SVGGElement, GraphNode>("g.node").each(function(d) {
+          if (d.id === selectedNode.id) {
+            targetNode = d;
+          }
+        });
+
+        if (targetNode && targetNode.x !== undefined && targetNode.y !== undefined) {
+          const width = containerRef.current.clientWidth || 800;
+          const height = containerRef.current.clientHeight || 600;
+          const targetScale = 1.35;
+          const tx = width / 2 - targetNode.x * targetScale;
+          const ty = height / 2 - targetNode.y * targetScale;
+          const targetTransform = d3.zoomIdentity.translate(tx, ty).scale(targetScale);
+
+          svg.transition()
+            .duration(500)
+            .call(zoomBehaviorRef.current.transform, targetTransform);
+        }
+      }
     } else {
+      // Reset styling when no node is selected: restore all nodes and links
       svg.selectAll<SVGPathElement, GraphLink>("path.citation-link")
+        .style("display", "inline")
         .style("stroke-opacity", 0.5)
         .attr("stroke-width", 1.8)
         .attr("marker-end", (d) => `url(#arrow-${d.modality.toLowerCase()})`);
 
-      svg.selectAll<SVGGElement, GraphNode>("g.node").style("opacity", (d: unknown) => {
-        const n = d as GraphNode;
-        if (isFleetFiltered) {
-          return matchesFleetCriteria(n, fleetCriteria!) ? 1.0 : 0.2;
-        }
-        return 1.0;
-      });
+      svg.selectAll<SVGGElement, GraphNode>("g.node")
+        .style("display", "inline")
+        .style("opacity", (d: unknown) => {
+          const n = d as GraphNode;
+          if (isFleetFiltered) {
+            return matchesFleetCriteria(n, fleetCriteria!) ? 1.0 : 0.2;
+          }
+          return 1.0;
+        });
 
       svg.selectAll<SVGTextElement, GraphNode>("g.node text")
         .style("opacity", 1.0)
@@ -230,7 +250,13 @@ function CitationGraphCanvas({
         .attr("stroke", "#ffffff");
 
       svg.selectAll<SVGCircleElement, GraphNode>("circle.conflict-halo")
+        .style("display", "inline")
         .style("opacity", 1.0);
+
+      // Smoothly zoom back out if we were previously focused on a node
+      if (wasSelected && zoomToFitRef.current) {
+        zoomToFitRef.current(true);
+      }
     }
   }, [selectedNode, isFleetFiltered, fleetCriteria]);
 

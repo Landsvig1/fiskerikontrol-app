@@ -654,10 +654,14 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     selectedNodeRef.current = selectedNode;
   }, [selectedNode]);
 
+  const prevSelectedNodeRef = useRef<GraphNode | null>(null);
+
   // Secondary effect to handle persistent selections without resetting simulation
   useEffect(() => {
-    if (!svgRef.current) return;
+    if (!svgRef.current || !containerRef.current) return;
     const svg = d3.select(svgRef.current);
+    const wasSelected = prevSelectedNodeRef.current;
+    prevSelectedNodeRef.current = selectedNode;
 
     if (selectedNode) {
       const connectedNodeIds = new Set<string>();
@@ -673,47 +677,69 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
         }
       });
 
-      // Highlight connected links vibrantly and demote all others
+      // Completely hide all unconnected links, make connected links bold & vibrant
       svg.selectAll<SVGLineElement, GraphLink>("line")
-        .style("stroke-opacity", (l) => {
+        .style("display", (l) => {
           const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
           const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
-          return (sId === selectedNode.id || tId === selectedNode.id) ? 1.0 : 0.03;
+          return (sId === selectedNode.id || tId === selectedNode.id) ? "inline" : "none";
         })
-        .attr("stroke-width", (l) => {
-          const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
-          const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
-          return (sId === selectedNode.id || tId === selectedNode.id) ? 2.8 : 1.0;
-        });
+        .style("stroke-opacity", 1.0)
+        .attr("stroke-width", 2.8);
 
-      // Heavily demote unconnected nodes, emphasize connected nodes
+      // Completely hide all unconnected nodes, display only connected nodes
       svg.selectAll<SVGGElement, GraphNode>("g.node-group")
-        .style("opacity", (n) => {
-          return connectedNodeIds.has(n.id) ? 1.0 : 0.06;
-        });
+        .style("display", (n) => connectedNodeIds.has(n.id) ? "inline" : "none")
+        .style("opacity", 1.0);
 
       // Show crisp labels only on the connected subgraph
       svg.selectAll<SVGTextElement, GraphNode>("g.node-group text")
         .text((n) => connectedNodeIds.has(n.id) ? n.label : "")
-        .style("opacity", (n) => connectedNodeIds.has(n.id) ? 1.0 : 0)
+        .style("opacity", 1.0)
         .style("font-weight", (n) => n.id === selectedNode.id ? "800" : "600")
-        .attr("fill", (n) => n.id === selectedNode.id ? "#0284c7" : "#334155");
+        .attr("fill", (n) => n.id === selectedNode.id ? "#0284c7" : "#1e293b");
 
       // Selected node focal ring
       svg.selectAll<SVGCircleElement, GraphNode>("circle.primary-circle")
-        .attr("stroke-width", (n) => n.id === selectedNode.id ? 3.5 : (connectedNodeIds.has(n.id) ? 2.2 : 1.0))
+        .attr("stroke-width", (n) => n.id === selectedNode.id ? 3.5 : 2.2)
         .attr("stroke", (n) => n.id === selectedNode.id ? "#0284c7" : "#ffffff");
 
       // Hide halos for unconnected nodes
       svg.selectAll<SVGCircleElement, GraphNode>("circle.conflict-halo")
-        .style("opacity", (n) => connectedNodeIds.has(n.id) ? 1.0 : 0);
+        .style("display", (n) => connectedNodeIds.has(n.id) ? "inline" : "none")
+        .style("opacity", 1.0);
+
+      // Smooth pan to center of focus with a slight zoom in
+      if (zoomBehaviorRef.current) {
+        let targetNode: GraphNode | undefined;
+        svg.selectAll<SVGGElement, GraphNode>("g.node-group").each(function(d) {
+          if (d.id === selectedNode.id) {
+            targetNode = d;
+          }
+        });
+
+        if (targetNode && targetNode.x !== undefined && targetNode.y !== undefined) {
+          const width = containerRef.current.clientWidth || 800;
+          const height = containerRef.current.clientHeight || 600;
+          const targetScale = 1.35;
+          const tx = width / 2 - targetNode.x * targetScale;
+          const ty = height / 2 - targetNode.y * targetScale;
+          const targetTransform = d3.zoomIdentity.translate(tx, ty).scale(targetScale);
+
+          svg.transition()
+            .duration(500)
+            .call(zoomBehaviorRef.current.transform, targetTransform);
+        }
+      }
     } else {
-      // Reset styling when no node is selected
+      // Reset styling when no node is selected: restore all nodes and links to visible
       svg.selectAll<SVGLineElement, GraphLink>("line")
+        .style("display", "inline")
         .style("stroke-opacity", 0.4)
         .attr("stroke-width", 1.5);
 
       svg.selectAll<SVGGElement, GraphNode>("g.node-group")
+        .style("display", "inline")
         .style("opacity", (n) => {
           if (isFleetFiltered) {
             return matchesFleetCriteria(n, fleetCriteria!) ? 1.0 : 0.2;
@@ -732,7 +758,13 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
         .attr("stroke", "#ffffff");
 
       svg.selectAll<SVGCircleElement, GraphNode>("circle.conflict-halo")
+        .style("display", "inline")
         .style("opacity", 1.0);
+
+      // Smoothly zoom back out to full graph overview if we were previously focused on a node
+      if (wasSelected && zoomToFitRef.current) {
+        zoomToFitRef.current(true);
+      }
     }
   }, [selectedNode, isFleetFiltered, fleetCriteria, data.links]);
 
