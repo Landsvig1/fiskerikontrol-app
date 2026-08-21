@@ -1,10 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { matchesFleetCriteria, DEFAULT_FLEET_CRITERIA, FleetFilterCriteria } from "./fleetFilter";
-import { GraphNode } from "./parseDocuments";
+import { GraphNode } from "./types";
 
 function mockNode(label: string, title: string, body: string, theme: string = "Control"): GraphNode {
   return {
     id: `doc1_${label}`,
+    number: 0,
     doc: "doc1",
     label,
     title,

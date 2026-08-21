@@ -18,6 +18,8 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      // Legacy CommonJS one-off scripts from the pre-upload era; not part of the app build.
+      "scripts/**",
     ],
   },
 ];
