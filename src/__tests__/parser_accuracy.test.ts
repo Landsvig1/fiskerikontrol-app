@@ -24,6 +24,273 @@ describe("LexGraph Parser Accuracy & Citation Extraction", () => {
     });
   });
 
+  describe("Heading pattern election", () => {
+    it("prefers keyword-anchored headings over more numerous bare numeric lines", () => {
+      // Mirrors EU 1224/2009: 285 "Artikel N" headings competing with 481 bare "N." list
+      // items that are paragraph numbers *inside* those articles.
+      const text = `
+Artikel 1
+Genstand
+1.
+Denne forordning fastsaetter regler.
+2.
+Reglerne gaelder for alle fartoejer.
+3.
+Kommissionen kan vedtage regler.
+
+Artikel 2
+Anvendelsesomraade
+1.
+Forordningen finder anvendelse.
+2.
+Den gaelder ikke for fritidsfiskeri.
+3.
+Undtagelser fastsaettes saerskilt.
+      `;
+
+      const sections = parsePdfTextIntoSections(text, "doc0", "EU Test");
+      expect(sections).toHaveLength(2);
+      expect(sections[0].label).toBe("EU Test Art. 1");
+      expect(sections[1].label).toBe("EU Test Art. 2");
+      expect(sections[0].title).toBe("Genstand");
+    });
+
+    it("still uses bare numeric outlines when no keyword headings exist", () => {
+      const text = `
+1.
+Scope of this document.
+2.
+Definitions used throughout.
+3.
+Final provisions.
+      `;
+
+      const sections = parsePdfTextIntoSections(text, "doc0", "Outline Doc");
+      expect(sections).toHaveLength(3);
+      expect(sections[0].label).toBe("Outline Doc § 1");
+    });
+  });
+
+  describe("Lettered amendment articles", () => {
+    it("treats glued EU article suffixes as sections distinct from their base article", () => {
+      const text = `
+Artikel 15
+Elektronisk indsendelse
+Foereren indsender data.
+
+Artikel 15a
+Elektronisk fiskerilogbog
+Saerlige regler for smaa fartoejer.
+
+Artikel 16
+Stikproevekontrol
+Medlemsstaterne kontrollerer.
+      `;
+
+      const sections = parsePdfTextIntoSections(text, "doc0", "EU 1224/2009");
+      const ids = sections.map(s => s.id);
+      expect(ids).toContain("doc0_sec_15");
+      expect(ids).toContain("doc0_sec_15_a");
+      expect(sections.find(s => s.id === "doc0_sec_15_a")?.title).toBe("Elektronisk fiskerilogbog");
+      expect(sections.find(s => s.id === "doc0_sec_15")?.title).toBe("Elektronisk indsendelse");
+    });
+
+    it("handles the Danish space-separated paragraph suffix", () => {
+      const text = `
+§ 6
+Udvalget for Erhvervsfiskeri
+Udvalget raadgiver ministeren.
+
+§ 6 a
+Udvalget for Muslingeproduktion
+Udvalget raadgiver om muslinger.
+
+§ 7
+Ikrafttraeden
+Loven traeder i kraft.
+      `;
+
+      const sections = parsePdfTextIntoSections(text, "doc0", "LBK 205/2023");
+      const ids = sections.map(s => s.id);
+      expect(ids).toContain("doc0_sec_6");
+      expect(ids).toContain("doc0_sec_6_a");
+      expect(sections.find(s => s.id === "doc0_sec_6_a")?.label).toBe("LBK 205/2023 § 6 a");
+      expect(sections.find(s => s.id === "doc0_sec_6_a")?.title).toBe("Udvalget for Muslingeproduktion");
+    });
+
+    it("does not mistake a heading title's first letter for a suffix", () => {
+      const text = `
+§ 7
+Fiskeritilladelse
+Ministeren fastsaetter regler.
+
+§ 8
+Havbrug
+Reglerne gaelder ogsaa her.
+      `;
+
+      const sections = parsePdfTextIntoSections(text, "doc0", "BEK Test");
+      expect(sections.map(s => s.id)).toEqual(["doc0_sec_7", "doc0_sec_8"]);
+      expect(sections[0].title).toBe("Fiskeritilladelse");
+      expect(sections[1].title).toBe("Havbrug");
+    });
+  });
+
+  describe("Citation regex precision", () => {
+    it("does not read the Danish preposition 'i' as an article letter suffix", () => {
+      const docAText = `
+        Artikel 15
+        Indsendelse af logbogsdata.
+      `;
+      const docBText = `
+        Artikel 1
+        Forpligtelsen i artikel 15 i forordning (EU) nr. 1380/2013 finder anvendelse.
+      `;
+
+      const result = analyzeCitationsAndBuildGraph([
+        { text: docAText, label: "EU 1224/2009" },
+        { text: docBText, label: "BEK 1197/2025" },
+      ]);
+
+      expect(result.nodes.some(n => /_sec_15_i$/.test(n.id))).toBe(false);
+      expect(result.nodes.some(n => n.id === "doc0_sec_15")).toBe(true);
+    });
+
+    it("does not absorb the first letter of the cited article's own title", () => {
+      const docAText = `
+        Artikel 57
+        Faelles handelsnormer
+        Medlemsstaterne kontrollerer normerne.
+      `;
+      const docBText = `
+        Artikel 1
+        Reglerne i artikel 57 finder anvendelse.
+      `;
+
+      const result = analyzeCitationsAndBuildGraph([
+        { text: docAText, label: "Doc A" },
+        { text: docBText, label: "Doc B" },
+      ]);
+
+      expect(result.nodes.some(n => /_sec_57_f$/.test(n.id))).toBe(false);
+    });
+
+    it("still parses letter suffixes written without a space", () => {
+      const docAText = `
+        Artikel 2a
+        Kapacitetslofter.
+      `;
+      const docBText = `
+        Artikel 1
+        Som fastsat i artikel 2a gaelder saerlige regler.
+      `;
+
+      const result = analyzeCitationsAndBuildGraph([
+        { text: docAText, label: "Doc A" },
+        { text: docBText, label: "Doc B" },
+      ]);
+
+      const link = result.links.find(l => l.source === "doc1_sec_1");
+      expect(link).toBeDefined();
+      expect(link?.target).toMatch(/_sec_2_a$/);
+    });
+
+    it("does not treat Danish 'art' meaning species as an article reference", () => {
+      const docAText = `
+        Artikel 4
+        Definitioner.
+      `;
+      const docBText = `
+        Artikel 1
+        Der anvendes en tolerancemargen paa 20 % for hver art. 4 procent er graensen.
+      `;
+
+      const result = analyzeCitationsAndBuildGraph([
+        { text: docAText, label: "Doc A" },
+        { text: docBText, label: "Doc B" },
+      ]);
+
+      const bogus = result.links.find(l => l.source === "doc1_sec_1" && l.target === "doc0_sec_4");
+      expect(bogus).toBeUndefined();
+    });
+
+    it("still resolves the English 'Art. N' abbreviation", () => {
+      const docAText = `
+        Article 4
+        Definitions.
+      `;
+      const docBText = `
+        Article 1
+        As set out in Art. 4, operators shall comply.
+      `;
+
+      const result = analyzeCitationsAndBuildGraph([
+        { text: docAText, label: "Doc A" },
+        { text: docBText, label: "Doc B" },
+      ]);
+
+      const link = result.links.find(l => l.source === "doc1_sec_1" && l.target === "doc0_sec_4");
+      expect(link).toBeDefined();
+    });
+  });
+
+  describe("Cross-document flagging", () => {
+    it("marks links as cross-document when the citing and cited sections live in different docs", () => {
+      const docAText = `
+        Article 1
+        This defines the baseline weighing obligation.
+
+        Article 2
+        Vessels shall report catches.
+      `;
+
+      const docBText = `
+        Article 1
+        By way of derogation from Document A Article 1, small vessels are exempted.
+      `;
+
+      const result = analyzeCitationsAndBuildGraph([
+        { text: docAText, label: "Document A" },
+        { text: docBText, label: "Document B" },
+      ]);
+
+      const crossDocLinks = result.links.filter(l => l.isCrossDoc);
+      expect(crossDocLinks.length).toBeGreaterThan(0);
+
+      for (const link of crossDocLinks) {
+        const source = result.nodes.find(n => n.id === link.source);
+        const target = result.nodes.find(n => n.id === link.target);
+        expect(source?.doc).not.toBe(target?.doc);
+      }
+    });
+
+    it("does not flag same-document citations as cross-document", () => {
+      const docAText = `
+        Article 1
+        This defines the baseline.
+
+        Article 2
+        In accordance with Article 1, operators shall comply.
+      `;
+
+      const docBText = `
+        Article 1
+        Unrelated national provision.
+      `;
+
+      const result = analyzeCitationsAndBuildGraph([
+        { text: docAText, label: "Document A" },
+        { text: docBText, label: "Document B" },
+      ]);
+
+      const selfLink = result.links.find(
+        l => l.source === "doc0_sec_2" && l.target === "doc0_sec_1"
+      );
+      expect(selfLink).toBeDefined();
+      expect(selfLink?.isCrossDoc).toBe(false);
+    });
+  });
+
   describe("Citation Parsing and Modalities", () => {
     it("should parse nested sub-references (paragraph, litra)", () => {
       const docAText = `

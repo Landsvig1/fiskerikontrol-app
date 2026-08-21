@@ -15,9 +15,10 @@ interface HeadingPattern {
 
 /** Internal type — a parsed document section. */
 interface RawSection {
-  id: string;         // {docId}_sec_{number}
-  number: number;
-  label: string;      // "{userLabel} {prefix} {number}"
+  id: string;         // {docId}_sec_{number}[_{suffix}]
+  number: number;     // base number only; "Artikel 15a" and "Artikel 15" both carry 15
+  suffix: string | null;  // lettered amendment suffix: "a" in "Artikel 15a" / "§ 6 a"
+  label: string;      // "{userLabel} {prefix} {number}{suffix}"
   title: string;
   body: string;
   doc: string;         // docId
@@ -43,6 +44,7 @@ export interface GraphLink {
   modality: "Obligation" | "Exception" | "Prohibition" | "Permission";
   snippet: string;
   context: string;
+  isCrossDoc?: boolean;   // true when the citing and cited sections live in different documents
 }
 
 export interface OverlapRecord {
@@ -131,19 +133,26 @@ const THEMES: Record<string, { da: string[]; en: string[] }> = {
 const PATTERNS: HeadingPattern[] = [
   {
     name: "article",
-    regex: /(?:^|\n)[ \t]*((?:article|artikel)\s+(\d+))\b/gi,
+    // Amending acts insert lettered articles ("Artikel 2a", "Artikel 15b", "Artikel 92a").
+    // EU drafting glues the letter to the number, so no whitespace is allowed here — that
+    // would otherwise swallow the first letter of the article's own title.
+    regex: /(?:^|\n)[ \t]*((?:article|artikel)\s+(\d+)([a-z])?)\b/gi,
     prefix: "Art.",
     priority: 1,
   },
   {
     name: "section",
-    regex: /(?:^|\n)[ \t]*(section\s+(\d+))\b/gi,
+    regex: /(?:^|\n)[ \t]*(section\s+(\d+)([a-z])?)\b/gi,
     prefix: "Sec.",
     priority: 2,
   },
   {
     name: "paragraph",
-    regex: /(?:^|\n)[ \t]*(§\s*(\d+))\b/gi,
+    // Danish drafting separates the letter with a space ("§ 6 a"), unlike EU articles.
+    // [ \t]* (never \s*) keeps the letter on the same line so a following heading title or
+    // list item cannot be mistaken for a suffix, and [a-h] excludes the Danish preposition
+    // "i", which is a one-letter word and otherwise indistinguishable from a suffix.
+    regex: /(?:^|\n)[ \t]*(§\s*(\d+)(?:[ \t]*([a-h]))?)\b/gi,
     prefix: "§",
     priority: 3,
   },
@@ -160,6 +169,12 @@ const PATTERNS: HeadingPattern[] = [
     priority: 5,
   },
 ];
+
+// Bare-numeric patterns carry no anchoring keyword, so a match is only weak evidence of a
+// heading. Kept as a predicate so the election and the minimum-count rule stay in agreement.
+function isWeakPatternName(name: string): boolean {
+  return name === "hierarchical" || name === "numbered";
+}
 
 function detectTheme(title: string, body: string): string {
   const combined = (title + " " + body).toLowerCase();
@@ -214,20 +229,51 @@ export function parsePdfTextIntoSections(
     return count;
   });
 
-  // Pass 2 — select dominant pattern: highest count, tie → lowest priority number
-  let dominantIdx = -1;
-  let dominantCount = 0;
-  for (let i = 0; i < PATTERNS.length; i++) {
-    const c = counts[i];
-    if (c > dominantCount) {
-      dominantCount = c;
-      dominantIdx = i;
-    } else if (c === dominantCount && dominantIdx >= 0) {
-      // Tie-break: lower priority number wins
-      if (PATTERNS[i].priority < PATTERNS[dominantIdx].priority) {
-        dominantIdx = i;
+  // Pass 2 — select dominant pattern: highest count, tie → lowest priority number.
+  //
+  // Strong (keyword-anchored) and weak (bare-numeric) patterns are elected separately,
+  // because raw counts are not comparable across the two kinds. A line reading "Artikel 5"
+  // is unambiguous evidence of a heading; a line reading "5." is usually a paragraph number
+  // *inside* an article. EU 1224/2009 has 285 "Artikel N" headings and 481 bare "N." list
+  // items, so a single combined count elects the numeric pattern and shreds the regulation
+  // at its list items instead of its articles.
+  const electWithin = (indices: number[]): { idx: number; count: number } => {
+    let idx = -1;
+    let count = 0;
+    for (const i of indices) {
+      const c = counts[i];
+      if (c > count) {
+        count = c;
+        idx = i;
+      } else if (c === count && idx >= 0 && PATTERNS[i].priority < PATTERNS[idx].priority) {
+        // Tie-break: lower priority number wins
+        idx = i;
       }
     }
+    return { idx, count };
+  };
+
+  const strongIndices: number[] = [];
+  const weakIndices: number[] = [];
+  PATTERNS.forEach((p, i) => {
+    (isWeakPatternName(p.name) ? weakIndices : strongIndices).push(i);
+  });
+
+  const strong = electWithin(strongIndices);
+  const weak = electWithin(weakIndices);
+
+  let dominantIdx: number;
+  let dominantCount: number;
+  if (strong.count >= 2) {
+    // Two or more keyword-anchored headings: trust them over any amount of bare numbering.
+    ({ idx: dominantIdx, count: dominantCount } = strong);
+  } else if (weak.count >= 2) {
+    // No real keyword structure, but a consistent numeric outline — use it.
+    ({ idx: dominantIdx, count: dominantCount } = weak);
+  } else {
+    // Neither is established; fall back to whichever matched at all, preferring the
+    // keyword-anchored one so a single-article document still parses.
+    ({ idx: dominantIdx, count: dominantCount } = strong.count > 0 ? strong : weak);
   }
 
   // No pattern matched at all — dominantIdx is still -1, so there is no "dominant" pattern
@@ -249,7 +295,7 @@ export function parsePdfTextIntoSections(
   // guard against a single accidental numbered line being mistaken for a heading.
   // Strong keyword-anchored patterns (article/section/§) are trusted from a single match,
   // since real documents can legitimately consist of just one article/section.
-  const isWeakPattern = dominant.name === "hierarchical" || dominant.name === "numbered";
+  const isWeakPattern = isWeakPatternName(dominant.name);
   const minRequired = isWeakPattern ? 2 : 1;
 
   if (dominantCount < minRequired) {
@@ -279,13 +325,14 @@ export function parsePdfTextIntoSections(
     }
   }
 
-  const matchList: { number: number; displayNumber: string; index: number; end: number; prefix: string }[] = [];
+  const matchList: { number: number; suffix: string | null; displayNumber: string; index: number; end: number; prefix: string }[] = [];
   for (const p of selectedPatterns) {
     const re = new RegExp(p.regex.source, p.regex.flags);
     let m: RegExpExecArray | null;
     while ((m = re.exec(cleanText)) !== null) {
       let num: number;
       let displayNumber: string;
+      let suffix: string | null = null;
       if (p.name === "hierarchical") {
         // The "hierarchical" pattern captures decimal headings like "3.1": group 1 is the
         // full "N.M" text, group 2 the major number, group 3 the minor number. Using group 2
@@ -301,9 +348,11 @@ export function parsePdfTextIntoSections(
         displayNumber = m[1];
       } else {
         num = parseInt(m[2], 10);
-        displayNumber = m[2];
+        // "numbered" has no suffix group; article/section/paragraph capture it as group 3.
+        suffix = p.name === "numbered" ? null : (m[3] ? m[3].toLowerCase() : null);
+        displayNumber = suffix ? `${m[2]}${p.name === "paragraph" ? " " : ""}${suffix}` : m[2];
       }
-      matchList.push({ number: num, displayNumber, index: m.index, end: re.lastIndex, prefix: p.prefix });
+      matchList.push({ number: num, suffix, displayNumber, index: m.index, end: re.lastIndex, prefix: p.prefix });
     }
   }
 
@@ -328,8 +377,9 @@ export function parsePdfTextIntoSections(
     const body = bodyLines.join("\n");
 
     sections.push({
-      id: `${docId}_sec_${curr.number}`,
+      id: `${docId}_sec_${curr.number}${curr.suffix ? `_${curr.suffix}` : ""}`,
       number: curr.number,
+      suffix: curr.suffix,
       label: `${userLabel} ${curr.prefix} ${curr.displayNumber}`,
       title,
       body,
@@ -337,24 +387,43 @@ export function parsePdfTextIntoSections(
     });
   }
 
-  // Deduplication: keep longest body; on tie keep first occurrence
-  const byNum: Record<number, RawSection> = {};
+  // Deduplication: keep longest body; on tie keep first occurrence. Keyed on the full id
+  // rather than the bare number, so a lettered article ("Artikel 15a") is not collapsed into
+  // its base article ("Artikel 15") — they are distinct provisions.
+  const byId: Record<string, RawSection> = {};
   for (const sec of sections) {
-    if (!byNum[sec.number]) {
-      byNum[sec.number] = sec;
-    } else if (sec.body.length > byNum[sec.number].body.length) {
-      byNum[sec.number] = sec;
+    if (!byId[sec.id]) {
+      byId[sec.id] = sec;
+    } else if (sec.body.length > byId[sec.id].body.length) {
+      byId[sec.id] = sec;
     }
   }
 
-  return Object.keys(byNum)
-    .map(Number)
-    .sort((a, b) => a - b)
-    .map(num => byNum[num]);
+  return Object.values(byId).sort((a, b) => {
+    if (a.number !== b.number) return a.number - b.number;
+    return (a.suffix ?? "").localeCompare(b.suffix ?? "");
+  });
 }
 
 // Bilingual citation regex: matches article/artikel/art./section/sec./§/clause/chapter/annex/bilag + number + optional paragraph + optional sub-references (litra/point/lit./nr.)
-const CITATION_RE = /(?:\b(?:artiklerne|artikels|artikler|artiklen|artikel|articles|article|art\.|arts\.|art|sections|section|sec\.|secs\.|sec|paragraf|paragraffer|klausul|clause|kapitel|kap\.|chapter|ch\.|annex|bilag|schedule)\s*|§§?\s*)(\d+)\s*([a-z])?(?:\s*,\s*(?:paragraph|stk\.|stk|stykke|para\.)\s*(\d+))?(?:\s*,\s*(?:litra|point|lit\.|nr\.|nr)\s*\(?([a-z0-9]+)\)?)?\b/gi;
+// The letter suffix must be glued to the number ("Artikel 2a", "Artikel 15b"). Allowing
+// whitespace between them made the regex swallow whatever word followed the citation: the
+// first letter of the article's own title ("Artikel 57\nFælles handelsnormer" -> "57f"), the
+// next list item ("jf. artikel 68\nn)" -> "68n"), and above all the Danish preposition "i"
+// in the single most valuable citation form in this corpus -- "artikel 15 i forordning (EU)
+// nr. 1380/2013", the cross-document reference, was being read as "Article 15i".
+//
+// "art"/"art." is deliberately restricted: in Danish fisheries text "art" means *species*
+// ("tolerancemargen 20 % for hver art"), and across the EU corpus every bare "art. N" match
+// was that noun rather than an article reference, while "artikel N" occurs 700+ times per
+// document. The lookbehind keeps English "Art. 4" working without re-admitting the noun.
+const ART_ABBREV_GUARD = String.raw`(?<!\b(?:hver|den|denne|samme|en|et|nogen|ingen|anden|andre|hvilken|enhver)\s)`;
+const CITATION_RE = new RegExp(
+  String.raw`(?:\b(?:artiklerne|artikels|artikler|artiklen|artikel|articles|article|sections|section|sec\.|secs\.|sec|paragraf|paragraffer|klausul|clause|kapitel|kap\.|chapter|ch\.|annex|bilag|schedule)\s*|` +
+    ART_ABBREV_GUARD + String.raw`\b(?:arts\.|art\.)\s*|§§?\s*)` +
+    String.raw`(\d+)([a-z])?(?:\s*,\s*(?:paragraph|stk\.|stk|stykke|para\.)\s*(\d+))?(?:\s*,\s*(?:litra|point|lit\.|nr\.|nr)\s*\(?([a-z0-9]+)\)?)?\b`,
+  "gi"
+);
 
 // Bilingual modality signal regexes — evaluated in priority order: Exception → Prohibition → Permission → Obligation
 const EXCEPTION_RE = /\b(?:undtagen|fritaget|fritages|uanset|afvige|undtagelse|dispensation|notwithstanding|except(?:ed)?|by\s+way\s+of\s+derogation|derogation|waiver)\b/i;
@@ -565,9 +634,15 @@ export function analyzeCitationsAndBuildGraph(docs: { text: string; label: strin
 
   const sectionMaps: Record<string, Record<number, RawSection>> = {};
   sectionsByDoc.forEach((sections, i) => {
+    // Keyed on the base number only — this map answers "does this document define section
+    // N?" when resolving which document a citation points at. The unsuffixed provision wins
+    // the key so "Artikel 15" rather than "Artikel 15a" represents number 15.
     const map: Record<number, RawSection> = {};
     for (const sec of sections) {
-      map[sec.number] = sec;
+      const existing = map[sec.number];
+      if (!existing || (existing.suffix && !sec.suffix)) {
+        map[sec.number] = sec;
+      }
     }
     sectionMaps[docRefs[i].id] = map;
   });
@@ -668,18 +743,26 @@ export function analyzeCitationsAndBuildGraph(docs: { text: string; label: strin
   }
 
   // Build links with deduplication — keyed on "source|target|modality"
+  const docByNodeId: Record<string, string> = {};
+  for (const n of nodes) {
+    docByNodeId[n.id] = n.doc;
+  }
+
   const seen = new Set<string>();
   for (const cit of citationRecords) {
     const key = `${cit.source}|${cit.target}|${cit.modality}`;
     if (seen.has(key)) continue;
     seen.add(key);
+    const sourceDoc = docByNodeId[cit.source];
+    const targetDoc = docByNodeId[cit.target] ?? cit.target_doc;
     links.push({
       source: cit.source,
       target: cit.target,
       type: "citation",
       modality: cit.modality,
       snippet: cit.snippet,
-      context: cit.context
+      context: cit.context,
+      isCrossDoc: !!sourceDoc && !!targetDoc && sourceDoc !== targetDoc
     });
   }
 
