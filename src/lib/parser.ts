@@ -77,39 +77,55 @@ export interface ParseResult {
 }
 
 const THEMES: Record<string, { da: string[]; en: string[] }> = {
-  "Definitions and Scope": {
-    da: ["definitioner", "anvendelsesområde", "formål", "defineres", "gælder for", "finder anvendelse"],
-    en: ["definitions", "scope", "purpose", "means", "applies to", "shall apply", "objective"],
+  "Licenser & Tilladelser": {
+    da: ["licens", "fiskerilicens", "tilladelse", "fiskeritilladelse", "kapacitet", "maskineffekt", "motoreffekt", "adgang til farvande", "kvote", "fartøjsregister", "autorisat", "motorstyrke", "fiskerimuligheder", "fiskeriindsats", "fartøjslængde", "fartøjsliste"],
+    en: ["license", "licence", "authorization", "authorisation", "permit", "capacity", "engine power", "quota", "vessel register", "fishing opportunities", "effort"],
   },
-  "Obligations and Duties": {
-    da: ["skal", "pligtig", "forpligtet", "krav", "forpligtelse", "påkrævet"],
-    en: ["shall", "must", "required", "obligation", "duty", "mandatory", "compulsory"],
+  "VMS, Sporing & AIS": {
+    da: ["vms", "fartøjsovervågning", "fartøjssporing", "satellit", "ais", "positionsdata", "geofenc", "sporing", "fos-data", "automatisk identifikation", "overvågningscenter", "fartøjsovervågningssystem", "satellitbaseret"],
+    en: ["vms", "vessel monitoring", "tracking", "satellite", "ais", "position data", "geofencing", "automatic identification", "monitoring centre", "fmc"],
   },
-  "Rights and Permissions": {
-    da: ["ret", "kan", "tilladt", "bemyndiget", "hjemmel", "tilladelse"],
-    en: ["right", "may", "permitted", "allowed", "authorised", "authorized", "entitled"],
+  "Fangst & Logbog": {
+    da: ["logbog", "fiskerilogbog", "fangst", "e-logbog", "fiskeredskab", "redskab", "maskestørrelse", "bifangst", "om bord", "estimer", "tolerance", "marint affald", "tabte redskaber", "pingere", "fangstfarvande", "fangstregistrering", "akustiske alarmer", "fiskerejser", "farvandsjournal", "omregningsfaktor"],
+    en: ["logbook", "fishing logbook", "catch", "e-logbook", "gear", "fishing gear", "mesh size", "bycatch", "on board", "onboard", "estimate", "margin of tolerance", "marine litter", "lost gear", "pingers", "conversion factor"],
   },
-  "Exceptions and Exemptions": {
-    da: ["undtagen", "undtagelse", "fritaget", "dispensation", "uanset", "afvige"],
-    en: ["except", "exception", "exempt", "exemption", "derogation", "notwithstanding", "waiver"],
+  "Forhåndsanmeldelse & Anløb": {
+    da: ["forhåndsmeddelelse", "forhåndsanmeldelse", "anløb", "udpegede havne", "udpeget havn", "havneanløb", "ankomst", "forudgående meddelelse", "notifikation", "anløbe havn", "forhåndsunderretning", "anløbstilladelse"],
+    en: ["prior notification", "prior notice", "port call", "designated port", "designated ports", "arrival", "prior arrival", "entry to port"],
   },
-  "Enforcement and Sanctions": {
-    da: ["sanktion", "straf", "bøde", "håndhævelse", "overtrædelse", "tilsyn"],
-    en: ["sanction", "penalty", "fine", "enforcement", "violation", "infringement", "supervision"],
+  "Landing & Omladning": {
+    da: ["omladning", "omladnings", "landing", "landinger", "losning", "udsmid", "landingsforpligtelse", "landingspligt", "om bord opbevaret", "omladningsaktiviteter", "omladningsopgørelse", "lossetidspunkt", "losseprocedure"],
+    en: ["transhipment", "transshipment", "landing", "landings", "unloading", "discards", "landing obligation", "landing operations"],
   },
-  "Reporting and Documentation": {
-    da: ["rapport", "indberetning", "dokumentation", "register", "journal", "oplysninger"],
-    en: ["report", "reporting", "documentation", "record", "register", "information", "data"],
+  "Vejning & Landingsopgørelse": {
+    da: ["landingsopgørelse", "landingserklæring", "vejning", "vejepligt", "vejet", "vejeseddel", "kalibrering", "overtagelseserklæring", "transportdokument", "vejeprocedure", "vejesystem", "vejebestemmelser", "vejeresultat", "vejeattest", "vejekontrol"],
+    en: ["landing declaration", "weighing", "weighed", "weighing scales", "takeover declaration", "transport document", "weighing system", "sample weighing"],
   },
-  "Procedures and Processes": {
-    da: ["procedure", "fremgangsmåde", "proces", "ansøgning", "godkendelse", "behandling"],
-    en: ["procedure", "process", "application", "approval", "assessment", "review", "steps"],
+  "Salgsnotater & Førsteomsætning": {
+    da: ["salgsnotat", "salgsnota", "salgsdokument", "førsteomsætning", "første salg", "opkøber", "auktion", "registreret køber", "afsætning", "producentorganisation", "førstehåndssalg", "opkøbererklæring", "overtagelse af fiskerivarer"],
+    en: ["sales note", "sales notes", "first sale", "buyer", "registered buyer", "auction", "marketing", "producer organisation", "first-hand sale"],
   },
-  "Transitional and Final Provisions": {
-    da: ["overgangs", "ikrafttræden", "ophæves", "afløser", "slutbestemmelse", "afsluttende"],
-    en: ["transitional", "entry into force", "repealed", "replaces", "final provisions", "concluding"],
+  "Sporbarhed & Mærkning": {
+    da: ["sporbarhed", "mærkning", "parti", "partier", "lot", "forbrugeroplysning", "produktinformation", "stregkode", "mærkning af fiskeredskaber", "partikontrol", "mærkning af fangst", "sporbarhedssystem", "artsmærkning"],
+    en: ["traceability", "labelling", "labeling", "lot", "lots", "batch", "consumer information", "product information", "barcode", "rfid"],
   },
-  "General": { da: [], en: [] },
+  "Kontrol, Tilsyn & REM": {
+    da: ["inspektion", "kontrollør", "embedsmand", "observatør", "cctv", "kamera", "overvågning", "inspektionsrapport", "kontrolprogram", "kontrolmyndighed", "tilsyn", "elektronisk monitorering", "rem-system", "inspektionsfartøj", "fysisk kontrol", "kontrolkampagne"],
+    en: ["inspection", "inspector", "official", "observer", "cctv", "camera", "surveillance", "inspection report", "control programme", "monitoring", "rem", "remote electronic monitoring"],
+  },
+  "Sanktioner & Pointsystem": {
+    da: ["sanktion", "point", "pointsystem", "alvorlig overtrædelse", "overtrædelse", "bøde", "retsforfølgning", "straf", "inddragelse", "strafansvar", "forseelse", "håndhævelsesforanstaltning", "administrativ sanktion"],
+    en: ["sanction", "points", "point system", "serious infringement", "infringement", "fine", "penalty", "prosecution", "confiscation", "suspension"],
+  },
+  "Datavalidering & Samarbejde": {
+    da: ["validering", "krydskontrol", "database", "it-system", "dataudveksling", "administrativt samarbejde", "tavshedspligt", "informationsudveksling", "gensidig bistand", "nationalt register", "kommissionens kontrol", "rapporteringsforpligtelse", "personoplysninger"],
+    en: ["validation", "cross-check", "database", "data exchange", "administrative cooperation", "confidentiality", "exchange of information", "mutual assistance", "reporting obligation"],
+  },
+  "Definitioner & Retsgrundlag": {
+    da: ["definition", "anvendelsesområde", "genstand", "formål", "ikrafttræden", "ophævelse", "overgangsbestemmelse", "overgangsforanstaltninger", "slutbestemmelse", "retsorden", "forhold til andre", "bemyndigelse", "delegerede retsakter", "udvalgsprocedure", "generelle principper", "henvisninger"],
+    en: ["definition", "definitions", "scope", "subject matter", "objective", "entry into force", "repeal", "transitional provisions", "final provisions", "legal basis", "delegated acts", "committee"],
+  },
+  "Generelle Bestemmelser": { da: [], en: [] },
 };
 
 const PATTERNS: HeadingPattern[] = [
@@ -147,11 +163,25 @@ const PATTERNS: HeadingPattern[] = [
 
 function detectTheme(title: string, body: string): string {
   const combined = (title + " " + body).toLowerCase();
-  let bestTheme = "General";
+  const lowerTitle = (title || "").toLowerCase();
+
+  // Priority 1: Title matching
+  for (const [theme, { da, en }] of Object.entries(THEMES)) {
+    if (theme === "Generelle Bestemmelser") continue;
+    for (const kw of da) {
+      if (lowerTitle.includes(kw.toLowerCase())) return theme;
+    }
+    for (const kw of en) {
+      if (lowerTitle.includes(kw.toLowerCase())) return theme;
+    }
+  }
+
+  // Priority 2: Full text score
+  let bestTheme = "Generelle Bestemmelser";
   let maxMatches = 0;
 
   for (const [theme, { da, en }] of Object.entries(THEMES)) {
-    if (theme === "General") continue;
+    if (theme === "Generelle Bestemmelser") continue;
     let matches = 0;
     for (const kw of da) {
       if (combined.includes(kw.toLowerCase())) matches++;
@@ -163,7 +193,6 @@ function detectTheme(title: string, body: string): string {
       maxMatches = matches;
       bestTheme = theme;
     }
-    // On tie, keep "General" (bestTheme stays unchanged because strict > is used)
   }
   return bestTheme;
 }

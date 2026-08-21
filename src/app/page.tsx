@@ -39,7 +39,7 @@ import { modalityColor, modalityBadgeClasses, MODALITY_LEGEND } from "@/lib/grap
 import { filterGraph, computeDegree } from "@/lib/graphFilter";
 import { docLabel, docColorFor, docBadgeStyle, DocRef } from "@/lib/docDisplay";
 import { explainConnection } from "@/lib/connectionExplainer";
-import { themeLabel, formatConflictDescription } from "@/lib/labels";
+import { themeLabel, formatConflictDescription, CANONICAL_PROCESS_ORDER } from "@/lib/labels";
 import {
   GraphNode,
   GraphLink,
@@ -1302,8 +1302,13 @@ function InteractiveGraphView({
     setExpandedConnectionIndex(null);
   }, [selectedNode]);
 
-  // Group nodes by category to construct filters
+  // Group nodes by category to construct filters in logical process order
   const categories = Array.from(new Set(data.nodes.map(n => n.theme))).sort((a, b) => {
+    const idxA = CANONICAL_PROCESS_ORDER.indexOf(a);
+    const idxB = CANONICAL_PROCESS_ORDER.indexOf(b);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
     return a.localeCompare(b);
   });
 

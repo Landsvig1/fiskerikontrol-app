@@ -32,15 +32,23 @@ describe("deriveLabelFromFilename", () => {
 });
 
 describe("themeLabel", () => {
-  it("translates theme names to Danish when lang is da", () => {
-    expect(themeLabel("Obligations and Duties", "da")).toBe("Forpligtelser & Pligter");
-    expect(themeLabel("Exceptions and Exemptions", "da")).toBe("Undtagelser & Dispensationer");
-    expect(themeLabel("Definitions and Scope", "da")).toBe("Definitioner & Anvendelsesområde");
-    expect(themeLabel("General", "da")).toBe("Generelt");
+  it("translates process theme names to Danish when lang is da", () => {
+    expect(themeLabel("Catch & Logbook", "da")).toBe("Fangst & Logbog");
+    expect(themeLabel("Landing & Transhipment", "da")).toBe("Landing & Omladning");
+    expect(themeLabel("Weighing & Landing Declaration", "da")).toBe("Vejning & Landingsopgørelse");
+    expect(themeLabel("Sales Notes & First Sale", "da")).toBe("Salgsnotater & Førsteomsætning");
+    expect(themeLabel("Traceability & Labeling", "da")).toBe("Sporbarhed & Mærkning");
+    expect(themeLabel("Licensing & Authorizations", "da")).toBe("Licenser & Tilladelser");
+    expect(themeLabel("Fangst & Logbog", "da")).toBe("Fangst & Logbog");
   });
 
-  it("preserves English theme names when lang is en", () => {
-    expect(themeLabel("Obligations and Duties", "en")).toBe("Obligations and Duties");
+  it("translates process theme names to English when lang is en", () => {
+    expect(themeLabel("Fangst & Logbog", "en")).toBe("Catch & Logbook");
+    expect(themeLabel("Landing & Omladning", "en")).toBe("Landing & Transhipment");
+    expect(themeLabel("Vejning & Landingsopgørelse", "en")).toBe("Weighing & Landing Declaration");
+    expect(themeLabel("Salgsnotater & Førsteomsætning", "en")).toBe("Sales Notes & First Sale");
+    expect(themeLabel("Sporbarhed & Mærkning", "en")).toBe("Traceability & Labeling");
+    expect(themeLabel("Licenser & Tilladelser", "en")).toBe("Licensing & Authorizations");
   });
 });
 
