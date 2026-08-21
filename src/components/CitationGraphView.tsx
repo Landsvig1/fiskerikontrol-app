@@ -434,7 +434,7 @@ function CitationGraphCanvas({
           }
         });
 
-        // Hide unconnected links, highlight connected links with directional arrowheads
+        // Hide unconnected links, keep same aesthetic for connected links
         link
           .style("display", (l) => {
             if (!l || !l.source || !l.target) return "none";
@@ -446,38 +446,27 @@ function CitationGraphCanvas({
             if (!l || !l.source || !l.target) return 0;
             const sId = (l.source as GraphNode).id;
             const tId = (l.target as GraphNode).id;
-            return (sId === selectedId || tId === selectedId) ? 1.0 : 0;
+            return (sId === selectedId || tId === selectedId) ? 0.6 : 0;
           })
-          .attr("stroke-width", 2.8)
-          .attr("marker-end", (l) => {
-            if (!l || !l.modality) return "none";
-            return `url(#arrow-${l.modality.toLowerCase()})`;
-          });
+          .attr("stroke-width", 1.8)
+          .attr("marker-end", (d) => `url(#arrow-${d.modality.toLowerCase()})`);
 
         // Hide unconnected nodes completely, display only connected nodes
         node
           .style("display", (n) => (n && n.id && connectedNodeIds.has(n.id)) ? "inline" : "none")
           .style("opacity", (n) => (n && n.id && connectedNodeIds.has(n.id)) ? 1.0 : 0);
 
-        // Informative, clean contextual labels
+        // Keep clean standard node text labels
         node.select<SVGTextElement>("text")
-          .text((n) => {
-            if (!n || !n.id || !connectedNodeIds.has(n.id)) return "";
-            if (n.id === selectedId) {
-              return `★ ${n.label || n.id}`;
-            }
-            const dir = nodeDirections.get(n.id);
-            const prefix = dir === "outgoing" ? "➔ " : "⬅ ";
-            return `${prefix}${n.label || n.id}`;
-          })
+          .text((n) => (n && connectedNodeIds.has(n.id)) ? n.label : "")
           .style("opacity", 1.0)
-          .style("font-size", (n) => (n && n.id === selectedId) ? "12px" : "11px")
-          .style("font-weight", (n) => (n && n.id === selectedId) ? "800" : "700")
-          .attr("fill", (n) => (n && n.id === selectedId) ? "#0284c7" : "#0f172a");
+          .style("font-size", "11px")
+          .style("font-weight", "600")
+          .attr("fill", (n) => (n && n.id === selectedId) ? "#0284c7" : "#475569");
 
-        // Primary circle styling
+        // Primary circle styling - keep same clean aesthetic
         node.select<SVGCircleElement>("circle.primary-circle")
-          .attr("stroke-width", (n) => (n && n.id === selectedId) ? 3.5 : 1.8)
+          .attr("stroke-width", (n) => (n && n.id === selectedId) ? 2.5 : 1.5)
           .attr("stroke", (n) => (n && n.id === selectedId) ? "#0284c7" : "#ffffff");
 
         // Conflict halos

@@ -909,7 +909,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
           }
         });
 
-        // Hide unconnected links, highlight connected links with directional arrowheads
+        // Hide unconnected links, keep same downplayed line aesthetic for connected links
         link
           .style("display", (l) => {
             if (!l) return "none";
@@ -921,40 +921,27 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
             if (!l) return 0;
             const sId = typeof l.source === "object" && l.source ? (l.source as GraphNode).id : String(l.source);
             const tId = typeof l.target === "object" && l.target ? (l.target as GraphNode).id : String(l.target);
-            return (sId === selectedId || tId === selectedId) ? 1.0 : 0;
+            return (sId === selectedId || tId === selectedId) ? 0.6 : 0;
           })
-          .attr("stroke-width", 2.8)
-          .attr("marker-end", (l) => {
-            if (!l || !l.modality) return "none";
-            const sId = typeof l.source === "object" && l.source ? (l.source as GraphNode).id : String(l.source);
-            const tId = typeof l.target === "object" && l.target ? (l.target as GraphNode).id : String(l.target);
-            return (sId === selectedId || tId === selectedId) ? `url(#d3-arrow-${l.modality.toLowerCase()})` : "none";
-          });
+          .attr("stroke-width", 1.5)
+          .attr("marker-end", "none");
 
         // Hide unconnected nodes completely, display only connected nodes
         node
           .style("display", (n) => (n && n.id && connectedNodeIds.has(n.id)) ? "inline" : "none")
           .style("opacity", (n) => (n && n.id && connectedNodeIds.has(n.id)) ? 1.0 : 0);
 
-        // Informative, clean contextual labels
+        // Keep standard clean text labels without heavy prefixes
         node.select<SVGTextElement>("text")
-          .text((n) => {
-            if (!n || !n.id || !connectedNodeIds.has(n.id)) return "";
-            if (n.id === selectedId) {
-              return `★ ${n.label || n.id}`;
-            }
-            const dir = nodeDirections.get(n.id);
-            const prefix = dir === "outgoing" ? "➔ " : "⬅ ";
-            return `${prefix}${n.label || n.id}`;
-          })
+          .text((n) => (n && (connectedNodeIds.has(n.id) || (degree[n.id] || 0) >= 3)) ? n.label : "")
           .style("opacity", 1.0)
-          .style("font-size", (n) => (n && n.id === selectedId) ? "12px" : "11px")
-          .style("font-weight", (n) => (n && n.id === selectedId) ? "800" : "700")
-          .attr("fill", (n) => (n && n.id === selectedId) ? "#0284c7" : "#0f172a");
+          .style("font-size", "10px")
+          .style("font-weight", "600")
+          .attr("fill", (n) => (n && n.id === selectedId) ? "#0284c7" : "#475569");
 
-        // Primary circle focal styling
+        // Primary circle styling - keep same clean aesthetic
         node.select<SVGCircleElement>("circle.primary-circle")
-          .attr("stroke-width", (n) => (n && n.id === selectedId) ? 3.5 : 1.8)
+          .attr("stroke-width", (n) => (n && n.id === selectedId) ? 2.5 : 1.5)
           .attr("stroke", (n) => (n && n.id === selectedId) ? "#0284c7" : "#ffffff");
 
         // Conflict halos
