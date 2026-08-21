@@ -39,6 +39,7 @@ import { modalityColor, modalityBadgeClasses, MODALITY_LEGEND } from "@/lib/grap
 import { filterGraph, computeDegree } from "@/lib/graphFilter";
 import { docLabel, docColorFor, docBadgeStyle, DocRef } from "@/lib/docDisplay";
 import { explainConnection } from "@/lib/connectionExplainer";
+import { nodeJurisdiction } from "@/lib/jurisdiction";
 import { themeLabel, CANONICAL_PROCESS_ORDER } from "@/lib/labels";
 import {
   GraphNode,
@@ -99,7 +100,9 @@ export default function Home() {
     };
   }, []);
 
-  const t = getT(lang);
+  // Memoized: a fresh `t` on every render defeats React.memo on the graph canvases and
+  // re-fires their teardown-and-rebuild effects, which include 280 synchronous force ticks.
+  const t = useMemo(() => getT(lang), [lang]);
 
   if (loading) {
     return (
@@ -275,6 +278,7 @@ export default function Home() {
             setSelectedNode={setSelectedNode} 
             setActiveTab={setActiveTab} 
             t={t}
+            lang={lang}
           />
         )}
         {activeTab === "conflicts" && (
@@ -295,6 +299,7 @@ export default function Home() {
             setSelectedNode={setSelectedNode} 
             setActiveTab={setActiveTab} 
             t={t}
+            lang={lang}
           />
         )}
       </main>
@@ -310,6 +315,7 @@ export default function Home() {
             setActiveTab("citation");
           }}
           t={t}
+          lang={lang}
         />
       )}
 
@@ -1126,8 +1132,10 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       const { width: newWidth, height: newHeight } = entries[0].contentRect;
       if (newWidth === 0 || newHeight === 0) return;
       
+      // The layout lives in an origin-centered coordinate space that is independent of the
+      // viewport; only the zoom transform maps it to screen. Re-centering the simulation on
+      // the new viewport here would desync that mapping.
       svg.attr("viewBox", [0, 0, newWidth, newHeight]);
-      simulation.force("center", d3.forceCenter(newWidth / 2, newHeight / 2));
       
       if (selectedNodeRef.current) {
         applyNodeSelection(selectedNodeRef.current, false);
@@ -1419,7 +1427,7 @@ function InteractiveGraphView({
           <div className="relative">
             <input
               type="text"
-              placeholder={t("noHeading") === "(No title)" ? "Enter search term..." : "Indtast søgeord..."}
+              placeholder={lang === "en" ? "Enter search term..." : "Indtast søgeord..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 text-xs text-slate-900 px-3 py-2 rounded-lg outline-none focus:border-sky-500 focus:bg-white"
@@ -1798,14 +1806,17 @@ function OverlapsView({
   data, 
   setSelectedNode, 
   setActiveTab,
-  t
+  t,
+  lang = "da"
 }: { 
   data: GraphData; 
   setSelectedNode: (node: GraphNode) => void;
   setActiveTab: (tab: TabType) => void;
   t: TranslateFn;
+  lang?: Lang;
 }) {
-  const overlapsList = data.overlaps.sort((a, b) => b.count - a.count);
+  // Copy before sorting — sort() mutates in place, and data.overlaps is owned by the parent.
+  const overlapsList = [...data.overlaps].sort((a, b) => b.count - a.count);
 
   return (
     <div className="flex-1 overflow-y-auto p-8 bg-[#fafaf9] text-slate-900">
@@ -1814,7 +1825,7 @@ function OverlapsView({
           <Layers className="text-amber-600 w-6 h-6" /> {t("overlapsCount") /* Overlappende sektionsreferencer */}
         </h2>
         <p className="text-sm text-slate-600 leading-relaxed">
-          {t("noTitle") === "(No heading)"
+          {lang === "en"
             ? "Below is a list of sections or provisions that are subject to multiple independent cross-references. These are indicators of regulatory complexity."
             : "Nedenfor vises en liste over bestemmelser, der er genstand for flere uafhængige kildehenvisninger. Dette er indikatorer for retlig kompleksitet."
           }
@@ -1824,7 +1835,7 @@ function OverlapsView({
       <div className="grid grid-cols-1 gap-6 max-w-4xl">
         {overlapsList.length === 0 ? (
           <div className="bg-white border border-slate-200 p-8 rounded-2xl text-center text-slate-500 text-sm shadow-xs">
-            {t("noTitle") === "(No heading)" ? "No overlaps detected." : "Ingen overlap fundet."}
+            {lang === "en" ? "No overlaps detected." : "Ingen overlap fundet."}
           </div>
         ) : (
           overlapsList.map((record, i) => {
@@ -1837,7 +1848,7 @@ function OverlapsView({
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[10px] font-bold uppercase text-amber-900 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded">
-                        {t("noTitle") === "(No heading)" ? `Overlap (${record.count} references)` : `Overlap (${record.count} referencer)`}
+                        {lang === "en" ? `Overlap (${record.count} references)` : `Overlap (${record.count} referencer)`}
                       </span>
                       <span
                         className="text-[10px] font-bold px-2 py-0.5 rounded border"
@@ -1847,7 +1858,7 @@ function OverlapsView({
                       </span>
                     </div>
                     <h3 className="text-base font-bold mt-2 text-slate-900">
-                      {t("noTitle") === "(No heading)" ? "Target Section: " : "Målsektion: "} <span className="text-sky-800">{targetNode.label}</span>
+                      {lang === "en" ? "Target Section: " : "Målsektion: "} <span className="text-sky-800">{targetNode.label}</span>
                     </h3>
                     <p className="text-xs text-slate-600 leading-relaxed font-medium">{targetNode.title}</p>
                   </div>
@@ -1864,7 +1875,7 @@ function OverlapsView({
 
                 <div className="border-t border-slate-200 pt-4">
                   <h4 className="text-xs uppercase font-bold text-slate-500 tracking-wider mb-3">
-                    {t("noTitle") === "(No heading)" ? "Referencing sections:" : "Refererende sektioner:"}
+                    {lang === "en" ? "Referencing sections:" : "Refererende sektioner:"}
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {record.citations.map((c, idx) => {
@@ -2004,8 +2015,9 @@ function ConflictsView({
 
             const primaryCitation = record.citations[0];
             const sourceNode = primaryCitation ? data.nodes.find(n => n.id === primaryCitation.source) : undefined;
-            const isTargetEu = targetNode.doc.toLowerCase().includes("eu") || targetNode.label.includes("EU") || targetNode.doc.includes("doc0") || targetNode.doc.includes("doc1") || targetNode.doc.includes("doc2") || targetNode.doc.includes("doc3") || targetNode.doc.includes("doc4");
-            const isSourceNational = sourceNode ? (sourceNode.doc.toLowerCase().includes("bek") || sourceNode.doc.toLowerCase().includes("lov") || sourceNode.doc.includes("doc5") || sourceNode.doc.includes("doc6") || sourceNode.doc.includes("doc7") || sourceNode.doc.includes("doc8") || sourceNode.doc.includes("doc9")) : true;
+            // Precedence is derived from the document labels, never from docId ordering.
+            const isTargetEu = nodeJurisdiction(data.docs, targetNode) === "eu";
+            const isSourceNational = sourceNode ? nodeJurisdiction(data.docs, sourceNode) === "national" : false;
 
             const precedenceBadgeText = isTargetEu && isSourceNational 
               ? (lang === "da" ? "⚖️ EU-forordning har forrang" : "⚖️ EU Regulation Takes Precedence")
@@ -2221,11 +2233,11 @@ function BrowseView({
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-[#fafaf9] text-slate-900">
       <div className="p-8 bg-white border-b border-slate-200 space-y-4 shadow-2xs">
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900">{t("noTitle") === "(No heading)" ? "Browse Sections" : "Gennemse sektioner"}</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900">{lang === "en" ? "Browse Sections" : "Gennemse sektioner"}</h2>
         <div className="max-w-xl relative">
           <input
             type="text"
-            placeholder={t("noTitle") === "(No heading)" ? "Search in text, sections, categories..." : "Søg i tekst, sektioner, kategorier..."}
+            placeholder={lang === "en" ? "Search in text, sections, categories..." : "Søg i tekst, sektioner, kategorier..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-4 py-2.5 pl-11 rounded-xl outline-none focus:border-sky-500 focus:bg-white text-xs transition-colors"
@@ -2270,7 +2282,7 @@ function BrowseView({
                   }}
                   className="text-xs font-semibold text-sky-700 hover:text-sky-900 flex items-center gap-1.5 cursor-pointer"
                 >
-                  {t("noTitle") === "(No heading)" ? "Inspect connections" : "Inspicer forbindelser"} <ArrowRight className="w-3.5 h-3.5" />
+                  {lang === "en" ? "Inspect connections" : "Inspicer forbindelser"} <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>

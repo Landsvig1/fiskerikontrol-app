@@ -12,7 +12,7 @@ import {
   GitBranch
 } from "lucide-react";
 import { ConflictRecord, GraphData, GraphNode } from "@/lib/types";
-import { TranslateFn, TranslationKey } from "@/lib/i18n";
+import { Lang, TranslateFn, TranslationKey } from "@/lib/i18n";
 import { docLabel, docBadgeStyle } from "@/lib/docDisplay";
 import { highlightModalKeywords } from "@/lib/highlightText";
 import { formatConflictDescription } from "@/lib/labels";
@@ -23,6 +23,7 @@ interface ConflictInspectorModalProps {
   onClose: () => void;
   onSelectNode: (node: GraphNode) => void;
   t: TranslateFn;
+  lang: Lang;
 }
 
 export function ConflictInspectorModal({
@@ -31,6 +32,7 @@ export function ConflictInspectorModal({
   onClose,
   onSelectNode,
   t,
+  lang,
 }: ConflictInspectorModalProps) {
   const [copied, setCopied] = useState(false);
   const [selectedCitationIndex, setSelectedCitationIndex] = useState(0);
@@ -59,7 +61,7 @@ export function ConflictInspectorModal({
       `===========================================`,
       `Target: ${targetNode.label} (${docLabel(data.docs, targetNode.doc, t)})`,
       `Kilde: ${sourceNode.label} (${docLabel(data.docs, sourceNode.doc, t)})`,
-      `Beskrivelse: ${formatConflictDescription(conflict.description, targetNode.label, t("noHeading") === "(No title)" ? "en" : "da")}`,
+      `Beskrivelse: ${formatConflictDescription(conflict.description, targetNode.label, lang)}`,
       ``,
       `--- HOVEDBESTEMMELSE (${targetNode.label}) ---`,
       `Titel: ${targetNode.title || "Uden titel"}`,
