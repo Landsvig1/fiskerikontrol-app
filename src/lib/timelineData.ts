@@ -112,26 +112,43 @@ export const STATUTORY_MILESTONES: EnforcementMilestone[] = [
 ];
 
 /**
+ * Pulls the identifying act numbers out of a document code or label.
+ *
+ * Four-digit values inside 1900-2100 are dropped as years, so "EU 2023/2842" identifies on
+ * "2842" and "BEK 1144/2025" on "1144". Without that, every 2025 bekendtgørelse would match
+ * every other one.
+ */
+function actNumbers(code: string): string[] {
+  const tokens = code.match(/\d{3,4}/g) ?? [];
+  return tokens.filter((token) => {
+    const n = Number(token);
+    return !(n >= 1900 && n <= 2100);
+  });
+}
+
+/**
  * Extracts and contextualizes timeline milestones for the currently loaded GraphData.
+ *
+ * A milestone is kept only when the act it stems from is actually part of the loaded corpus.
+ * Showing a BEK 1144/2025 deadline for a corpus that does not contain BEK 1144/2025 would
+ * present an obligation the caseworker has no source document for.
  */
 export function getTimelineForCorpus(
   data: GraphData,
   milestones: EnforcementMilestone[] = STATUTORY_MILESTONES
 ): EnforcementMilestone[] {
-  const loadedDocCodes = data.docs.map((d) => (d.label || d.id).toLowerCase());
-  
-  // Filter or augment milestones based on documents loaded in session
-  return milestones.filter((m) => {
-    // If user loaded EU 2023/2842 or EU 1224/2009 or BEK 1144/2025, match them
-    const isDocLoaded = loadedDocCodes.some((code) => {
-      if (m.docCode.toLowerCase().includes("2842") && code.includes("2842")) return true;
-      if (m.docCode.toLowerCase().includes("1144") && code.includes("1144")) return true;
-      if (m.docCode.toLowerCase().includes("1197") && code.includes("1197")) return true;
-      if (m.docCode.toLowerCase().includes("1224") && code.includes("1224")) return true;
-      return false;
-    });
+  const loadedLabels = data.docs.map((d) => (d.label || d.id).toLowerCase());
 
-    // If matches loaded docs, keep it. If no specific match, show all generic fisheries milestones.
-    return loadedDocCodes.length === 0 || isDocLoaded || loadedDocCodes.some(c => c.includes("eu") || c.includes("bek"));
+  // Nothing loaded yet: show the full statutory calendar rather than an empty timeline.
+  if (loadedLabels.length === 0) return milestones;
+
+  return milestones.filter((m) => {
+    const code = m.docCode.toLowerCase();
+    const numbers = actNumbers(code);
+
+    return loadedLabels.some((label) => {
+      if (label.includes(code)) return true;
+      return numbers.some((n) => actNumbers(label).includes(n));
+    });
   });
 }
