@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Database, Upload, FileText, AlertTriangle, RefreshCw, Info, Plus, X, BookOpen, Check } from "lucide-react";
 import type { GraphData } from "@/lib/types";
+import { isGraphData } from "@/lib/parseResponse";
 import { TranslateFn } from "@/lib/i18n";
 import { deriveLabelFromFilename } from "@/lib/labels";
 import { PRESET_DOCUMENTS, fetchPresetFiles } from "@/lib/presetCorpus";
@@ -220,7 +221,15 @@ export function UploadScreen({
         return;
       }
 
-      const graphData: GraphData = await res.json();
+      // The body is JSON from a route that can also return an error object, so the
+      // GraphData type is an assertion until it is checked.
+      const graphData: unknown = await res.json();
+      if (!isGraphData(graphData)) {
+        console.error("Preset analysis returned a malformed graph:", graphData);
+        setSubmitError(t("malformedResponseError"));
+        setLoading(false);
+        return;
+      }
       onSuccess(graphData);
     } catch (err: unknown) {
       console.error("Preset analysis failed:", err);
@@ -481,7 +490,14 @@ export function UploadScreen({
         return;
       }
 
-      const graphData: GraphData = await res.json();
+      const graphData: unknown = await res.json();
+      if (!isGraphData(graphData)) {
+        console.error("Upload returned a malformed graph:", graphData);
+        setSubmitError(t("malformedResponseError"));
+        setErrorReport(buildReport({ httpStatus: res.status, responseBody: graphData }));
+        setLoading(false);
+        return;
+      }
       onSuccess(graphData);
     } catch (err: unknown) {
       console.error("Upload failed:", err);

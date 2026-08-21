@@ -28,13 +28,19 @@ describe("explainConnection", () => {
     body: "Fartøjer under 12 meter kan undtages fra elektronisk vejerapport."
   };
 
+  // The parser always emits type, snippet and context on every link, so the fixtures carry
+  // them too. citationLink fills in the fields a given case does not care about.
+  const citationLink = (fields: Partial<GraphLink> & Pick<GraphLink, "modality">): GraphLink => ({
+    source: nodeB.id,
+    target: nodeA.id,
+    type: "citation",
+    snippet: "",
+    context: "",
+    ...fields,
+  });
+
   it("explains outgoing exception link from national to EU provision", () => {
-    const link: GraphLink = {
-      source: nodeB.id,
-      target: nodeA.id,
-      modality: "Exception",
-      snippet: "Uanset forordningens art. 119 kan fartøjer..."
-    };
+    const link: GraphLink = citationLink({ modality: "Exception", snippet: "Uanset forordningens art. 119 kan fartøjer..." });
 
     const explanation = explainConnection(nodeB, nodeA, link, true, [], docs, "da");
     expect(explanation.headline).toContain("fraviger kravene");
@@ -46,11 +52,7 @@ describe("explainConnection", () => {
   });
 
   it("explains an outgoing prohibition link with prohibition-specific wording", () => {
-    const link: GraphLink = {
-      source: nodeB.id,
-      target: nodeA.id,
-      modality: "Prohibition",
-    };
+    const link: GraphLink = citationLink({ modality: "Prohibition" });
 
     const explanation = explainConnection(nodeB, nodeA, link, true, [], docs, "da");
     expect(explanation.headline).toContain("forbyder");
@@ -58,11 +60,7 @@ describe("explainConnection", () => {
   });
 
   it("explains an outgoing permission link with permission-specific wording", () => {
-    const link: GraphLink = {
-      source: nodeB.id,
-      target: nodeA.id,
-      modality: "Permission",
-    };
+    const link: GraphLink = citationLink({ modality: "Permission" });
 
     const explanation = explainConnection(nodeB, nodeA, link, true, [], docs, "da");
     expect(explanation.headline).toContain("adgang eller hjemmel");
@@ -70,11 +68,7 @@ describe("explainConnection", () => {
   });
 
   it("explains an incoming prohibition link from the other side", () => {
-    const link: GraphLink = {
-      source: nodeB.id,
-      target: nodeA.id,
-      modality: "Prohibition",
-    };
+    const link: GraphLink = citationLink({ modality: "Prohibition" });
 
     const explanation = explainConnection(nodeA, nodeB, link, false, [], docs, "da");
     expect(explanation.headline).toContain("forbyder");
@@ -82,11 +76,7 @@ describe("explainConnection", () => {
   });
 
   it("explains incoming direct citation from EU to national provision", () => {
-    const link: GraphLink = {
-      source: nodeB.id,
-      target: nodeA.id,
-      modality: "Obligation"
-    };
+    const link: GraphLink = citationLink({ modality: "Obligation" });
 
     const explanation = explainConnection(nodeA, nodeB, link, false, [], docs, "da");
     expect(explanation.headline).toContain("henviser til");
@@ -96,11 +86,7 @@ describe("explainConnection", () => {
 
 
   it("explains an incoming permission link from the other side", () => {
-    const link: GraphLink = {
-      source: nodeB.id,
-      target: nodeA.id,
-      modality: "Permission",
-    };
+    const link: GraphLink = citationLink({ modality: "Permission" });
 
     const explanation = explainConnection(nodeA, nodeB, link, false, [], docs, "da");
     expect(explanation.headline).toContain("tillader fravigelse");
@@ -114,11 +100,7 @@ describe("explainConnection", () => {
       { id: "doc_eu", label: "EU 2023/2842" },
       { id: "doc_dk", label: "Annex III" },
     ];
-    const link: GraphLink = {
-      source: nodeB.id,
-      target: nodeA.id,
-      modality: "Obligation",
-    };
+    const link: GraphLink = citationLink({ modality: "Obligation" });
 
     const explanation = explainConnection(nodeB, nodeA, link, true, [], unknownDocs, "da");
     expect(explanation.hierarchyContext).toContain("kan ikke afgøres");
@@ -130,11 +112,7 @@ describe("explainConnection", () => {
       { id: "doc_eu", label: "Annex III" },
       { id: "doc_dk", label: "Annex IV" },
     ];
-    const link: GraphLink = {
-      source: nodeB.id,
-      target: nodeA.id,
-      modality: "Obligation",
-    };
+    const link: GraphLink = citationLink({ modality: "Obligation" });
 
     const explanation = explainConnection(nodeB, nodeA, link, true, [], unknownDocs, "en");
     expect(explanation.hierarchyContext).toContain("cannot be determined");
@@ -150,11 +128,7 @@ describe("explainConnection", () => {
       }
     ];
 
-    const link: GraphLink = {
-      source: nodeB.id,
-      target: nodeA.id,
-      modality: "Exception"
-    };
+    const link: GraphLink = citationLink({ modality: "Exception" });
 
     const explanation = explainConnection(nodeA, nodeB, link, false, conflicts, docs, "da");
     expect(explanation.hasConflict).toBe(true);

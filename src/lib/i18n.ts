@@ -10,7 +10,7 @@ export type TranslationKey =
   | "uploadTitle" | "uploadSubtitle"
   | "dropZoneSlot" | "dropZoneBulk"
   | "analyseButton" | "analysing"
-  | "invalidPdfError" | "sizeLimitError" | "unknownError"
+  | "invalidPdfError" | "sizeLimitError" | "unknownError" | "malformedResponseError"
   | "multiDropNonPdfIgnored" | "multiDropCapReached"
   | "uploadModeBulk" | "uploadModeIndividual" | "addDocument" | "removeDocument"
   | "loadingGraph"
@@ -62,6 +62,7 @@ const da: Translations = {
   invalidPdfError: "Kun PDF-filer accepteres.",
   sizeLimitError: "Samlet filstørrelse overstiger 10 MB.",
   unknownError: "Ukendt fejl. Prøv igen.",
+  malformedResponseError: "Serveren returnerede et uventet svar. Prøv igen.",
   multiDropNonPdfIgnored: "Ikke-PDF-filer blev ignoreret.",
   multiDropCapReached: "Kun de første {max} PDF-filer blev brugt; øvrige filer blev ignoreret.",
   uploadModeBulk: "Slip alle på én gang",
@@ -154,6 +155,7 @@ const en: Translations = {
   invalidPdfError: "Only PDF files are accepted.",
   sizeLimitError: "Combined file size exceeds 10 MB.",
   unknownError: "Unknown error. Please try again.",
+  malformedResponseError: "The server returned an unexpected response. Please try again.",
   multiDropNonPdfIgnored: "Non-PDF files were ignored.",
   multiDropCapReached: "Only the first {max} PDF files were used; the rest were ignored.",
   uploadModeBulk: "Drop all at once",

@@ -32,7 +32,10 @@ function mockData(): GraphData {
       {
         source: "doc1_sec_3",
         target: "doc0_sec_9",
+        type: "citation",
         modality: "Exception",
+        snippet: "Uanset regler kan fartøjer undtages.",
+        context: "Uanset regler kan fartøjer undtages.",
         isCrossDoc: true,
       },
     ],

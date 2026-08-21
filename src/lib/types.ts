@@ -1,66 +1,39 @@
 import * as d3 from "d3";
-import { Modality } from "./graphColors";
+import type {
+  GraphNode as ParsedNode,
+  GraphLink as ParsedLink,
+  OverlapRecord,
+  ConflictRecord,
+  ParseResult,
+} from "./parser";
 import { DocRef } from "./docDisplay";
 
-export type { DocRef };
+export type { DocRef, OverlapRecord, ConflictRecord, ParseResult };
 
-export interface GraphNode extends d3.SimulationNodeDatum {
-  id: string;           // format: {docId}_sec_{n}  e.g. "doc0_sec_12"
-  number: number;
-  label: string;
-  title: string;
-  doc: string;           // docId
-  theme: string;
-  body: string;
-  is_subnode?: boolean;
-  parent_id?: string;
-  external?: boolean;   // true for virtual subnodes that reference unknown sections
-  // d3 position properties
-  x?: number;
-  y?: number;
-  vx?: number;
-  vy?: number;
-}
+/**
+ * The client node is the parser's node plus the mutable layout fields d3-force writes onto
+ * it in place (x, y, vx, vy, fx, fy, index). The shape itself is declared once, in
+ * parser.ts, next to the code that produces it, so the two cannot drift.
+ */
+export interface GraphNode extends ParsedNode, d3.SimulationNodeDatum {}
 
-export interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
+/**
+ * Same for links, with one widening: the parser emits string endpoints, and d3 replaces
+ * them with node references in place once the simulation is initialised, so a link that has
+ * been through a simulation carries either.
+ */
+export interface GraphLink
+  extends Omit<ParsedLink, "source" | "target">,
+    d3.SimulationLinkDatum<GraphNode> {
   source: string | GraphNode;
   target: string | GraphNode;
-  type?: string;
-  targetLabel?: string;
-  rawMatch?: string;
-  modality: Modality;
-  snippet?: string;
-  context?: string;
-  isCrossDoc?: boolean;
 }
 
-export interface OverlapRecord {
-  target: string;
-  sources: string[];
-  count: number;
-  citations: Array<{
-    source: string;
-    modality: string;
-    snippet: string;
-  }>;
-}
-
-export interface ConflictRecord {
-  target: string;
-  modalities: string[];
-  description: string;
-  citations: Array<{
-    source: string;
-    modality: string;
-    snippet: string;
-    context: string;
-  }>;
-}
-
-export interface GraphData {
+/**
+ * The client view of a ParseResult: identical records, d3-augmented nodes and links. Any
+ * field added to the server response reaches the client types automatically.
+ */
+export interface GraphData extends Omit<ParseResult, "nodes" | "links"> {
   nodes: GraphNode[];
   links: GraphLink[];
-  overlaps: OverlapRecord[];
-  conflicts: ConflictRecord[];
-  docs: DocRef[];
 }
