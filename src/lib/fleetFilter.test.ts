@@ -11,8 +11,6 @@ function mockNode(label: string, title: string, body: string, theme: string = "C
     title,
     body,
     theme,
-    isCrossDoc: false,
-    citationsCount: 0,
   };
 }
 

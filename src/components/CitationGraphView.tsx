@@ -169,7 +169,7 @@ export function CitationGraphView({
         />
       </div>
 
-      {/* Optional Details sidebar drawer — toggled via button */}
+      {/* Optional Details sidebar drawer, toggled via button */}
       {selectedNode && isRightDrawerOpen && (
         <div className="absolute right-0 top-0 w-full sm:w-96 max-w-full bg-white border-l border-slate-200 flex flex-col h-full z-30 shadow-xl transition-all duration-300 animate-in slide-in-from-right duration-200">
           <div className="p-5 border-b border-slate-200 bg-slate-50/70 relative flex flex-col gap-2">

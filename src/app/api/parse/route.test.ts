@@ -2,7 +2,7 @@
 //
 // This is a server-side API route test with no DOM dependency. jsdom's File/FormData
 // classes aren't recognized by Node's undici-based Request parser, which fails a
-// webidl.is.File() check when jsdom-constructed Files are appended to a FormData body —
+// webidl.is.File() check when jsdom-constructed Files are appended to a FormData body ,
 // running this file under Node's own runtime avoids that jsdom/undici class mismatch.
 import { describe, it, expect, vi } from "vitest";
 

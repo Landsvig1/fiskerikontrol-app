@@ -45,6 +45,42 @@ describe("explainConnection", () => {
     expect(explanation.hasConflict).toBe(false);
   });
 
+  it("explains an outgoing prohibition link with prohibition-specific wording", () => {
+    const link: GraphLink = {
+      source: nodeB.id,
+      target: nodeA.id,
+      modality: "Prohibition",
+    };
+
+    const explanation = explainConnection(nodeB, nodeA, link, true, [], docs, "da");
+    expect(explanation.headline).toContain("forbyder");
+    expect(explanation.legalRole).toContain("Forbudsbestemmelse");
+  });
+
+  it("explains an outgoing permission link with permission-specific wording", () => {
+    const link: GraphLink = {
+      source: nodeB.id,
+      target: nodeA.id,
+      modality: "Permission",
+    };
+
+    const explanation = explainConnection(nodeB, nodeA, link, true, [], docs, "da");
+    expect(explanation.headline).toContain("adgang eller hjemmel");
+    expect(explanation.legalRole).toContain("Tilladelses-");
+  });
+
+  it("explains an incoming prohibition link from the other side", () => {
+    const link: GraphLink = {
+      source: nodeB.id,
+      target: nodeA.id,
+      modality: "Prohibition",
+    };
+
+    const explanation = explainConnection(nodeA, nodeB, link, false, [], docs, "da");
+    expect(explanation.headline).toContain("forbyder");
+    expect(explanation.legalRole).toContain("indskr\u00e6nket");
+  });
+
   it("explains incoming direct citation from EU to national provision", () => {
     const link: GraphLink = {
       source: nodeB.id,

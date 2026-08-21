@@ -17,7 +17,7 @@ export function generateAuditMemoMarkdown(options: AuditMemoOptions): string {
     data,
     criteria = { vesselLength: "all", gearType: "all", seaArea: "all" },
     lang = "da",
-    caseworkerName = "Fiskeristyrelsen — Sagsbehandler & Kontrolledelse",
+    caseworkerName = "Fiskeristyrelsen, Sagsbehandler & Kontrolledelse",
     departmentName = "Enheden for Fiskerikontrol & Retsgrundlag",
     caseReference = `LEX-AUDIT-${new Date().toISOString().slice(0, 10)}-${Math.floor(Math.random() * 9000 + 1000)}`,
     date = new Date().toLocaleDateString(lang === "da" ? "da-DK" : "en-GB", {

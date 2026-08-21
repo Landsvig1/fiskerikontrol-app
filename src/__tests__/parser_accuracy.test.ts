@@ -428,7 +428,7 @@ Reglerne gaelder ogsaa her.
       `;
       const sections = parsePdfTextIntoSections(text, "doc0", "Test Document");
       expect(sections.length).toBe(3);
-      // Section numbers are an internal encoding (major*1000+minor), not the literal decimal —
+      // Section numbers are an internal encoding (major*1000+minor), not the literal decimal ,
       // what matters is they're distinct and the label still displays the original "N.M" text.
       const numbers = sections.map(s => s.number);
       expect(new Set(numbers).size).toBe(3);
@@ -552,7 +552,7 @@ Reglerne gaelder ogsaa her.
 
       const link = result.links.find(l => l.source === "doc1_sec_9");
       expect(link).toBeDefined();
-      // doc0 and doc2 both independently define Article 5 — ambiguous, so the citation
+      // doc0 and doc2 both independently define Article 5, ambiguous, so the citation
       // in doc1 (which also has its own Article 5) falls back to self-reference.
       expect(link?.target).toBe("doc1_sec_5");
     });
@@ -579,7 +579,7 @@ Reglerne gaelder ogsaa her.
 
       const link = result.links.find(l => l.source === "doc1_sec_1");
       expect(link).toBeDefined();
-      // Only doc2 defines Article 7 among the other documents — unambiguous by elimination.
+      // Only doc2 defines Article 7 among the other documents, unambiguous by elimination.
       expect(link?.target).toBe("doc2_sec_7");
     });
 

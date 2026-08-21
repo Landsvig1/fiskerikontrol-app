@@ -134,7 +134,7 @@ export function AuditMemoModal({
               <div>
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky-800 mb-1">
                   <Building2 className="w-4 h-4 text-sky-700" />
-                  Fiskeristyrelsen — Enheden for Tilsyn & Retsgrundlag
+                  Fiskeristyrelsen, Enheden for Tilsyn & Retsgrundlag
                 </div>
                 <h1 className="text-2xl font-black text-slate-900 tracking-tight">
                   JURIDISK TILSYNSNOTAT & COMPLIANCE-AUDIT

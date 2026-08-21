@@ -92,6 +92,20 @@ describe("generateAuditMemoMarkdown", () => {
     expect(memo).toContain("Ingen direkte retskonflikter");
   });
 
+  it("keeps a conflict when only one side matches the fleet criteria", () => {
+    const data = mockData();
+    // Target is trawl-specific (out of scope for a gillnet operator), source stays generic.
+    data.nodes[0].body = "Fartøjer med bomtrawl skal have VMS installeret.";
+
+    const memo = generateAuditMemoMarkdown({
+      data,
+      lang: "da",
+      criteria: { vesselLength: "all", gearType: "passive_nets", seaArea: "all" },
+    });
+
+    expect(memo).toContain("Identificerede modsigelser / konflikter:** 1");
+  });
+
   it("drops conflicts where neither side matches the fleet criteria", () => {
     const data = mockData();
     data.nodes[0].body = "Fartøjer med bomtrawl skal have VMS installeret.";

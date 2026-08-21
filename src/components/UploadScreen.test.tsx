@@ -354,7 +354,7 @@ describe("UploadScreen mode toggle and individual mode", () => {
     expect(screen.getByText("second.pdf")).toBeInTheDocument();
     expect(screen.getByText("third.pdf")).toBeInTheDocument();
     // The remaining 2 slots (second, third) are now fully filled+labeled and would satisfy
-    // canSubmit — proves the removal itself disarmed auto-fire rather than triggering a new call.
+    // canSubmit, proves the removal itself disarmed auto-fire rather than triggering a new call.
     expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.length).toBe(fetchCallsBeforeRemove);
   });
 
@@ -387,7 +387,7 @@ describe("UploadScreen mode toggle and individual mode", () => {
     renderUploadScreen();
     const dropZone = screen.getByTestId("upload-drop-zone");
 
-    // The drop itself already satisfies canSubmit and auto-fires once — that's expected,
+    // The drop itself already satisfies canSubmit and auto-fires once, that's expected,
     // existing behavior. This test isolates whether a *subsequent* mode toggle fires again.
     fireEvent.drop(dropZone, { dataTransfer: { files: [pdf("a.pdf"), pdf("b.pdf")] } });
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));

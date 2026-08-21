@@ -221,7 +221,10 @@ export function UploadScreen({
       onSuccess(graphData);
     } catch (err: unknown) {
       console.error("Preset analysis failed:", err);
-      setSubmitError(t("unknownError"));
+      // Surface the actual failure. A preset run can fail because a bundled corpus PDF is
+      // missing or the network dropped, and a bare "unknown error" gives the demo operator
+      // nothing to act on.
+      setSubmitError(err instanceof Error && err.message ? err.message : t("unknownError"));
       setLoading(false);
     }
   };
@@ -239,7 +242,7 @@ export function UploadScreen({
   };
 
   // Focuses a slot's label input right after it's added via "+ Add document", so keyboard
-  // users don't lose their place. Only fires for adds — slots.length is a coarse trigger,
+  // users don't lose their place. Only fires for adds, slots.length is a coarse trigger,
   // but pendingFocusIndexRef being null after every other mutation path keeps this a no-op
   // for file drops, removals, and mode toggles.
   useEffect(() => {
@@ -250,7 +253,7 @@ export function UploadScreen({
   }, [slots.length]);
 
   // Derived (not effect-driven) so it's always in sync with slots in the same
-  // render — the auto-trigger effect below reads it in that same render.
+  // render, the auto-trigger effect below reads it in that same render.
   const combinedSize = slots.reduce((sum, s) => sum + (s.file?.size ?? 0), 0);
   const sizeError = combinedSize > 10 * 1024 * 1024 ? t("sizeLimitError") : null;
 
@@ -298,8 +301,8 @@ export function UploadScreen({
   };
 
   // Switching to Bulk drops any lingering empty slots (e.g. an unfilled "+ Add document"
-  // slot from Individual mode) so Bulk's single-box view — which only ever renders filled
-  // slots — can't have an invisible empty slot silently blocking canSubmit. Switching to
+  // slot from Individual mode) so Bulk's single-box view, which only ever renders filled
+  // slots, can't have an invisible empty slot silently blocking canSubmit. Switching to
   // Individual pads back up to MIN_SLOTS so it keeps showing its classic 2-box minimum.
   const handleModeToggle = (next: "bulk" | "individual") => {
     if (loading) return;
@@ -410,7 +413,7 @@ export function UploadScreen({
 
   // Auto-fire the analysis once the slot array completes a valid set for the first time.
   // `runAnalysis` is intentionally omitted from deps: it's redefined every render and
-  // isn't itself the trigger condition — including it would re-run this effect on every
+  // isn't itself the trigger condition, including it would re-run this effect on every
   // keystroke/render without changing when armedRef is actually set.
   useEffect(() => {
     if (autoTriggerArmedRef.current && canSubmit) {

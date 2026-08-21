@@ -1,11 +1,11 @@
 // Helper library for parsing and analyzing citations
 
 export interface DocRef {
-  id: string;      // stable per-document key, e.g. "doc0", "doc1", ... — assigned by upload order
+  id: string;      // stable per-document key, e.g. "doc0", "doc1", ... assigned by upload order
   label: string;
 }
 
-/** Internal type — describes a heading pattern used for multi-pattern section detection. */
+/** Internal type, describes a heading pattern used for multi-pattern section detection. */
 interface HeadingPattern {
   name: "article" | "section" | "paragraph" | "numbered" | "hierarchical";
   regex: RegExp;      // captures (fullMatch, number)
@@ -13,7 +13,7 @@ interface HeadingPattern {
   priority: number;   // tiebreaker: lower = higher priority
 }
 
-/** Internal type — a parsed document section. */
+/** Internal type, a parsed document section. */
 interface RawSection {
   id: string;         // {docId}_sec_{number}[_{suffix}]
   number: number;     // base number only; "Artikel 15a" and "Artikel 15" both carry 15
@@ -134,7 +134,7 @@ const PATTERNS: HeadingPattern[] = [
   {
     name: "article",
     // Amending acts insert lettered articles ("Artikel 2a", "Artikel 15b", "Artikel 92a").
-    // EU drafting glues the letter to the number, so no whitespace is allowed here — that
+    // EU drafting glues the letter to the number, so no whitespace is allowed here, that
     // would otherwise swallow the first letter of the article's own title.
     regex: /(?:^|\n)[ \t]*((?:article|artikel)\s+(\d+)([a-z])?)\b/gi,
     prefix: "Art.",
@@ -221,7 +221,7 @@ export function parsePdfTextIntoSections(
   let cleanText = text.replace(/\u00a0/g, " ");
   cleanText = cleanText.replace(/\r\n/g, "\n");
 
-  // Pass 1 — count matches per pattern (reset regex lastIndex before each count)
+  // Pass 1, count matches per pattern (reset regex lastIndex before each count)
   const counts: number[] = PATTERNS.map(p => {
     const re = new RegExp(p.regex.source, p.regex.flags);
     let count = 0;
@@ -229,7 +229,7 @@ export function parsePdfTextIntoSections(
     return count;
   });
 
-  // Pass 2 — select dominant pattern: highest count, tie → lowest priority number.
+  // Pass 2, select dominant pattern: highest count, tie → lowest priority number.
   //
   // Strong (keyword-anchored) and weak (bare-numeric) patterns are elected separately,
   // because raw counts are not comparable across the two kinds. A line reading "Artikel 5"
@@ -268,7 +268,7 @@ export function parsePdfTextIntoSections(
     // Two or more keyword-anchored headings: trust them over any amount of bare numbering.
     ({ idx: dominantIdx, count: dominantCount } = strong);
   } else if (weak.count >= 2) {
-    // No real keyword structure, but a consistent numeric outline — use it.
+    // No real keyword structure, but a consistent numeric outline, use it.
     ({ idx: dominantIdx, count: dominantCount } = weak);
   } else {
     // Neither is established; fall back to whichever matched at all, preferring the
@@ -276,7 +276,7 @@ export function parsePdfTextIntoSections(
     ({ idx: dominantIdx, count: dominantCount } = strong.count > 0 ? strong : weak);
   }
 
-  // No pattern matched at all — dominantIdx is still -1, so there is no "dominant" pattern
+  // No pattern matched at all, dominantIdx is still -1, so there is no "dominant" pattern
   // to report on. Handle this before indexing PATTERNS, which would otherwise throw a raw
   // TypeError instead of the structured INSUFFICIENT_STRUCTURE error the caller expects.
   if (dominantIdx < 0) {
@@ -337,7 +337,7 @@ export function parsePdfTextIntoSections(
         // The "hierarchical" pattern captures decimal headings like "3.1": group 1 is the
         // full "N.M" text, group 2 the major number, group 3 the minor number. Using group 2
         // alone would collapse "3.1", "3.2", "3.3" to the same section number. parseFloat(m[1])
-        // isn't safe either — it collides multi-digit minors sharing a prefix, e.g.
+        // isn't safe either, it collides multi-digit minors sharing a prefix, e.g.
         // parseFloat("3.1") === parseFloat("3.10") === 3.1. Encode major/minor into a single
         // unique integer instead (minor capped far below 1000 for any realistic document),
         // which also preserves numeric sort order across majors, but keep the original "N.M"
@@ -389,7 +389,7 @@ export function parsePdfTextIntoSections(
 
   // Deduplication: keep longest body; on tie keep first occurrence. Keyed on the full id
   // rather than the bare number, so a lettered article ("Artikel 15a") is not collapsed into
-  // its base article ("Artikel 15") — they are distinct provisions.
+  // its base article ("Artikel 15"), they are distinct provisions.
   const byId: Record<string, RawSection> = {};
   for (const sec of sections) {
     if (!byId[sec.id]) {
@@ -425,7 +425,7 @@ const CITATION_RE = new RegExp(
   "gi"
 );
 
-// Bilingual modality signal regexes — evaluated in priority order: Exception → Prohibition → Permission → Obligation
+// Bilingual modality signal regexes, evaluated in priority order: Exception → Prohibition → Permission → Obligation
 const EXCEPTION_RE = /\b(?:undtagen|fritaget|fritages|uanset|afvige|undtagelse|dispensation|notwithstanding|except(?:ed)?|by\s+way\s+of\s+derogation|derogation|waiver)\b/i;
 const PROHIBITION_RE = /\b(?:forbudt|må\s+ikke|ikke\s+tilladt|prohibited|shall\s+not|must\s+not|not\s+permitted)\b/i;
 const PERMISSION_RE = /\b(?:kan|tilladt|må|hjemmel|bemyndiget|may|permitted|allowed|authorised|authorized|entitled\s+to)\b/i;
@@ -577,7 +577,7 @@ function parseCitations(
       }
     }
 
-    // Determine modality — evaluate in priority order: Exception → Prohibition → Permission → Obligation
+    // Determine modality, evaluate in priority order: Exception → Prohibition → Permission → Obligation
     let modality: "Obligation" | "Exception" | "Prohibition" | "Permission" = "Obligation";
     if (EXCEPTION_RE.test(context)) {
       modality = "Exception";
@@ -634,7 +634,7 @@ export function analyzeCitationsAndBuildGraph(docs: { text: string; label: strin
 
   const sectionMaps: Record<string, Record<number, RawSection>> = {};
   sectionsByDoc.forEach((sections, i) => {
-    // Keyed on the base number only — this map answers "does this document define section
+    // Keyed on the base number only, this map answers "does this document define section
     // N?" when resolving which document a citation points at. The unsuffixed provision wins
     // the key so "Artikel 15" rather than "Artikel 15a" represents number 15.
     const map: Record<number, RawSection> = {};
@@ -742,7 +742,7 @@ export function analyzeCitationsAndBuildGraph(docs: { text: string; label: strin
     }
   }
 
-  // Build links with deduplication — keyed on "source|target|modality"
+  // Build links with deduplication, keyed on "source|target|modality"
   const docByNodeId: Record<string, string> = {};
   for (const n of nodes) {
     docByNodeId[n.id] = n.doc;
@@ -766,7 +766,7 @@ export function analyzeCitationsAndBuildGraph(docs: { text: string; label: strin
     });
   }
 
-  // Detect overlaps and conflicts — already N-agnostic: groups by target, sources/citations
+  // Detect overlaps and conflicts, already N-agnostic: groups by target, sources/citations
   // are plain arrays with no assumption about how many distinct documents they span.
   const targetCitations: Record<string, CitationRecord[]> = {};
   for (const cit of citationRecords) {

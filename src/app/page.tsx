@@ -87,10 +87,13 @@ export default function Home() {
     localStorage.setItem("lexgraph-lang", newLang);
   };
 
-  // Listen for Escape key to unfocus/close selected node details
+  // Listen for Escape key to unfocus/close selected node details.
+  // Modals register their own Escape handler, so this one stands down while one is open;
+  // otherwise a single Escape both closes the modal and clears the selection behind it.
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (inspectingConflict || isAuditMemoOpen) return;
         setSelectedNode(null);
       }
     };
@@ -98,7 +101,7 @@ export default function Home() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, []);
+  }, [inspectingConflict, isAuditMemoOpen]);
 
   // Memoized: a fresh `t` on every render defeats React.memo on the graph canvases and
   // re-fires their teardown-and-rebuild effects, which include 280 synchronous force ticks.
@@ -1073,10 +1076,11 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
 
     applyNodeSelectionRef.current = applyNodeSelection;
 
-    // Event listeners
-    node.on("click", (event, d) => {
+    // Event listeners. Node selection is dispatched from the drag behavior's "end" handler,
+    // which distinguishes a click from a drag; a second click handler here would dispatch
+    // setSelectedNode twice for every plain click.
+    node.on("click", (event) => {
       event.stopPropagation();
-      setSelectedNode(d);
     });
 
     svg.on("click", (event) => {
@@ -1292,6 +1296,14 @@ function InteractiveGraphView({
   lang = "da"
 }: InteractiveGraphViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  // The graph effect tears down and rebuilds the whole SVG, including 280 synchronous force
+  // ticks. Feeding it the raw input value ran that on every keystroke, so the canvas reads a
+  // debounced copy instead.
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 200);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(false);
   const [isRightDrawerOpen, setIsRightDrawerOpen] = useState(false);
   const [showDocText, setShowDocText] = useState(false);
@@ -1402,7 +1414,7 @@ function InteractiveGraphView({
         />
       )}
 
-      {/* Control panel sidebar — slides in/out smoothly */}
+      {/* Control panel sidebar, slides in/out smoothly */}
       <div
         className={`absolute md:relative inset-y-0 left-0 z-25 w-80 max-w-[85vw] bg-white border-r border-slate-200 p-6 flex flex-col gap-6 overflow-y-auto transform transition-all duration-300 shadow-sm ${
           isLeftPanelOpen ? "translate-x-0" : "-translate-x-full md:-ml-80"
@@ -1490,14 +1502,14 @@ function InteractiveGraphView({
         selectedNode={selectedNode}
         activeDocFilter={activeDocFilter}
         activeCategoryFilter={activeCategoryFilter}
-        searchQuery={searchQuery}
+        searchQuery={debouncedSearchQuery}
         fleetCriteria={fleetCriteria}
         setSelectedNode={setSelectedNode}
         t={t}
         lang={lang}
       />
 
-      {/* Optional Details sidebar drawer — toggled via button */}
+      {/* Optional Details sidebar drawer, toggled via button */}
       {selectedNode && isRightDrawerOpen && (
         <div className="absolute right-0 top-0 w-full sm:w-96 max-w-full bg-white border-l border-slate-200 flex flex-col h-full z-20 shadow-xl transition-all duration-300 animate-in slide-in-from-right duration-200">
           <div className="p-5 border-b border-slate-200 bg-slate-50/70 relative flex flex-col gap-2">
@@ -1815,8 +1827,10 @@ function OverlapsView({
   t: TranslateFn;
   lang?: Lang;
 }) {
-  // Copy before sorting — sort() mutates in place, and data.overlaps is owned by the parent.
+  // Copy before sorting, sort() mutates in place, and data.overlaps is owned by the parent.
   const overlapsList = [...data.overlaps].sort((a, b) => b.count - a.count);
+  // One index instead of an O(n) scan per overlap, per citation, per render.
+  const nodeById = useMemo(() => new Map(data.nodes.map(n => [n.id, n])), [data.nodes]);
 
   return (
     <div className="flex-1 overflow-y-auto p-8 bg-[#fafaf9] text-slate-900">
@@ -1839,7 +1853,7 @@ function OverlapsView({
           </div>
         ) : (
           overlapsList.map((record, i) => {
-            const targetNode = data.nodes.find(n => n.id === record.target);
+            const targetNode = nodeById.get(record.target);
             if (!targetNode) return null;
 
             return (
@@ -1879,7 +1893,7 @@ function OverlapsView({
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {record.citations.map((c, idx) => {
-                      const sourceNode = data.nodes.find(n => n.id === c.source);
+                      const sourceNode = nodeById.get(c.source);
                       return (
                         <div key={idx} className="bg-slate-50 p-4 border border-slate-200/80 rounded-xl flex flex-col justify-between">
                           <div>
@@ -1976,8 +1990,11 @@ function ConflictsView({
   t: TranslateFn;
   lang: Lang;
 }) {
+  // One index instead of an O(n) scan per conflict, per citation, per render.
+  const nodeById = useMemo(() => new Map(data.nodes.map(n => [n.id, n])), [data.nodes]);
+
   const realConflicts = data.conflicts.filter(record => {
-    const targetNode = data.nodes.find(n => n.id === record.target);
+    const targetNode = nodeById.get(record.target);
     return targetNode && !targetNode.external && !targetNode.id.startsWith("external_");
   });
 
@@ -2010,11 +2027,11 @@ function ConflictsView({
           </div>
         ) : (
           realConflicts.map((record, i) => {
-            const targetNode = data.nodes.find(n => n.id === record.target);
+            const targetNode = nodeById.get(record.target);
             if (!targetNode) return null;
 
             const primaryCitation = record.citations[0];
-            const sourceNode = primaryCitation ? data.nodes.find(n => n.id === primaryCitation.source) : undefined;
+            const sourceNode = primaryCitation ? nodeById.get(primaryCitation.source) : undefined;
             // Precedence is derived from the document labels, never from docId ordering.
             const isTargetEu = nodeJurisdiction(data.docs, targetNode) === "eu";
             const isSourceNational = sourceNode ? nodeJurisdiction(data.docs, sourceNode) === "national" : false;
@@ -2098,14 +2115,14 @@ function ConflictsView({
                         </span>
                       </div>
                       <h4 className="text-xs font-bold text-slate-900 mt-1 break-words line-clamp-2">
-                        {targetNode.label} {targetNode.title ? `— ${cleanAndNormalizeText(targetNode.title)}` : ""}
+                        {targetNode.label} {targetNode.title ? `- ${cleanAndNormalizeText(targetNode.title)}` : ""}
                       </h4>
                     </div>
 
                     <div className="mt-3 p-3 bg-sky-50/50 rounded-lg text-xs leading-relaxed text-slate-800 border border-sky-100 border-l-2 border-l-sky-600 break-words whitespace-normal overflow-hidden">
                       {highlightConflictKeywords(
                         (() => {
-                          const parentNode = targetNode.parent_id ? data.nodes.find(n => n.id === targetNode.parent_id) : undefined;
+                          const parentNode = targetNode.parent_id ? nodeById.get(targetNode.parent_id) : undefined;
                           const rawBody = targetNode.body && !targetNode.body.startsWith("See parent section") 
                             ? targetNode.body 
                             : (parentNode?.body || targetNode.body || record.description || "");
@@ -2133,7 +2150,7 @@ function ConflictsView({
                         )}
                       </div>
                       <h4 className="text-xs font-bold text-slate-900 mt-1 break-words line-clamp-2">
-                        {sourceNode?.label || (lang === "da" ? "National sektion" : "National section")} {sourceNode?.title ? `— ${cleanAndNormalizeText(sourceNode.title)}` : ""}
+                        {sourceNode?.label || (lang === "da" ? "National sektion" : "National section")} {sourceNode?.title ? `- ${cleanAndNormalizeText(sourceNode.title)}` : ""}
                       </h4>
                     </div>
 

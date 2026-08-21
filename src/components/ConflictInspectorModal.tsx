@@ -115,7 +115,7 @@ export function ConflictInspectorModal({
                 </span>
               </div>
               <h2 id="modal-title" className="text-lg font-bold text-slate-900 mt-0.5 break-words">
-                {targetNode.label} {targetNode.title ? `— ${targetNode.title}` : ""}
+                {targetNode.label} {targetNode.title ? `- ${targetNode.title}` : ""}
               </h2>
             </div>
           </div>

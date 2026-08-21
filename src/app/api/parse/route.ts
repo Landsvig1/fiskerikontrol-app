@@ -30,10 +30,18 @@ export async function POST(request: Request) {
 }
 
 // Matches the client's MAX_SLOTS in UploadScreen.tsx. Enforced server-side too since the
-// indexed pdf${i} loop below has no other bound — without this, a request crafted outside
+// indexed pdf${i} loop below has no other bound, without this, a request crafted outside
 // the UI could submit an unbounded number of small PDFs (each triggering its own pdf-parse
 // invocation) while still fitting under the combined size cap.
 const MAX_DOCS = 12;
+
+// Labels are user-supplied text, not file bytes, so they are bounded separately.
+const MAX_LABEL_CHARS = 200;
+
+// A 10 MB PDF can decompress to far more text than 10 MB. The parser runs several global
+// regex sweeps over the full extracted string, so the decompressed size is the real input
+// to the expensive work and needs its own bound.
+const MAX_CHARS_PER_DOC = 4_000_000;
 
 async function handleParse(request: Request) {
   const contentType = request.headers.get("content-type") || "";
@@ -48,9 +56,31 @@ async function handleParse(request: Request) {
 
   const docs: { file: File; label: string }[] = [];
   for (let i = 0; i <= MAX_DOCS; i++) {
-    const file = formData.get(`pdf${i}`) as File | null;
+    const file = formData.get(`pdf${i}`);
     if (!file) break;
-    const label = (formData.get(`label${i}`) as string | null)?.trim() ?? "";
+    if (!(file instanceof File)) {
+      return NextResponse.json(
+        { error: `Field pdf${i} must be a file upload.` },
+        { status: 400 }
+      );
+    }
+    // The combined size cap below only counts file bytes, so an unbounded label would slip
+    // past it. Labels are also embedded in every section label and scanned by the citation
+    // proximity window, so a huge one is amplified across the whole parse.
+    const rawLabel = formData.get(`label${i}`);
+    if (rawLabel !== null && typeof rawLabel !== "string") {
+      return NextResponse.json(
+        { error: `Field label${i} must be a text value.` },
+        { status: 400 }
+      );
+    }
+    const label = (rawLabel ?? "").trim();
+    if (label.length > MAX_LABEL_CHARS) {
+      return NextResponse.json(
+        { error: `Document labels must be ${MAX_LABEL_CHARS} characters or fewer.` },
+        { status: 400 }
+      );
+    }
     docs.push({ file, label });
   }
 
@@ -86,7 +116,7 @@ async function handleParse(request: Request) {
 
   const buffers = await Promise.all(docs.map(d => d.file.arrayBuffer().then(Buffer.from)));
 
-  // Extract text — pdf-parse v2: PDFParse is a class, getText().text holds the content
+  // Extract text, pdf-parse v2: PDFParse is a class, getText().text holds the content
   const { PDFParse } = await import("pdf-parse");
   const parsers = buffers.map(buf => new PDFParse({ data: buf }));
   let extracted;
@@ -106,7 +136,17 @@ async function handleParse(request: Request) {
     await Promise.all(parsers.map(p => p.destroy()));
   }
 
-  // Build graph — throws structured error if structure is insufficient
+  const oversized = extracted.findIndex(e => e.text.length > MAX_CHARS_PER_DOC);
+  if (oversized !== -1) {
+    return NextResponse.json(
+      {
+        error: `Document ${oversized + 1} contains too much text to analyse (limit ${MAX_CHARS_PER_DOC.toLocaleString("en-US")} characters).`,
+      },
+      { status: 413 }
+    );
+  }
+
+  // Build graph, throws structured error if structure is insufficient
   let graphData;
   try {
     graphData = analyzeCitationsAndBuildGraph(

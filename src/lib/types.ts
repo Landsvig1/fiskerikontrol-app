@@ -15,8 +15,6 @@ export interface GraphNode extends d3.SimulationNodeDatum {
   is_subnode?: boolean;
   parent_id?: string;
   external?: boolean;   // true for virtual subnodes that reference unknown sections
-  isCrossDoc?: boolean;
-  citationsCount?: number;
   // d3 position properties
   x?: number;
   y?: number;

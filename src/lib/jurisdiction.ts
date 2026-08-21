@@ -12,7 +12,7 @@ const EU_RE = /\b(?:eu|ef|e(?:ø|oe)s|forordning(?:en|er)?|regulation|directive|
  * Classifies a document as EU or national law from its user-supplied label.
  *
  * This must never key on the docId ("doc0", "doc1", ...), because those are assigned by
- * upload order — deriving legal precedence from them silently inverts the verdict when the
+ * upload order, deriving legal precedence from them silently inverts the verdict when the
  * same corpus is uploaded in a different order.
  */
 export function classifyDocLabel(label: string): Jurisdiction {
@@ -28,7 +28,7 @@ export function docJurisdiction(docs: DocRef[], docId: string): Jurisdiction {
 }
 
 /**
- * Classifies the document a node belongs to, falling back to the node's own label — section
+ * Classifies the document a node belongs to, falling back to the node's own label, section
  * labels are prefixed with the document code (e.g. "EU 2023/2842 Art. 14"), which still
  * carries the signal when the docs array is unavailable.
  */

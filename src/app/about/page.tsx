@@ -30,7 +30,7 @@ const content: Record<Lang, AboutContent> = {
     tagline: "Dokumentcitations- og konfliktanalyse",
     whatTitle: "Hvad er LexGraph?",
     whatBody: [
-      "LexGraph er et værktøj til at kortlægge, hvordan to juridiske eller regulatoriske dokumenter — for eksempel en rammeforordning og den tilhørende gennemførelsesforordning — henviser til hinanden.",
+      "LexGraph er et værktøj til at kortlægge, hvordan to juridiske eller regulatoriske dokumenter, for eksempel en rammeforordning og den tilhørende gennemførelsesforordning, henviser til hinanden.",
       "Du uploader begge dokumenter som PDF. LexGraph genkender artikel-, paragraf- og kapiteloverskrifter, finder alle krydshenvisninger mellem dokumenterne, og bygger en interaktiv graf, hvor hver node er en sektion og hver forbindelse er en citation.",
     ],
     howTitle: "Sådan bruger du det",
@@ -41,7 +41,7 @@ const content: Record<Lang, AboutContent> = {
       },
       {
         title: "2. Navngiv dem",
-        body: "Giv hvert dokument et kort, letgenkendeligt navn — det bruges i grafen og i alle labels.",
+        body: "Giv hvert dokument et kort, letgenkendeligt navn. Det bruges i grafen og i alle labels.",
       },
       {
         title: "3. Analysér",
@@ -57,12 +57,12 @@ const content: Record<Lang, AboutContent> = {
       {
         icon: "search",
         title: "Automatisk citationsudtræk",
-        body: "Ingen manuel krydstjek af artikel- og paragrafhenvisninger — LexGraph finder dem alle, inklusive nedarvede stk.- og litra-referencer.",
+        body: "Ingen manuel krydstjek af artikel- og paragrafhenvisninger. LexGraph finder dem alle, inklusive nedarvede stk.- og litra-referencer.",
       },
       {
         icon: "shield",
         title: "Konfliktdetektion",
-        body: "Opdager når én sektion skaber en undtagelse, mens en anden sektion i det andet dokument pålægger en forpligtelse eller et forbud på samme sted — den slags modsigelser, der er lette at overse ved separat læsning.",
+        body: "Opdager når én sektion skaber en undtagelse, mens en anden sektion i det andet dokument pålægger en forpligtelse eller et forbud på samme sted. Det er den slags modsigelser, der er lette at overse ved separat læsning.",
       },
       {
         icon: "layers",
@@ -81,7 +81,7 @@ const content: Record<Lang, AboutContent> = {
     tagline: "Document Citation & Conflict Analysis",
     whatTitle: "What is LexGraph?",
     whatBody: [
-      "LexGraph is a tool for mapping how two legal or regulatory documents — for example a base regulation and its implementing regulation — reference each other.",
+      "LexGraph is a tool for mapping how two legal or regulatory documents, for example a base regulation and its implementing regulation, reference each other.",
       "You upload both documents as PDFs. LexGraph detects article, section, and chapter headings, finds every cross-reference between the two documents, and builds an interactive graph where each node is a section and each connection is a citation.",
     ],
     howTitle: "How to use it",
@@ -92,7 +92,7 @@ const content: Record<Lang, AboutContent> = {
       },
       {
         title: "2. Name them",
-        body: "Give each document a short, recognisable name — used throughout the graph and every label.",
+        body: "Give each document a short, recognisable name, used throughout the graph and every label.",
       },
       {
         title: "3. Analyse",
@@ -108,12 +108,12 @@ const content: Record<Lang, AboutContent> = {
       {
         icon: "search",
         title: "Automatic citation extraction",
-        body: "No manual cross-checking of article and section references — LexGraph finds them all, including nested paragraph and litra sub-references.",
+        body: "No manual cross-checking of article and section references. LexGraph finds them all, including nested paragraph and litra sub-references.",
       },
       {
         icon: "shield",
         title: "Conflict detection",
-        body: "Detects when one section creates an exception while another section in the other document imposes an obligation or prohibition on the same target — the kind of contradiction that's easy to miss when reading each document separately.",
+        body: "Detects when one section creates an exception while another section in the other document imposes an obligation or prohibition on the same target. That is the kind of contradiction that's easy to miss when reading each document separately.",
       },
       {
         icon: "layers",
