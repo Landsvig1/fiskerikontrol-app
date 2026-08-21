@@ -5,8 +5,15 @@ export type Jurisdiction = "eu" | "national" | "unknown";
 // National markers are checked first: a Danish order's label often names the EU act it
 // transposes ("BEK om gennemførelse af forordning ..."), so an EU-first test would
 // misclassify it. Word boundaries keep "lov" from matching inside "lovgivning".
-const NATIONAL_RE = /\b(?:bek|bekendtg(?:ø|oe)relse|lbk|lov|lovbekendtg(?:ø|oe)relse)\b/i;
-const EU_RE = /\b(?:eu|ef|e(?:ø|oe)s|forordning(?:en|er)?|regulation|directive|direktiv|celex)\b/i;
+// Danish act names are compounds ("Kontrolforordningen", "Logbogbekendtgoerelsen",
+// "Fiskeriloven"), so the Danish stems are matched as suffixes with only a trailing boundary.
+// A leading \b made every idiomatic Danish label classify as "unknown", which the audit memo
+// and the connection explainer then read as a positive claim about the legal hierarchy.
+// "order" is included because it is the standard English rendering of "bekendtgoerelse" and
+// no EU instrument is called an order, so a Danish order labelled in English is not read as
+// EU law. "act" is deliberately NOT included: "EU Delegated Act" is a real EU label.
+const NATIONAL_RE = /(?:\b(?:bek|lbk)\b|bekendtg(?:ø|oe)relse(?:n|r|rne)?\b|lov(?:en|e)?\b|\border\b)/i;
+const EU_RE = /(?:\b(?:eu|ef|e(?:ø|oe)s|regulation|directive|celex)\b|forordning(?:en|er|erne)?\b|direktiv(?:et|er)?\b)/i;
 
 /**
  * Classifies a document as EU or national law from its user-supplied label.

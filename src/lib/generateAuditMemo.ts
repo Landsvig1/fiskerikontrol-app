@@ -1,4 +1,5 @@
 import { GraphData, GraphNode } from "./types";
+import { nodeJurisdiction } from "./jurisdiction";
 import { FleetFilterCriteria, matchesFleetCriteria } from "./fleetFilter";
 import { Lang } from "./i18n";
 
@@ -74,7 +75,12 @@ export function generateAuditMemoMarkdown(options: AuditMemoOptions): string {
   lines.push(`\n- **${lang === "da" ? "Analyserede retskilder" : "Analyzed regulations"}:** ${docNames}`);
   lines.push(`- **${lang === "da" ? "Gennemgåede sektioner" : "Analyzed sections"}:** ${filteredNodes.length} ${lang === "da" ? "sektioner" : "sections"}`);
   lines.push(`- **${lang === "da" ? "Krydsreferencer mellem dokumenter" : "Cross-document citations"}:** ${data.links.filter((l) => l.isCrossDoc).length}`);
-  lines.push(`- **${lang === "da" ? "Identificerede modsigelser / konflikter" : "Identified conflicts / contradictions"}:** ${conflicts.length}`);
+  // conflicts[] is expanded to one entry per citing section, so its length is a pair count,
+  // not a conflict count. The Conflicts view counts distinct target sections, and the two
+  // numbers must not disagree in a document that goes to a caseworker.
+  const conflictTargetCount = new Set(conflicts.map((c) => c.target.id)).size;
+  lines.push(`- **${lang === "da" ? "Identificerede modsigelser / konflikter" : "Identified conflicts / contradictions"}:** ${conflictTargetCount}`);
+  lines.push(`- **${lang === "da" ? "Berørte henvisningspar" : "Affected citation pairs"}:** ${conflicts.length}`);
   lines.push(`\n`);
 
   // 2. Active Scenario Filter
@@ -103,10 +109,20 @@ export function generateAuditMemoMarkdown(options: AuditMemoOptions): string {
       lines.push(`\n**${c.target.label} ${lang === "da" ? "lovtekst" : "text"}:**`);
       lines.push(`> "${c.target.body.slice(0, 300)}..."`);
       lines.push(`\n**${lang === "da" ? "Juridisk vurdering & forrang" : "Legal Assessment & Precedence"}:**`);
+      // EU supremacy is only a defensible claim when a national act cites an EU act. Asserting
+      // it for an EU-to-EU or national-to-national conflict is a confidently wrong legal
+      // statement in a document that carries the agency's letterhead. Same gate as the
+      // Conflicts view in page.tsx, so the memo and the screen cannot diverge.
+      const targetIsEu = nodeJurisdiction(data.docs, c.target) === "eu";
+      const sourceIsNational = nodeJurisdiction(data.docs, c.source) === "national";
       lines.push(
-        lang === "da"
-          ? `Ved modstrid har EU-forordninger forrang frem for nationale bekendtgørelser (*EU-retlig forrang*). Sagsbehandlere og kontrolførere bør sikre, at nationale dispensationsbestemmelser ikke undergraver EU-harmoniserede kontrolkrav.`
-          : `In case of contradiction, EU regulations take precedence over national orders (EU legal supremacy). Enforcement officers must verify national derogations conform to EU mandates.`
+        targetIsEu && sourceIsNational
+          ? (lang === "da"
+              ? `Ved modstrid har EU-forordninger forrang frem for nationale bekendtgørelser (*EU-retlig forrang*). Sagsbehandlere og kontrolførere bør sikre, at nationale dispensationsbestemmelser ikke undergraver EU-harmoniserede kontrolkrav.`
+              : `In case of contradiction, EU regulations take precedence over national orders (EU legal supremacy). Enforcement officers must verify national derogations conform to EU mandates.`)
+          : (lang === "da"
+              ? `Retslig afklaring påkrævet. Der foreligger modstridende modaliteter mellem bestemmelserne, men forholdet er ikke et EU/national forrangsspørgsmål ud fra dokumentbetegnelserne. Delegerede retsakter og bekendtgørelser skal fortolkes i overensstemmelse med grundforordningens kontrolformål.`
+              : `Clarification required. Contradictory modalities exist between the provisions, but the relationship is not an EU versus national precedence question based on the document labels. Secondary acts must be interpreted in compliance with baseline control objectives.`)
       );
       lines.push(`\n`);
     });

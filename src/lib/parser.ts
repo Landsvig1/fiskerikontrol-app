@@ -267,8 +267,10 @@ export function parsePdfTextIntoSections(
   if (strong.count >= 2) {
     // Two or more keyword-anchored headings: trust them over any amount of bare numbering.
     ({ idx: dominantIdx, count: dominantCount } = strong);
-  } else if (weak.count >= 2) {
-    // No real keyword structure, but a consistent numeric outline, use it.
+  } else if (strong.count === 0 && weak.count >= 2) {
+    // No keyword structure at all, but a consistent numeric outline, use it. Guarding on
+    // strong.count === 0 keeps a lone "Artikel 1" from being discarded in favour of the
+    // list items inside it, which is what the fallback branch below already intends.
     ({ idx: dominantIdx, count: dominantCount } = weak);
   } else {
     // Neither is established; fall back to whichever matched at all, preferring the
@@ -419,9 +421,16 @@ export function parsePdfTextIntoSections(
 // document. The lookbehind keeps English "Art. 4" working without re-admitting the noun.
 const ART_ABBREV_GUARD = String.raw`(?<!\b(?:hver|den|denne|samme|en|et|nogen|ingen|anden|andre|hvilken|enhver)\s)`;
 const CITATION_RE = new RegExp(
-  String.raw`(?:\b(?:artiklerne|artikels|artikler|artiklen|artikel|articles|article|sections|section|sec\.|secs\.|sec|paragraf|paragraffer|klausul|clause|kapitel|kap\.|chapter|ch\.|annex|bilag|schedule)\s*|` +
-    ART_ABBREV_GUARD + String.raw`\b(?:arts\.|art\.)\s*|§§?\s*)` +
-    String.raw`(\d+)([a-z])?(?:\s*,\s*(?:paragraph|stk\.|stk|stykke|para\.)\s*(\d+))?(?:\s*,\s*(?:litra|point|lit\.|nr\.|nr)\s*\(?([a-z0-9]+)\)?)?\b`,
+  // Two prefix branches with their own number tail, because the suffix separator differs by
+  // legal tradition: Danish paragraphs space the letter off ("§ 6 a"), EU articles glue it
+  // on ("Artikel 15a"). Allowing the spaced form on the article branch would swallow the
+  // first letter of the article's own title, so the branches cannot share a tail.
+  String.raw`(?:` +
+    String.raw`§§?\s*(?<pnum>\d+)(?:[ \t]*(?<psuf>[a-h]))?` +
+    String.raw`|(?:\b(?:artiklerne|artikels|artikler|artiklen|artikel|articles|article|sections|section|sec\.|secs\.|sec|paragraf|paragraffer|klausul|clause|kapitel|kap\.|chapter|ch\.|annex|bilag|schedule)\s*|` +
+    ART_ABBREV_GUARD + String.raw`\b(?:arts\.|art\.)\s*)(?<anum>\d+)(?<asuf>[a-z])?` +
+    String.raw`)` +
+    String.raw`(?:\s*,\s*(?:paragraph|stk\.|stk|stykke|para\.)\s*(?<stk>\d+))?(?:\s*,\s*(?:litra|point|lit\.|nr\.|nr)\s*\(?(?<litra>[a-z0-9]+)\)?)?\b`,
   "gi"
 );
 
@@ -475,10 +484,14 @@ function parseCitations(
 
   while ((match = pattern.exec(body)) !== null) {
     const matchedPrefix = match[0].toLowerCase();
-    const artNum = parseInt(match[1], 10);
-    const suffix = match[2] || null;
-    const stkNum = match[3] || null;
-    const litraVal = match[4] || null;
+    const g = match.groups ?? {};
+    const artNum = parseInt(g.pnum ?? g.anum ?? "", 10);
+    // Lowercased so an uppercase citation ("ARTIKEL 15A") resolves to the same section id the
+    // heading pass produced, instead of forking a duplicate phantom node.
+    const rawSuffix = g.psuf ?? g.asuf ?? null;
+    const suffix = rawSuffix ? rawSuffix.toLowerCase() : null;
+    const stkNum = g.stk ?? null;
+    const litraVal = g.litra ?? null;
     const matchIndex = match.index;
     const matchLength = match[0].length;
 
@@ -735,7 +748,9 @@ export function analyzeCitationsAndBuildGraph(docs: { text: string; label: strin
           theme: parentNode ? parentNode.theme : "General",
           body: parentNode ? `See parent section: ${parentNode.label} (${parentNode.title})` : "External reference",
           is_subnode: true,
-          parent_id: cit.target_art
+          // A section-level placeholder resolves to itself, and a node that is its own parent
+          // breaks parent lookups and the graph's hierarchy rendering.
+          parent_id: cit.target_art !== cit.target ? cit.target_art : undefined
         });
         nodeIds.add(cit.target);
       }

@@ -29,8 +29,13 @@ export function explainConnection(
   const selectedDocTitle = docLabel(docs, selectedNode.doc, (k) => k);
   const otherDocTitle = docLabel(docs, otherNode.doc, (k) => k);
 
-  const isEuSelected = nodeJurisdiction(docs, selectedNode) === "eu";
-  const isEuOther = nodeJurisdiction(docs, otherNode) === "eu";
+  // Kept as the three-valued Jurisdiction, not a boolean. Collapsing "unknown" into "not eu"
+  // makes the explainer assert that an unclassifiable document is Danish national law.
+  const jurSelected = nodeJurisdiction(docs, selectedNode);
+  const jurOther = nodeJurisdiction(docs, otherNode);
+  const isEuSelected = jurSelected === "eu";
+  const isEuOther = jurOther === "eu";
+  const jurisdictionUnknown = jurSelected === "unknown" || jurOther === "unknown";
 
   // Check if there is an active recorded conflict between these two specific provisions
   const relevantConflict = conflicts.find((c) => {
@@ -151,7 +156,11 @@ export function explainConnection(
 
   // Determine hierarchy context
   let hierarchyContext = "";
-  if (lang === "da") {
+  if (jurisdictionUnknown) {
+    hierarchyContext = lang === "da"
+      ? `Retskildehierarkiet kan ikke afgøres ud fra dokumentbetegnelserne.`
+      : `Legal hierarchy cannot be determined from the document labels.`;
+  } else if (lang === "da") {
     if (isEuSelected && !isEuOther) {
       hierarchyContext = `EU-forordningen (${selectedNode.label}) er direkte bindende og har forrang for den nationale bekendtgørelse (${otherNode.label}).`;
     } else if (!isEuSelected && isEuOther) {

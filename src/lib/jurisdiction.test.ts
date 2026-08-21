@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { classifyDocLabel, docJurisdiction, nodeJurisdiction } from "./jurisdiction";
 import type { DocRef } from "./docDisplay";
+import { PRESET_DOCUMENTS } from "./presetCorpus";
 
 describe("classifyDocLabel", () => {
   it("classifies EU regulations", () => {
@@ -69,5 +70,37 @@ describe("nodeJurisdiction", () => {
   it("prefers the docs array over the node label", () => {
     const docs: DocRef[] = [{ id: "doc0", label: "BEK 1197/2025" }];
     expect(nodeJurisdiction(docs, { doc: "doc0", label: "Art. 14" })).toBe("national");
+  });
+});
+
+describe("classifyDocLabel against the bundled corpus", () => {
+  // The preset upload path sends doc.code as the label, so every code must agree with the
+  // declared type. A table test over the real corpus is what catches a regex change that
+  // happens to keep the hand-picked examples working.
+  it.each(PRESET_DOCUMENTS.map((d) => [d.code, d.type] as const))(
+    "classifies preset code %s",
+    (code, type) => {
+      expect(classifyDocLabel(code)).toBe(type === "eu" ? "eu" : "national");
+    }
+  );
+
+  it("classifies idiomatic Danish compound act names", () => {
+    // These are the labels a caseworker types by hand. Before the compound fix they all
+    // returned "unknown", which downstream code rendered as a positive national-law claim.
+    expect(classifyDocLabel("Kontrolforordningen")).toBe("eu");
+    expect(classifyDocLabel("Gennemførelsesforordningen")).toBe("eu");
+    expect(classifyDocLabel("Logbogbekendtgørelsen")).toBe("national");
+    expect(classifyDocLabel("Fiskeriloven")).toBe("national");
+  });
+
+  it("does not read an English-labelled Danish order as EU law", () => {
+    expect(classifyDocLabel("Fisheries Regulation Order")).toBe("national");
+    expect(classifyDocLabel("Logbook Executive Order")).toBe("national");
+  });
+
+  it("still classifies an EU delegated act as EU", () => {
+    // Guards the deliberate omission of "act" from the national markers.
+    expect(classifyDocLabel("EU Delegated Act")).toBe("eu");
+    expect(classifyDocLabel("Delegated Regulation (Control)")).toBe("eu");
   });
 });

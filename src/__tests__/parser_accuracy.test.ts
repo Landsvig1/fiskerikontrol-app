@@ -1,5 +1,13 @@
 import { analyzeCitationsAndBuildGraph, parsePdfTextIntoSections } from "../lib/parser";
 
+const FILLER_DOC = {
+  text: `Artikel 1
+Uafhaengig bestemmelse
+Denne bestemmelse henviser ikke til noget.
+`,
+  label: "EU 9/2026",
+};
+
 describe("LexGraph Parser Accuracy & Citation Extraction", () => {
   describe("Mixed Heading Pattern Detection", () => {
     it("should match both Article and Section/Paragraph symbols in the same document if present in high density", () => {
@@ -133,6 +141,109 @@ Reglerne gaelder ogsaa her.
       expect(sections.map(s => s.id)).toEqual(["doc0_sec_7", "doc0_sec_8"]);
       expect(sections[0].title).toBe("Fiskeritilladelse");
       expect(sections[1].title).toBe("Havbrug");
+    });
+  });
+
+  describe("Regressions found in review of 87361c3..0d96ce4", () => {
+    it("does not discard a lone keyword heading in favour of the list items inside it", () => {
+      // strong.count === 1 and weak.count >= 2. Before the fix the weak branch won and the
+      // single real article was thrown away, leaving three spurious numbered sections.
+      const text = `Artikel 1
+Anvendelsesomraade
+Denne forordning gaelder for alt fiskeri.
+1.
+foerste led i listen
+2.
+andet led i listen
+3.
+tredje led i listen
+`;
+
+      const sections = parsePdfTextIntoSections(text, "doc0", "TEST 1/2026");
+      expect(sections.map(s => s.id)).toEqual(["doc0_sec_1"]);
+      expect(sections[0].label).toBe("TEST 1/2026 Art. 1");
+      expect(sections[0].title).toBe("Anvendelsesomraade");
+    });
+
+    it("still elects the numeric outline when there is no keyword heading at all", () => {
+      const text = `1.
+Formaal
+Reglerne fastlaegger rammen.
+2.
+Anvendelse
+Reglerne gaelder for fartoejer.
+`;
+
+      const sections = parsePdfTextIntoSections(text, "doc0", "TEST 2/2026");
+      expect(sections.map(s => s.id)).toEqual(["doc0_sec_1", "doc0_sec_2"]);
+    });
+
+    it("resolves a Danish space-separated lettered citation to the lettered provision", () => {
+      // "§ 6 a" parses as a heading, so a citation written the same way must reach it rather
+      // than silently landing on the base provision § 6.
+      const text = `§ 5
+Henvisning
+Udvalget nedsaettes, jf. § 6 a, og skal hoeres.
+
+§ 6
+Udvalget for Erhvervsfiskeri
+Udvalget raadgiver ministeren.
+
+§ 6 a
+Udvalget for Muslingeproduktion
+Udvalget raadgiver om muslinger.
+`;
+
+      const graph = analyzeCitationsAndBuildGraph([{ text, label: "LBK 205/2023" }, FILLER_DOC]);
+      const fromSec5 = graph.links.filter(l => l.source === "doc0_sec_5");
+      expect(fromSec5.map(l => l.target)).toContain("doc0_sec_6_a");
+      expect(fromSec5.map(l => l.target)).not.toContain("doc0_sec_6");
+    });
+
+    it("does not let the spaced suffix form leak onto article citations", () => {
+      // The article branch must keep the glued-only rule, otherwise "artikel 5 F" swallows
+      // the first letter of the following word.
+      const text = `Artikel 4
+Henvisning
+Reglerne finder anvendelse, jf. artikel 5 Foerste betingelse er opfyldt.
+
+Artikel 5
+Betingelser
+Betingelserne fastlaegges her.
+`;
+
+      const graph = analyzeCitationsAndBuildGraph([{ text, label: "EU 1/2026" }, FILLER_DOC]);
+      const targets = graph.links.filter(l => l.source === "doc0_sec_4").map(l => l.target);
+      expect(targets).toContain("doc0_sec_5");
+      expect(targets).not.toContain("doc0_sec_5_f");
+    });
+
+    it("resolves an uppercase lettered citation to the same node as the heading", () => {
+      const text = `Artikel 3
+Henvisning
+Kravet gaelder, jf. ARTIKEL 15A.
+
+Artikel 15a
+Elektronisk fiskerilogbog
+Saerlige regler for smaa fartoejer.
+`;
+
+      const graph = analyzeCitationsAndBuildGraph([{ text, label: "EU 1224/2009" }, FILLER_DOC]);
+      const targets = graph.links.filter(l => l.source === "doc0_sec_3").map(l => l.target);
+      expect(targets).toContain("doc0_sec_15_a");
+      expect(graph.nodes.filter(n => n.id === "doc0_sec_15_A")).toHaveLength(0);
+    });
+
+    it("never makes a placeholder node its own parent", () => {
+      // A citation to a provision the target document does not define creates a placeholder.
+      // Setting parent_id to its own id breaks parent lookups and hierarchy rendering.
+      const text = `Artikel 1
+Henvisning
+Kravet gaelder, jf. artikel 99.
+`;
+
+      const graph = analyzeCitationsAndBuildGraph([{ text, label: "EU 1/2026" }, FILLER_DOC]);
+      expect(graph.nodes.filter(n => n.parent_id === n.id)).toHaveLength(0);
     });
   });
 

@@ -94,6 +94,52 @@ describe("explainConnection", () => {
     expect(explanation.hasConflict).toBe(false);
   });
 
+
+  it("explains an incoming permission link from the other side", () => {
+    const link: GraphLink = {
+      source: nodeB.id,
+      target: nodeA.id,
+      modality: "Permission",
+    };
+
+    const explanation = explainConnection(nodeA, nodeB, link, false, [], docs, "da");
+    expect(explanation.headline).toContain("tillader fravigelse");
+    expect(explanation.legalRole).toContain("fakultativ adgang");
+  });
+
+  it("makes no national-law claim when a document label cannot be classified", () => {
+    // "Annex III" classifies as unknown. Before the fix the explainer collapsed unknown into
+    // "not EU" and described both provisions as Danish national law.
+    const unknownDocs: DocRef[] = [
+      { id: "doc_eu", label: "EU 2023/2842" },
+      { id: "doc_dk", label: "Annex III" },
+    ];
+    const link: GraphLink = {
+      source: nodeB.id,
+      target: nodeA.id,
+      modality: "Obligation",
+    };
+
+    const explanation = explainConnection(nodeB, nodeA, link, true, [], unknownDocs, "da");
+    expect(explanation.hierarchyContext).toContain("kan ikke afgøres");
+    expect(explanation.hierarchyContext).not.toContain("bekendtgørelse");
+  });
+
+  it("emits the neutral English hierarchy string for an unclassifiable label", () => {
+    const unknownDocs: DocRef[] = [
+      { id: "doc_eu", label: "Annex III" },
+      { id: "doc_dk", label: "Annex IV" },
+    ];
+    const link: GraphLink = {
+      source: nodeB.id,
+      target: nodeA.id,
+      modality: "Obligation",
+    };
+
+    const explanation = explainConnection(nodeB, nodeA, link, true, [], unknownDocs, "en");
+    expect(explanation.hierarchyContext).toContain("cannot be determined");
+  });
+
   it("detects and flags conflict if present in conflict records", () => {
     const conflicts: ConflictRecord[] = [
       {
