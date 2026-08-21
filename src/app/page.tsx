@@ -734,8 +734,9 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
         .iterations(3))
       .velocityDecay(0.4);
 
-    // Pre-warm simulation so nodes expand into settled spacious positions before initial view calculation
-    for (let i = 0; i < 180; ++i) simulation.tick();
+    // Settle simulation synchronously so node positions are perfectly stable before view calculation
+    for (let i = 0; i < 260; ++i) simulation.tick();
+    simulation.stop();
 
     // Zoom-to-fit calculation to ensure outer edges of the graph are visible in screen corners and middle node centered
     const zoomToFit = (animate = false) => {
@@ -795,9 +796,15 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       .selectAll<SVGLineElement, GraphLink>("line")
       .data(filteredLinks)
       .join("line")
+      .attr("x1", d => (d.source as GraphNode).x || 0)
+      .attr("y1", d => (d.source as GraphNode).y || 0)
+      .attr("x2", d => (d.target as GraphNode).x || 0)
+      .attr("y2", d => (d.target as GraphNode).y || 0)
       .attr("stroke", d => modalityColor(d.modality))
       .attr("stroke-opacity", 0.4)
       .attr("stroke-width", 1.5)
+      .attr("stroke-dasharray", d => d.modality === "Exception" ? "4, 2" : "none")
+      .style("cursor", "pointer");
       .attr("stroke-dasharray", d => d.modality === "Exception" ? "4, 2" : "none")
       .style("cursor", "pointer");
 
@@ -839,6 +846,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       .data(filteredNodes)
       .join("g")
       .attr("class", "node-group")
+      .attr("transform", d => `translate(${d.x || 0},${d.y || 0})`)
       .style("cursor", "pointer")
       .style("opacity", d => {
         if (isFleetFiltered) {
@@ -1082,45 +1090,29 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       });
     });
 
-    // Update node positions on tick
-    const boundsMargin = Math.max(width, height) * 2;
-    simulation.on("tick", () => {
-      for (const d of filteredNodes) {
-        d.x = Math.max(-boundsMargin, Math.min(width + boundsMargin, d.x!));
-        d.y = Math.max(-boundsMargin, Math.min(height + boundsMargin, d.y!));
-      }
+    // Drag helper functions for direct interactive node positioning
+    function dragstarted(this: SVGGElement) {
+      d3.select(this).raise();
+    }
 
+    function dragged(this: SVGGElement, event: d3.D3DragEvent<SVGGElement, GraphNode, unknown>, d: GraphNode) {
+      d.x = event.x;
+      d.y = event.y;
+      d3.select(this).attr("transform", `translate(${d.x},${d.y})`);
       link
-         .attr("x1", d => (d.source as GraphNode).x!)
-         .attr("y1", d => (d.source as GraphNode).y!)
-         .attr("x2", d => (d.target as GraphNode).x!)
-         .attr("y2", d => (d.target as GraphNode).y!);
-
-      node.attr("transform", d => `translate(${d.x || 0},${d.y || 0})`);
-    });
-
-    simulation.on("end", () => {
-      if (!selectedNodeRef.current && zoomToFitRef.current) {
-        zoomToFitRef.current(false);
-      }
-    });
-
-    // Drag helper functions
-    function dragstarted(event: d3.D3DragEvent<SVGGElement, GraphNode, unknown>, d: GraphNode) {
-      if (!event.active) simulation.alphaTarget(0.3).restart();
-      d.fx = d.x;
-      d.fy = d.y;
+        .filter(l => {
+          const sId = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+          const tId = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+          return sId === d.id || tId === d.id;
+        })
+        .attr("x1", l => (l.source as GraphNode).x || 0)
+        .attr("y1", l => (l.source as GraphNode).y || 0)
+        .attr("x2", l => (l.target as GraphNode).x || 0)
+        .attr("y2", l => (l.target as GraphNode).y || 0);
     }
 
-    function dragged(event: d3.D3DragEvent<SVGGElement, GraphNode, unknown>, d: GraphNode) {
-      d.fx = event.x;
-      d.fy = event.y;
-    }
-
-    function dragended(event: d3.D3DragEvent<SVGGElement, GraphNode, unknown>, d: GraphNode) {
-      if (!event.active) simulation.alphaTarget(0);
-      d.fx = null;
-      d.fy = null;
+    function dragended() {
+      // Retain dropped coordinates
     }
 
     // Initial positioning
