@@ -23,6 +23,8 @@ import {
   ChevronUp,
   ArrowUpRight,
   ArrowDownLeft,
+  SlidersHorizontal,
+  X,
 } from "lucide-react";
 import * as d3 from "d3";
 import { CitationGraphView } from "@/components/CitationGraphView";
@@ -661,51 +663,78 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       const connectedNodeIds = new Set<string>();
       connectedNodeIds.add(selectedNode.id);
 
-      // Highlight links connected to the selected node and dim the rest
-      svg.selectAll("line").style("stroke-opacity", (d: unknown) => {
-        const l = d as GraphLink;
+      // Identify all directly connected links and neighbor nodes
+      svg.selectAll<SVGLineElement, GraphLink>("line").each(function(l) {
         const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
         const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
         if (sId === selectedNode.id || tId === selectedNode.id) {
           connectedNodeIds.add(sId);
           connectedNodeIds.add(tId);
-          return 1.0;
         }
-        return 0.06; // Dimmed
       });
 
-      // Highlight selected node and direct connections
-      svg.selectAll("g.node-group")
-        .style("opacity", (d: unknown) => {
-          const n = d as GraphNode;
-          return connectedNodeIds.has(n.id) ? 1.0 : 0.12;
+      // Highlight connected links vibrantly and demote all others
+      svg.selectAll<SVGLineElement, GraphLink>("line")
+        .style("stroke-opacity", (l) => {
+          const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
+          const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
+          return (sId === selectedNode.id || tId === selectedNode.id) ? 1.0 : 0.03;
+        })
+        .attr("stroke-width", (l) => {
+          const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
+          const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
+          return (sId === selectedNode.id || tId === selectedNode.id) ? 2.8 : 1.0;
         });
 
-      svg.selectAll("circle.primary-circle")
-        .attr("stroke-width", (d: unknown) => {
-          const n = d as GraphNode;
-          return n.id === selectedNode.id ? 2.5 : 1.5;
-        })
-        .attr("stroke", (d: unknown) => {
-          const n = d as GraphNode;
-          return n.id === selectedNode.id ? "#0f172a" : "#ffffff";
+      // Heavily demote unconnected nodes, emphasize connected nodes
+      svg.selectAll<SVGGElement, GraphNode>("g.node-group")
+        .style("opacity", (n) => {
+          return connectedNodeIds.has(n.id) ? 1.0 : 0.06;
         });
+
+      // Show crisp labels only on the connected subgraph
+      svg.selectAll<SVGTextElement, GraphNode>("g.node-group text")
+        .text((n) => connectedNodeIds.has(n.id) ? n.label : "")
+        .style("opacity", (n) => connectedNodeIds.has(n.id) ? 1.0 : 0)
+        .style("font-weight", (n) => n.id === selectedNode.id ? "800" : "600")
+        .attr("fill", (n) => n.id === selectedNode.id ? "#0284c7" : "#334155");
+
+      // Selected node focal ring
+      svg.selectAll<SVGCircleElement, GraphNode>("circle.primary-circle")
+        .attr("stroke-width", (n) => n.id === selectedNode.id ? 3.5 : (connectedNodeIds.has(n.id) ? 2.2 : 1.0))
+        .attr("stroke", (n) => n.id === selectedNode.id ? "#0284c7" : "#ffffff");
+
+      // Hide halos for unconnected nodes
+      svg.selectAll<SVGCircleElement, GraphNode>("circle.conflict-halo")
+        .style("opacity", (n) => connectedNodeIds.has(n.id) ? 1.0 : 0);
     } else {
-      // Reset styling
-      svg.selectAll("line").style("stroke-opacity", 0.4);
-      svg.selectAll("g.node-group")
-        .style("opacity", (d: unknown) => {
-          const n = d as GraphNode;
+      // Reset styling when no node is selected
+      svg.selectAll<SVGLineElement, GraphLink>("line")
+        .style("stroke-opacity", 0.4)
+        .attr("stroke-width", 1.5);
+
+      svg.selectAll<SVGGElement, GraphNode>("g.node-group")
+        .style("opacity", (n) => {
           if (isFleetFiltered) {
             return matchesFleetCriteria(n, fleetCriteria!) ? 1.0 : 0.2;
           }
           return 1.0;
         });
-      svg.selectAll("circle.primary-circle")
+
+      svg.selectAll<SVGTextElement, GraphNode>("g.node-group text")
+        .text((n) => (computeDegree(data.links)[n.id] || 0) >= 3 ? n.label : "")
+        .style("opacity", 1.0)
+        .style("font-weight", "600")
+        .attr("fill", "#475569");
+
+      svg.selectAll<SVGCircleElement, GraphNode>("circle.primary-circle")
         .attr("stroke-width", 1.5)
         .attr("stroke", "#ffffff");
+
+      svg.selectAll<SVGCircleElement, GraphNode>("circle.conflict-halo")
+        .style("opacity", 1.0);
     }
-  }, [selectedNode, isFleetFiltered, fleetCriteria]);
+  }, [selectedNode, isFleetFiltered, fleetCriteria, data.links]);
 
   const zoomToFitRef = useRef<((animate?: boolean) => void) | null>(null);
 
@@ -1152,12 +1181,17 @@ function InteractiveGraphView({
   lang = "da"
 }: InteractiveGraphViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [controlPanelOpen, setControlPanelOpen] = useState(false);
+  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(false);
+  const [isRightDrawerOpen, setIsRightDrawerOpen] = useState(false);
   const [showDocText, setShowDocText] = useState(false);
 
+  // Automatically fold down the left panel when a node is selected
   useEffect(() => {
+    if (selectedNode) {
+      setIsLeftPanelOpen(false);
+    }
     setShowDocText(false);
-  }, [selectedNode?.id]);
+  }, [selectedNode]);
 
   // Group nodes by category to construct filters
   const categories = Array.from(new Set(data.nodes.map(n => n.theme))).sort((a, b) => {
@@ -1186,27 +1220,90 @@ function InteractiveGraphView({
 
   return (
     <div className="flex-1 flex overflow-hidden relative bg-[#fafaf9]">
-      {/* Mobile toggle for control panel */}
-      <button
-        onClick={() => setControlPanelOpen(v => !v)}
-        className="md:hidden absolute top-3 left-3 z-30 bg-white border border-slate-200 rounded-lg p-2 text-slate-600 shadow-sm"
-        aria-label={t("browse")}
-      >
-        <Search className="w-4 h-4" />
-      </button>
+      {/* Floating Toggle for left Search/Filter Panel */}
+      <div className="absolute top-4 left-4 z-20 flex items-center gap-2 select-none">
+        <button
+          onClick={() => setIsLeftPanelOpen(v => !v)}
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl bg-white/95 hover:bg-white border text-xs font-semibold shadow-sm backdrop-blur-xs transition-all cursor-pointer ${
+            isLeftPanelOpen ? "border-sky-400 text-sky-700 bg-sky-50/70" : "border-slate-200 text-slate-700 hover:border-slate-300"
+          }`}
+          title={t("toggleFilters")}
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5 text-slate-600" />
+          <span>{t("toggleFilters")}</span>
+          {(activeDocFilter !== "all" || activeCategoryFilter !== "all" || searchQuery) && (
+            <span className="w-2 h-2 rounded-full bg-sky-500 ring-2 ring-white" />
+          )}
+        </button>
+      </div>
 
-      {/* Backdrop overlay when control panel is open on mobile */}
-      {controlPanelOpen && (
+      {/* Top Center Selected Node HUD Bar */}
+      {selectedNode && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-4 py-2 bg-white/95 border border-slate-200 rounded-full shadow-lg backdrop-blur-xs animate-in fade-in zoom-in-95 duration-200 select-none">
+          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: docColorFor(data.docs, selectedNode.doc) }} />
+          <span className="text-xs font-bold text-slate-900">{selectedNode.label}</span>
+          <span className="text-[11px] text-slate-500">• {nodeConnections.length} {t("connections").toLowerCase()}</span>
+          <button
+            onClick={() => setIsRightDrawerOpen(prev => !prev)}
+            className="ml-2 px-2.5 py-1 rounded-full bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-700 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+          >
+            <GitBranch className="w-3 h-3 text-sky-600" />
+            {isRightDrawerOpen ? t("hideDetailsPanel") : t("showDetailsPanel")}
+          </button>
+          <button
+            onClick={() => setSelectedNode(null)}
+            className="ml-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 p-1 rounded-full cursor-pointer transition-colors"
+            title={t("clearSelection")}
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Floating Toggle Button on Right for Details / Connections Panel */}
+      {selectedNode && !isRightDrawerOpen && (
+        <div className="absolute top-4 right-4 z-20 select-none">
+          <button
+            onClick={() => setIsRightDrawerOpen(true)}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/95 hover:bg-white text-slate-800 border border-slate-200 shadow-md backdrop-blur-xs transition-all cursor-pointer hover:border-sky-400 group"
+          >
+            <GitBranch className="w-4 h-4 text-sky-600 group-hover:scale-110 transition-transform" />
+            <span className="text-xs font-bold">{t("connections")}</span>
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-sky-100 text-sky-800 border border-sky-200">
+              {nodeConnections.length}
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* Backdrop overlay when left control panel is open on mobile */}
+      {isLeftPanelOpen && (
         <div
           className="md:hidden fixed inset-0 bg-slate-900/30 backdrop-blur-xs z-20"
-          onClick={() => setControlPanelOpen(false)}
+          onClick={() => setIsLeftPanelOpen(false)}
         />
       )}
 
-      {/* Control panel sidebar — slides in as an overlay on small screens, static on md+ */}
+      {/* Control panel sidebar — slides in/out smoothly */}
       <div
-        className={`fixed md:relative inset-y-0 left-0 z-25 w-80 max-w-[85vw] bg-white border-r border-slate-200 p-6 flex flex-col gap-6 overflow-y-auto transform transition-transform duration-300 shadow-sm ${controlPanelOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
+        className={`absolute md:relative inset-y-0 left-0 z-25 w-80 max-w-[85vw] bg-white border-r border-slate-200 p-6 flex flex-col gap-6 overflow-y-auto transform transition-all duration-300 shadow-sm ${
+          isLeftPanelOpen ? "translate-x-0" : "-translate-x-full md:-ml-80"
+        }`}
       >
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h3 className="text-xs uppercase font-bold text-slate-700 tracking-wider flex items-center gap-1.5">
+            <SlidersHorizontal className="w-3.5 h-3.5 text-sky-600" />
+            {t("toggleFilters")}
+          </h3>
+          <button 
+            onClick={() => setIsLeftPanelOpen(false)}
+            className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 cursor-pointer"
+            title={t("hideDetailsPanel")}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
         <div>
           <h3 className="text-xs uppercase font-bold text-slate-500 tracking-wider mb-2">{t("browse") /* Søg i graf */}</h3>
           <div className="relative">
@@ -1282,13 +1379,14 @@ function InteractiveGraphView({
         lang={lang}
       />
 
-      {/* Details sidebar drawer — full-width overlay on small screens, fixed w-96 on md+ */}
-      {selectedNode && (
-        <div className="absolute right-0 top-0 w-full sm:w-96 max-w-full bg-white border-l border-slate-200 flex flex-col h-full z-20 shadow-xl transition-all duration-300">
+      {/* Optional Details sidebar drawer — toggled via button */}
+      {selectedNode && isRightDrawerOpen && (
+        <div className="absolute right-0 top-0 w-full sm:w-96 max-w-full bg-white border-l border-slate-200 flex flex-col h-full z-20 shadow-xl transition-all duration-300 animate-in slide-in-from-right duration-200">
           <div className="p-5 border-b border-slate-200 bg-slate-50/70 relative flex flex-col gap-2">
             <button 
-              onClick={() => setSelectedNode(null)}
+              onClick={() => setIsRightDrawerOpen(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-xl cursor-pointer w-7 h-7 rounded-full flex items-center justify-center hover:bg-slate-200 transition-colors"
+              title={t("hideDetailsPanel")}
             >
               &times;
             </button>

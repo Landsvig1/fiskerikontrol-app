@@ -33,7 +33,9 @@ export type TranslationKey =
   | "euPrecedenceBadge" | "inspectionVerdictTitle"
   | "euRuleLabel" | "nationalDeviationLabel"
   | "showDocumentText" | "hideDocumentText" | "noConnections"
-  | "outgoingCitation" | "incomingCitation";
+  | "outgoingCitation" | "incomingCitation"
+  | "toggleFilters" | "showDetailsPanel" | "hideDetailsPanel"
+  | "clearSelection" | "selectedProvision";
 
 export type Translations = Record<TranslationKey, string>;
 
@@ -111,6 +113,11 @@ const da: Translations = {
   noConnections: "Ingen direkte forbindelser fundet i grafen for denne bestemmelse.",
   outgoingCitation: "Refererer til",
   incomingCitation: "Citeret af",
+  toggleFilters: "Filtre & Søgning",
+  showDetailsPanel: "Vis forbindelser & detaljer",
+  hideDetailsPanel: "Skjul detaljer",
+  clearSelection: "Ryd valg",
+  selectedProvision: "Valgt bestemmelse",
 };
 
 const en: Translations = {
@@ -187,6 +194,11 @@ const en: Translations = {
   noConnections: "No direct graph connections found for this provision.",
   outgoingCitation: "References",
   incomingCitation: "Cited by",
+  toggleFilters: "Filters & Search",
+  showDetailsPanel: "Show connections & details",
+  hideDetailsPanel: "Hide details",
+  clearSelection: "Clear selection",
+  selectedProvision: "Selected provision",
 };
 
 export const translations: Record<Lang, Translations> = { da, en };

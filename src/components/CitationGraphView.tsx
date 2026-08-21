@@ -13,7 +13,8 @@ import {
   ArrowDownLeft, 
   FileText, 
   ChevronDown, 
-  ChevronUp 
+  ChevronUp,
+  X,
 } from "lucide-react";
 
 interface CitationGraphViewProps {
@@ -89,80 +90,6 @@ export function CitationGraphView({
           lang={lang}
         />
       </div>
-
-      {/* Details sidebar drawer — full-width overlay on small screens, fixed w-96 on sm+ */}
-      {selectedNode && (
-        <div className="absolute right-0 top-0 w-full sm:w-96 max-w-full bg-white border-l border-slate-200 flex flex-col h-full z-20 shadow-xl transition-all duration-300">
-          <div className="p-6 border-b border-slate-200 bg-slate-50/70 relative flex flex-col gap-2">
-            <button 
-              onClick={() => setSelectedNode(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-xl cursor-pointer"
-            >
-              &times;
-            </button>
-            <span
-              className="inline-flex items-center self-start px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border"
-              style={docBadgeStyle(data.docs, selectedNode.doc, { borderAlpha: "4d" })}
-            >
-              {docLabel(data.docs, selectedNode.doc, t)}
-            </span>
-            <h2 className="text-lg font-bold text-slate-900">{selectedNode.label}</h2>
-            <p className="text-xs text-slate-600 font-medium">{selectedNode.title || t("noTitle")}</p>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            <div className="space-y-2">
-              <h3 className="text-xs uppercase font-bold text-slate-500 tracking-wider">{t("category")}</h3>
-              <span className="inline-block px-2.5 py-1 rounded bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-800">
-                {selectedNode.theme}
-              </span>
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="text-xs uppercase font-bold text-slate-500 tracking-wider">{t("documentText")}</h3>
-              <div className="bg-slate-50 border border-slate-200 p-4 rounded-lg text-xs leading-relaxed text-slate-800 max-h-60 overflow-y-auto whitespace-pre-wrap">
-                {selectedNode.body}
-              </div>
-            </div>
-
-            {/* List connections */}
-            <div className="space-y-3">
-              <h3 className="text-xs uppercase font-bold text-slate-500 tracking-wider">{t("connections")}</h3>
-              <div className="space-y-2">
-                {data.links.filter(l => {
-                  const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
-                  const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
-                  return s === selectedNode.id || t === selectedNode.id;
-                }).map((l, i) => {
-                  const sId = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
-                  const targetNodeId = sId === selectedNode.id 
-                    ? (typeof l.target === 'object' ? (l.target as GraphNode).id : l.target)
-                    : sId;
-                  
-                  const targetNode = data.nodes.find(n => n.id === targetNodeId);
-                  if (!targetNode) return null;
-
-                  return (
-                    <div 
-                      key={i}
-                      onClick={() => setSelectedNode(targetNode)}
-                      className="p-3 bg-slate-50 border border-slate-200 rounded-lg hover:border-slate-400 hover:bg-white cursor-pointer transition-all duration-200 shadow-2xs"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-900">{targetNode.label}</span>
-                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${modalityBadgeClasses(l.modality)}`}>
-                          {t(l.modality.toLowerCase() as TranslationKey)}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 truncate mt-1">{targetNode.title || t("noHeading")}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -229,45 +156,79 @@ function CitationGraphCanvas({
       const connectedNodeIds = new Set<string>();
       connectedNodeIds.add(selectedNode.id);
 
-      svg.selectAll("path.citation-link").style("stroke-opacity", (d: unknown) => {
-        const l = d as GraphLink;
+      // Identify all connected links and neighbor nodes
+      svg.selectAll<SVGPathElement, GraphLink>("path.citation-link").each(function(l) {
         const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
         const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
         if (sId === selectedNode.id || tId === selectedNode.id) {
           connectedNodeIds.add(sId);
           connectedNodeIds.add(tId);
-          return 1.0;
         }
-        return 0.06;
       });
 
-      svg.selectAll("g.node")
-        .style("opacity", (d: unknown) => {
-          const n = d as GraphNode;
-          return connectedNodeIds.has(n.id) ? 1.0 : 0.12;
+      // Highlight connected links and demote unconnected links
+      svg.selectAll<SVGPathElement, GraphLink>("path.citation-link")
+        .style("stroke-opacity", (l) => {
+          const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
+          const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
+          return (sId === selectedNode.id || tId === selectedNode.id) ? 1.0 : 0.03;
+        })
+        .attr("stroke-width", (l) => {
+          const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
+          const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
+          return (sId === selectedNode.id || tId === selectedNode.id) ? 2.8 : 1.0;
+        })
+        .attr("marker-end", (l) => {
+          const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
+          const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
+          return (sId === selectedNode.id || tId === selectedNode.id) ? `url(#arrow-${l.modality.toLowerCase()})` : "none";
         });
 
-      svg.selectAll("circle.primary-circle")
-        .attr("stroke-width", (d: unknown) => {
-          const n = d as GraphNode;
-          return n.id === selectedNode.id ? 2.5 : 1.5;
-        })
-        .attr("stroke", (d: unknown) => {
-          const n = d as GraphNode;
-          return n.id === selectedNode.id ? "#0f172a" : "#ffffff";
+      // Highlight connected nodes, heavily demote unconnected nodes
+      svg.selectAll<SVGGElement, GraphNode>("g.node")
+        .style("opacity", (n) => {
+          return connectedNodeIds.has(n.id) ? 1.0 : 0.06;
         });
+
+      // Show crisp labels only on connected nodes
+      svg.selectAll<SVGTextElement, GraphNode>("g.node text")
+        .style("opacity", (n) => connectedNodeIds.has(n.id) ? 1.0 : 0)
+        .style("font-weight", (n) => n.id === selectedNode.id ? "800" : "600")
+        .attr("fill", (n) => n.id === selectedNode.id ? "#0284c7" : "#334155");
+
+      // Selected node focal ring
+      svg.selectAll<SVGCircleElement, GraphNode>("circle.primary-circle")
+        .attr("stroke-width", (n) => n.id === selectedNode.id ? 3.5 : (connectedNodeIds.has(n.id) ? 2.2 : 1.0))
+        .attr("stroke", (n) => n.id === selectedNode.id ? "#0284c7" : "#ffffff");
+
+      // Hide halos for unconnected nodes
+      svg.selectAll<SVGCircleElement, GraphNode>("circle.conflict-halo")
+        .style("opacity", (n) => connectedNodeIds.has(n.id) ? 1.0 : 0);
     } else {
-      svg.selectAll("path.citation-link").style("stroke-opacity", 0.4);
-      svg.selectAll("g.node").style("opacity", (d: unknown) => {
+      svg.selectAll<SVGPathElement, GraphLink>("path.citation-link")
+        .style("stroke-opacity", 0.5)
+        .attr("stroke-width", 1.8)
+        .attr("marker-end", (d) => `url(#arrow-${d.modality.toLowerCase()})`);
+
+      svg.selectAll<SVGGElement, GraphNode>("g.node").style("opacity", (d: unknown) => {
         const n = d as GraphNode;
         if (isFleetFiltered) {
           return matchesFleetCriteria(n, fleetCriteria!) ? 1.0 : 0.2;
         }
         return 1.0;
       });
-      svg.selectAll("circle.primary-circle")
+
+      svg.selectAll<SVGTextElement, GraphNode>("g.node text")
+        .style("opacity", 1.0)
+        .style("font-weight", "600")
+        .attr("fill", "#475569");
+
+      svg.selectAll<SVGCircleElement, GraphNode>("circle.primary-circle")
         .attr("stroke-width", 1.5)
         .attr("stroke", "#ffffff");
+
+      svg.selectAll<SVGCircleElement, GraphNode>("circle.conflict-halo")
+        .style("opacity", 1.0);
     }
   }, [selectedNode, isFleetFiltered, fleetCriteria]);
 
@@ -525,7 +486,14 @@ function CitationGraphCanvas({
       .attr("font-weight", "600");
 
     node.on("click", (event, d) => {
+      event.stopPropagation();
       setSelectedNode(d);
+    });
+
+    svg.on("click", (event) => {
+      if (event.target === svgRef.current || (event.target as HTMLElement).tagName === "svg") {
+        setSelectedNode(null);
+      }
     });
 
     node.on("mouseover", (event, d) => {
@@ -628,6 +596,7 @@ function CitationGraphCanvas({
       .call(zoomBehaviorRef.current.transform, transform);
   };
 
+  const [isRightDrawerOpen, setIsRightDrawerOpen] = useState(false);
   const [showDocText, setShowDocText] = useState(false);
 
   useEffect(() => {
@@ -663,6 +632,45 @@ function CitationGraphCanvas({
         ref={tooltipRef} 
         className="pointer-events-none absolute z-30 hidden px-3.5 py-2.5 text-xs bg-slate-900/95 text-white rounded-xl shadow-2xl border border-slate-700 max-w-sm backdrop-blur-xs transition-opacity duration-150"
       />
+
+      {/* Top Center Selected Node HUD Bar */}
+      {selectedNode && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-4 py-2 bg-white/95 border border-slate-200 rounded-full shadow-lg backdrop-blur-xs animate-in fade-in zoom-in-95 duration-200 select-none">
+          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: docColorFor(data.docs, selectedNode.doc) }} />
+          <span className="text-xs font-bold text-slate-900">{selectedNode.label}</span>
+          <span className="text-[11px] text-slate-500">• {nodeConnections.length} {t("connections").toLowerCase()}</span>
+          <button
+            onClick={() => setIsRightDrawerOpen(prev => !prev)}
+            className="ml-2 px-2.5 py-1 rounded-full bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-700 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+          >
+            <GitBranch className="w-3 h-3 text-sky-600" />
+            {isRightDrawerOpen ? t("hideDetailsPanel") : t("showDetailsPanel")}
+          </button>
+          <button
+            onClick={() => setSelectedNode(null)}
+            className="ml-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 p-1 rounded-full cursor-pointer transition-colors"
+            title={t("clearSelection")}
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Floating Toggle Button on Right for Details / Connections Panel */}
+      {selectedNode && !isRightDrawerOpen && (
+        <div className="absolute top-6 right-20 z-20 select-none">
+          <button
+            onClick={() => setIsRightDrawerOpen(true)}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/95 hover:bg-white text-slate-800 border border-slate-200 shadow-md backdrop-blur-xs transition-all cursor-pointer hover:border-sky-400 group"
+          >
+            <GitBranch className="w-4 h-4 text-sky-600 group-hover:scale-110 transition-transform" />
+            <span className="text-xs font-bold">{t("connections")}</span>
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-sky-100 text-sky-800 border border-sky-200">
+              {nodeConnections.length}
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* Zoom HUD Controls & Important Articles */}
       <div className="absolute top-6 right-6 flex flex-col gap-2 z-10 select-none">
@@ -714,13 +722,14 @@ function CitationGraphCanvas({
         )}
       </div>
 
-      {/* Details sidebar drawer — full-width overlay on small screens, fixed w-96 on md+ */}
-      {selectedNode && (
-        <div className="absolute right-0 top-0 w-full sm:w-96 max-w-full bg-white border-l border-slate-200 flex flex-col h-full z-20 shadow-xl transition-all duration-300">
+      {/* Optional Details sidebar drawer — toggled via button */}
+      {selectedNode && isRightDrawerOpen && (
+        <div className="absolute right-0 top-0 w-full sm:w-96 max-w-full bg-white border-l border-slate-200 flex flex-col h-full z-30 shadow-xl transition-all duration-300 animate-in slide-in-from-right duration-200">
           <div className="p-5 border-b border-slate-200 bg-slate-50/70 relative flex flex-col gap-2">
             <button 
-              onClick={() => setSelectedNode(null)}
+              onClick={() => setIsRightDrawerOpen(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-xl cursor-pointer w-7 h-7 rounded-full flex items-center justify-center hover:bg-slate-200 transition-colors"
+              title={t("hideDetailsPanel")}
             >
               &times;
             </button>
