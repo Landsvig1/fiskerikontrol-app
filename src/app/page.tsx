@@ -39,6 +39,7 @@ import { modalityColor, modalityBadgeClasses, MODALITY_LEGEND } from "@/lib/grap
 import { filterGraph, computeDegree } from "@/lib/graphFilter";
 import { docLabel, docColorFor, docBadgeStyle, DocRef } from "@/lib/docDisplay";
 import { explainConnection } from "@/lib/connectionExplainer";
+import { themeLabel, formatConflictDescription } from "@/lib/labels";
 import {
   GraphNode,
   GraphLink,
@@ -1464,9 +1465,9 @@ function InteractiveGraphView({
                   key={cat}
                   onClick={() => setActiveCategoryFilter(cat)}
                   className={`text-left px-3 py-2 rounded-lg text-xs font-semibold truncate transition-all ${activeCategoryFilter === cat ? "bg-sky-50 text-sky-800 border border-sky-200 shadow-2xs" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}
-                  title={`${cat} (${count})`}
+                  title={`${themeLabel(cat, lang)} (${count})`}
                 >
-                  {cat} ({count})
+                  {themeLabel(cat, lang)} ({count})
                 </button>
               );
             })}
@@ -1506,7 +1507,7 @@ function InteractiveGraphView({
                 {docLabel(data.docs, selectedNode.doc, t)}
               </span>
               <span className="inline-block px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[10px] font-semibold text-slate-700">
-                {selectedNode.theme}
+                {themeLabel(selectedNode.theme, lang)}
               </span>
             </div>
             <h2 className="text-base font-bold text-slate-900 leading-tight">{selectedNode.label}</h2>
@@ -2102,7 +2103,6 @@ function ConflictsView({
                     </div>
                   </div>
 
-                  {/* Right Column: National Exemption (Dispensation/Undtagelse) */}
                   <div className="bg-white p-4.5 rounded-xl border border-amber-300 shadow-xs flex flex-col justify-between min-w-0 overflow-hidden">
                     <div className="min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
@@ -2136,7 +2136,6 @@ function ConflictsView({
                   </div>
                 </div>
 
-                {/* 3. Bottom Block: Plain-Danish Verdict Banner */}
                 <div className="px-6 py-4 bg-slate-100/70 border-t border-slate-200/80 flex items-start gap-3 min-w-0 overflow-hidden">
                   <div className="p-1.5 rounded-lg bg-sky-100 text-sky-800 border border-sky-200 mt-0.5 shrink-0">
                     <Lightbulb className="w-4 h-4 shrink-0" />
@@ -2168,7 +2167,8 @@ function BrowseView({
   setSearchQuery, 
   setSelectedNode, 
   setActiveTab,
-  t
+  t,
+  lang = "da"
 }: { 
   data: GraphData; 
   searchQuery: string; 
@@ -2176,6 +2176,7 @@ function BrowseView({
   setSelectedNode: (node: GraphNode) => void;
   setActiveTab: (tab: TabType) => void;
   t: TranslateFn;
+  lang?: Lang;
 }) {
   const filteredNodes = React.useMemo(() => {
     if (!searchQuery.trim()) return data.nodes;
@@ -2203,7 +2204,6 @@ function BrowseView({
         if (b.label.toLowerCase().includes(lowerQuery)) scoreB += 500;
       }
 
-      // Prioritize match directly in the title
       if (a.title.toLowerCase() === query) scoreA += 300;
       if (b.title.toLowerCase() === query) scoreB += 300;
 
@@ -2249,8 +2249,8 @@ function BrowseView({
                   >
                     {docLabel(data.docs, node.doc, t)}
                   </span>
-                  <span className="text-[10px] font-semibold text-slate-700 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded truncate max-w-[140px]" title={node.theme}>
-                    {node.theme}
+                  <span className="text-[10px] font-semibold text-slate-700 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded truncate max-w-[140px]" title={themeLabel(node.theme, lang)}>
+                    {themeLabel(node.theme, lang)}
                   </span>
                 </div>
                 <h3 className="text-base font-bold text-slate-900 mt-3">{node.label}</h3>

@@ -690,7 +690,7 @@ export function analyzeCitationsAndBuildGraph(docs: { text: string; label: strin
           conflicts.push({
             target: targetId,
             modalities: Array.from(modalities),
-            description: `Potential conflict: one section creates an exception/exemption while another imposes an obligation or prohibition regarding ${targetNode.label || targetId}.`,
+            description: `Potentiel regulatorisk modstrid: Én bestemmelse fastsætter en undtagelse/lempelse, mens en anden bestemmelse pålægger en bindende forpligtelse eller et forbud vedrørende ${targetNode.label || targetId}.`,
             citations: cits.map(c => ({
               source: c.source,
               modality: c.modality,

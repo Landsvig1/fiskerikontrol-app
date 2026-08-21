@@ -22,6 +22,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { explainConnection } from "@/lib/connectionExplainer";
+import { themeLabel } from "@/lib/labels";
 
 interface CitationGraphViewProps {
   data: GraphData;
@@ -807,7 +808,7 @@ function CitationGraphCanvas({
                 {docLabel(data.docs, selectedNode.doc, t)}
               </span>
               <span className="inline-block px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[10px] font-semibold text-slate-700">
-                {selectedNode.theme}
+                {themeLabel(selectedNode.theme, lang)}
               </span>
             </div>
             <h2 className="text-base font-bold text-slate-900 leading-tight">{selectedNode.label}</h2>

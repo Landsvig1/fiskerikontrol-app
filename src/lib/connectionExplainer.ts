@@ -1,5 +1,6 @@
 import { GraphNode, GraphLink, ConflictRecord, DocRef } from "./types";
 import { docLabel } from "./docDisplay";
+import { formatConflictDescription, themeLabel } from "./labels";
 
 export interface ConnectionExplanation {
   headline: string;
@@ -50,6 +51,7 @@ export function explainConnection(
   let legalRole = "";
 
   if (lang === "da") {
+    const targetTheme = themeLabel(otherNode.theme, "da");
     if (isOutgoing) {
       switch (modality) {
         case "exception":
@@ -143,6 +145,10 @@ export function explainConnection(
     }
   }
 
+  const conflictDescription = relevantConflict
+    ? formatConflictDescription(relevantConflict.description, otherNode.label, lang)
+    : undefined;
+
   return {
     headline,
     summary,
@@ -150,6 +156,6 @@ export function explainConnection(
     hierarchyContext,
     snippet: link.snippet || link.context,
     hasConflict: Boolean(relevantConflict),
-    conflictDescription: relevantConflict?.description,
+    conflictDescription,
   };
 }

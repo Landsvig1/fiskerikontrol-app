@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { deriveLabelFromFilename } from "./labels";
+import { deriveLabelFromFilename, themeLabel, formatConflictDescription } from "./labels";
 
 describe("deriveLabelFromFilename", () => {
   it("derives a title-cased label from a snake_case filename", () => {
@@ -30,3 +30,33 @@ describe("deriveLabelFromFilename", () => {
     expect(deriveLabelFromFilename("no-extension")).toBe("No Extension");
   });
 });
+
+describe("themeLabel", () => {
+  it("translates theme names to Danish when lang is da", () => {
+    expect(themeLabel("Obligations and Duties", "da")).toBe("Forpligtelser & Pligter");
+    expect(themeLabel("Exceptions and Exemptions", "da")).toBe("Undtagelser & Dispensationer");
+    expect(themeLabel("Definitions and Scope", "da")).toBe("Definitioner & Anvendelsesområde");
+    expect(themeLabel("General", "da")).toBe("Generelt");
+  });
+
+  it("preserves English theme names when lang is en", () => {
+    expect(themeLabel("Obligations and Duties", "en")).toBe("Obligations and Duties");
+  });
+});
+
+describe("formatConflictDescription", () => {
+  it("formats generic conflict descriptions to Danish when lang is da", () => {
+    const raw = "Potential conflict: one section creates an exception/exemption while another imposes an obligation or prohibition regarding Art. 33.";
+    const result = formatConflictDescription(raw, "Art. 33", "da");
+    expect(result).toContain("Potentiel regulatorisk modstrid");
+    expect(result).toContain("undtagelse/lempelse");
+    expect(result).toContain("Art. 33");
+  });
+
+  it("preserves English conflict description when lang is en", () => {
+    const raw = "Potential conflict: one section creates an exception regarding Art. 33.";
+    const result = formatConflictDescription(raw, "Art. 33", "en");
+    expect(result).toBe(raw);
+  });
+});
+
