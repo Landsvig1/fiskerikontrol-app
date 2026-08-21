@@ -946,7 +946,7 @@ function CitationGraphCanvas({
     });
 
     svg.on("click", (event) => {
-      if (event.target === svgRef.current || (event.target as HTMLElement).tagName === "svg") {
+      if (event.target === svgRef.current) {
         setSelectedNode(null);
       }
     });

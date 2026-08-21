@@ -714,31 +714,28 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     // Degree calculations for node sizing
     const degree = computeDegree(filteredLinks);
 
-    // Force simulation with spacious dispersion, strong repulsion, and gentle EU vs National separation
+    // Force simulation centered cleanly at origin (0, 0)
     const simulation = d3.forceSimulation<GraphNode>(filteredNodes)
       .force("link", d3.forceLink<GraphNode, GraphLink>(filteredLinks).id((d) => d.id).distance((d) => {
         const sId = typeof d.source === 'object' ? d.source.id : d.source;
         const tId = typeof d.target === 'object' ? d.target.id : d.target;
         const combinedDegree = (degree[sId] || 0) + (degree[tId] || 0);
-        return 180 + Math.min(combinedDegree * 8, 120);
+        return 130 + Math.min(combinedDegree * 6, 120);
       }))
-      .force("charge", d3.forceManyBody().strength(-300))
-      .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("x", d3.forceX<GraphNode>(d => {
-        const isEu = d.doc.toLowerCase().includes("eu") || d.label.toLowerCase().includes("eu");
-        return isEu ? width * 0.30 : width * 0.70;
-      }).strength(0.035))
-      .force("y", d3.forceY(height / 2).strength(0.035))
+      .force("charge", d3.forceManyBody().strength(-240))
+      .force("center", d3.forceCenter(0, 0))
+      .force("x", d3.forceX(0).strength(0.04))
+      .force("y", d3.forceY(0).strength(0.04))
       .force("collide", d3.forceCollide<GraphNode>()
         .radius((d) => 18 + Math.min((degree[d.id] || 0) * 3.5, 45))
         .iterations(3))
-      .velocityDecay(0.4);
+      .velocityDecay(0.35);
 
-    // Settle simulation synchronously so node positions are perfectly stable before view calculation
-    for (let i = 0; i < 260; ++i) simulation.tick();
+    // Settle simulation synchronously around origin (0, 0)
+    for (let i = 0; i < 280; ++i) simulation.tick();
     simulation.stop();
 
-    // Zoom-to-fit calculation to ensure outer edges of the graph are visible in screen corners and middle node centered
+    // Zoom-to-fit calculation to ensure entire graph is visible with middle node centered
     const zoomToFit = (animate = false) => {
       if (!svgRef.current || !zoomBehaviorRef.current || !containerRef.current) return;
       if (selectedNodeRef.current) {
@@ -757,22 +754,22 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
       for (const d of filteredNodes) {
         if (d.x === undefined || d.y === undefined) continue;
-        const r = 18 + Math.min((degree[d.id] || 0) * 3.5, 45);
+        const r = 20 + Math.min((degree[d.id] || 0) * 3.5, 45);
         if (d.x - r < minX) minX = d.x - r;
         if (d.x + r > maxX) maxX = d.x + r;
         if (d.y - r < minY) minY = d.y - r;
         if (d.y + r > maxY) maxY = d.y + r;
       }
 
-      const margin = 80;
-      const graphWidth = Math.max(maxX - minX + margin * 2, 100);
-      const graphHeight = Math.max(maxY - minY + margin * 2, 100);
+      const padding = 100;
+      const graphWidth = Math.max(maxX - minX + padding * 2, 100);
+      const graphHeight = Math.max(maxY - minY + padding * 2, 100);
       const midX = (minX + maxX) / 2;
       const midY = (minY + maxY) / 2;
 
       const scaleX = currentWidth / graphWidth;
       const scaleY = currentHeight / graphHeight;
-      const fitScale = Math.max(0.08, Math.min(scaleX, scaleY, 0.95));
+      const fitScale = Math.max(0.06, Math.min(scaleX, scaleY, 0.95));
 
       const tx = currentWidth / 2 - midX * fitScale;
       const ty = currentHeight / 2 - midY * fitScale;
@@ -838,6 +835,38 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       d3.select(tooltipRef.current).style("display", "none");
     });
 
+    let hasDragged = false;
+
+    // Drag behavior with built-in click detection
+    const dragBehavior = d3.drag<SVGGElement, GraphNode>()
+      .on("start", function() {
+        hasDragged = false;
+        d3.select(this).raise();
+      })
+      .on("drag", function(event, d) {
+        if (Math.abs(event.dx) > 1 || Math.abs(event.dy) > 1) {
+          hasDragged = true;
+        }
+        d.x = event.x;
+        d.y = event.y;
+        d3.select(this).attr("transform", `translate(${d.x},${d.y})`);
+        link
+          .filter(l => {
+            const sId = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+            const tId = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+            return sId === d.id || tId === d.id;
+          })
+          .attr("x1", l => (l.source as GraphNode).x || 0)
+          .attr("y1", l => (l.source as GraphNode).y || 0)
+          .attr("x2", l => (l.target as GraphNode).x || 0)
+          .attr("y2", l => (l.target as GraphNode).y || 0);
+      })
+      .on("end", function(event, d) {
+        if (!hasDragged) {
+          setSelectedNode(d);
+        }
+      });
+
     // Draw nodes
     const node = g.append("g")
       .selectAll<SVGGElement, GraphNode>("g.node-group")
@@ -852,11 +881,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
         }
         return 1.0;
       })
-      .call(d3.drag<SVGGElement, GraphNode>()
-        .on("start", dragstarted)
-        .on("drag", dragged)
-        .on("end", dragended)
-      );
+      .call(dragBehavior);
 
     // Conflict dual-ring halos
     node.filter(d => conflictTargets.has(d.id))
@@ -1049,7 +1074,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     });
 
     svg.on("click", (event) => {
-      if (event.target === svgRef.current || (event.target as HTMLElement).tagName === "svg") {
+      if (event.target === svgRef.current) {
         setSelectedNode(null);
       }
     });
@@ -1087,31 +1112,6 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
         return 1.0;
       });
     });
-
-    // Drag helper functions for direct interactive node positioning
-    function dragstarted(this: SVGGElement) {
-      d3.select(this).raise();
-    }
-
-    function dragged(this: SVGGElement, event: d3.D3DragEvent<SVGGElement, GraphNode, unknown>, d: GraphNode) {
-      d.x = event.x;
-      d.y = event.y;
-      d3.select(this).attr("transform", `translate(${d.x},${d.y})`);
-      link
-        .filter(l => {
-          const sId = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
-          const tId = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
-          return sId === d.id || tId === d.id;
-        })
-        .attr("x1", l => (l.source as GraphNode).x || 0)
-        .attr("y1", l => (l.source as GraphNode).y || 0)
-        .attr("x2", l => (l.target as GraphNode).x || 0)
-        .attr("y2", l => (l.target as GraphNode).y || 0);
-    }
-
-    function dragended() {
-      // Retain dropped coordinates
-    }
 
     // Initial positioning
     if (selectedNodeRef.current) {
