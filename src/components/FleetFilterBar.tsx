@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import { Filter, Ship, Anchor, Compass, RotateCcw } from "lucide-react";
 import {
