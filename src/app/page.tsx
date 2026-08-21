@@ -35,7 +35,7 @@ import { EnforcementTimelineView } from "@/components/EnforcementTimelineView";
 import { AuditMemoModal } from "@/components/AuditMemoModal";
 import { FleetFilterCriteria, DEFAULT_FLEET_CRITERIA, matchesFleetCriteria } from "@/lib/fleetFilter";
 import { getT, Lang, TranslateFn, TranslationKey } from "@/lib/i18n";
-import { modalityColor, modalityBadgeClasses } from "@/lib/graphColors";
+import { modalityColor, modalityBadgeClasses, MODALITY_LEGEND } from "@/lib/graphColors";
 import { filterGraph, computeDegree } from "@/lib/graphFilter";
 import { docLabel, docColorFor, docBadgeStyle, DocRef } from "@/lib/docDisplay";
 import {
@@ -667,17 +667,22 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       const connectedNodeIds = new Set<string>();
       connectedNodeIds.add(selectedNode.id);
 
-      // Identify all directly connected links and neighbor nodes
+      // Identify all directly connected links and direction
+      const nodeDirections = new Map<string, "outgoing" | "incoming">();
+
       svg.selectAll<SVGLineElement, GraphLink>("line").each(function(l) {
         const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
         const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
-        if (sId === selectedNode.id || tId === selectedNode.id) {
-          connectedNodeIds.add(sId);
+        if (sId === selectedNode.id) {
           connectedNodeIds.add(tId);
+          nodeDirections.set(tId, "outgoing");
+        } else if (tId === selectedNode.id) {
+          connectedNodeIds.add(sId);
+          nodeDirections.set(sId, "incoming");
         }
       });
 
-      // Completely hide all unconnected links, make connected links bold & vibrant
+      // Completely hide all unconnected links, make connected links bold & vibrant with arrowheads
       svg.selectAll<SVGLineElement, GraphLink>("line")
         .style("display", (l) => {
           const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
@@ -685,23 +690,34 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
           return (sId === selectedNode.id || tId === selectedNode.id) ? "inline" : "none";
         })
         .style("stroke-opacity", 1.0)
-        .attr("stroke-width", 2.8);
+        .attr("stroke-width", 3.0)
+        .attr("marker-end", (l) => `url(#d3-arrow-${l.modality.toLowerCase()})`);
 
       // Completely hide all unconnected nodes, display only connected nodes
       svg.selectAll<SVGGElement, GraphNode>("g.node-group")
         .style("display", (n) => connectedNodeIds.has(n.id) ? "inline" : "none")
         .style("opacity", 1.0);
 
-      // Show crisp labels only on the connected subgraph
+      // Show crisp, informative contextual labels on the selected node and connected neighbors
       svg.selectAll<SVGTextElement, GraphNode>("g.node-group text")
-        .text((n) => connectedNodeIds.has(n.id) ? n.label : "")
+        .text((n) => {
+          if (!connectedNodeIds.has(n.id)) return "";
+          if (n.id === selectedNode.id) {
+            return `★ ${n.label} (Valgt)`;
+          }
+          const dir = nodeDirections.get(n.id);
+          const prefix = dir === "outgoing" ? "→ Refererer til: " : "← Citeret af: ";
+          const titleSnippet = n.title ? ` (${n.title.slice(0, 32)}${n.title.length > 32 ? '...' : ''})` : '';
+          return `${prefix}${n.label}${titleSnippet}`;
+        })
         .style("opacity", 1.0)
-        .style("font-weight", (n) => n.id === selectedNode.id ? "800" : "600")
-        .attr("fill", (n) => n.id === selectedNode.id ? "#0284c7" : "#1e293b");
+        .style("font-size", (n) => n.id === selectedNode.id ? "12px" : "11px")
+        .style("font-weight", (n) => n.id === selectedNode.id ? "800" : "700")
+        .attr("fill", (n) => n.id === selectedNode.id ? "#0284c7" : "#0f172a");
 
       // Selected node focal ring
       svg.selectAll<SVGCircleElement, GraphNode>("circle.primary-circle")
-        .attr("stroke-width", (n) => n.id === selectedNode.id ? 3.5 : 2.2)
+        .attr("stroke-width", (n) => n.id === selectedNode.id ? 4.0 : 2.5)
         .attr("stroke", (n) => n.id === selectedNode.id ? "#0284c7" : "#ffffff");
 
       // Hide halos for unconnected nodes
@@ -709,26 +725,44 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
         .style("display", (n) => connectedNodeIds.has(n.id) ? "inline" : "none")
         .style("opacity", 1.0);
 
-      // Smooth pan to center of focus with a slight zoom in
+      // Frame the entire connected subgraph (selected node + all connected neighbors) into the viewport
       if (zoomBehaviorRef.current) {
-        let targetNode: GraphNode | undefined;
+        const connectedNodesList: GraphNode[] = [];
         svg.selectAll<SVGGElement, GraphNode>("g.node-group").each(function(d) {
-          if (d.id === selectedNode.id) {
-            targetNode = d;
+          if (connectedNodeIds.has(d.id)) {
+            connectedNodesList.push(d);
           }
         });
 
-        if (targetNode && targetNode.x !== undefined && targetNode.y !== undefined) {
+        if (connectedNodesList.length > 0) {
+          let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+          for (const n of connectedNodesList) {
+            if (n.x === undefined || n.y === undefined) continue;
+            if (n.x < minX) minX = n.x;
+            if (n.x > maxX) maxX = n.x;
+            if (n.y < minY) minY = n.y;
+            if (n.y > maxY) maxY = n.y;
+          }
+
           const width = containerRef.current.clientWidth || 800;
           const height = containerRef.current.clientHeight || 600;
-          const targetScale = 1.35;
-          const tx = width / 2 - targetNode.x * targetScale;
-          const ty = height / 2 - targetNode.y * targetScale;
-          const targetTransform = d3.zoomIdentity.translate(tx, ty).scale(targetScale);
+          const padding = 200;
+          const clusterWidth = Math.max(maxX - minX + padding * 2, 280);
+          const clusterHeight = Math.max(maxY - minY + padding * 2, 240);
+
+          const scaleX = width / clusterWidth;
+          const scaleY = height / clusterHeight;
+          const fitScale = Math.max(0.65, Math.min(scaleX, scaleY, 1.35));
+
+          const midX = (minX + maxX) / 2;
+          const midY = (minY + maxY) / 2;
+
+          const tx = width / 2 - midX * fitScale;
+          const ty = height / 2 - midY * fitScale;
 
           svg.transition()
             .duration(500)
-            .call(zoomBehaviorRef.current.transform, targetTransform);
+            .call(zoomBehaviorRef.current.transform, d3.zoomIdentity.translate(tx, ty).scale(fitScale));
         }
       }
     } else {
@@ -736,7 +770,8 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       svg.selectAll<SVGLineElement, GraphLink>("line")
         .style("display", "inline")
         .style("stroke-opacity", 0.4)
-        .attr("stroke-width", 1.5);
+        .attr("stroke-width", 1.5)
+        .attr("marker-end", "none");
 
       svg.selectAll<SVGGElement, GraphNode>("g.node-group")
         .style("display", "inline")
@@ -750,6 +785,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       svg.selectAll<SVGTextElement, GraphNode>("g.node-group text")
         .text((n) => (computeDegree(data.links)[n.id] || 0) >= 3 ? n.label : "")
         .style("opacity", 1.0)
+        .style("font-size", "10px")
         .style("font-weight", "600")
         .attr("fill", "#475569");
 
@@ -781,6 +817,22 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
 
     const svg = d3.select(svgRef.current)
       .attr("viewBox", [0, 0, width, height]);
+
+    // Arrowhead markers for links
+    const defs = svg.append("defs");
+    MODALITY_LEGEND.forEach(({ modality, color }) => {
+      defs.append("marker")
+        .attr("id", `d3-arrow-${modality.toLowerCase()}`)
+        .attr("viewBox", "0 -5 10 10")
+        .attr("refX", 22)
+        .attr("refY", 0)
+        .attr("markerWidth", 6)
+        .attr("markerHeight", 6)
+        .attr("orient", "auto")
+        .append("path")
+        .attr("d", "M0,-4L8,0L0,4")
+        .attr("fill", color);
+    });
 
     const g = svg.append("g");
 

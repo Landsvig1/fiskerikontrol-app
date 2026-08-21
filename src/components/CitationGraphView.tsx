@@ -158,13 +158,18 @@ function CitationGraphCanvas({
       const connectedNodeIds = new Set<string>();
       connectedNodeIds.add(selectedNode.id);
 
-      // Identify all connected links and neighbor nodes
+      // Identify all directly connected links and direction
+      const nodeDirections = new Map<string, "outgoing" | "incoming">();
+
       svg.selectAll<SVGPathElement, GraphLink>("path.citation-link").each(function(l) {
         const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
         const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
-        if (sId === selectedNode.id || tId === selectedNode.id) {
-          connectedNodeIds.add(sId);
+        if (sId === selectedNode.id) {
           connectedNodeIds.add(tId);
+          nodeDirections.set(tId, "outgoing");
+        } else if (tId === selectedNode.id) {
+          connectedNodeIds.add(sId);
+          nodeDirections.set(sId, "incoming");
         }
       });
 
@@ -176,7 +181,7 @@ function CitationGraphCanvas({
           return (sId === selectedNode.id || tId === selectedNode.id) ? "inline" : "none";
         })
         .style("stroke-opacity", 1.0)
-        .attr("stroke-width", 2.8)
+        .attr("stroke-width", 3.0)
         .attr("marker-end", (l) => `url(#arrow-${l.modality.toLowerCase()})`);
 
       // Completely hide all unconnected nodes, display only connected nodes
@@ -184,15 +189,26 @@ function CitationGraphCanvas({
         .style("display", (n) => connectedNodeIds.has(n.id) ? "inline" : "none")
         .style("opacity", 1.0);
 
-      // Show crisp labels only on connected nodes
+      // Show crisp, informative contextual labels on the selected node and connected neighbors
       svg.selectAll<SVGTextElement, GraphNode>("g.node text")
+        .text((n) => {
+          if (!connectedNodeIds.has(n.id)) return "";
+          if (n.id === selectedNode.id) {
+            return `★ ${n.label} (Valgt)`;
+          }
+          const dir = nodeDirections.get(n.id);
+          const prefix = dir === "outgoing" ? "→ Refererer til: " : "← Citeret af: ";
+          const titleSnippet = n.title ? ` (${n.title.slice(0, 32)}${n.title.length > 32 ? '...' : ''})` : '';
+          return `${prefix}${n.label}${titleSnippet}`;
+        })
         .style("opacity", 1.0)
-        .style("font-weight", (n) => n.id === selectedNode.id ? "800" : "600")
-        .attr("fill", (n) => n.id === selectedNode.id ? "#0284c7" : "#1e293b");
+        .style("font-size", (n) => n.id === selectedNode.id ? "12px" : "11px")
+        .style("font-weight", (n) => n.id === selectedNode.id ? "800" : "700")
+        .attr("fill", (n) => n.id === selectedNode.id ? "#0284c7" : "#0f172a");
 
       // Selected node focal ring
       svg.selectAll<SVGCircleElement, GraphNode>("circle.primary-circle")
-        .attr("stroke-width", (n) => n.id === selectedNode.id ? 3.5 : 2.2)
+        .attr("stroke-width", (n) => n.id === selectedNode.id ? 4.0 : 2.5)
         .attr("stroke", (n) => n.id === selectedNode.id ? "#0284c7" : "#ffffff");
 
       // Hide halos for unconnected nodes
@@ -200,26 +216,45 @@ function CitationGraphCanvas({
         .style("display", (n) => connectedNodeIds.has(n.id) ? "inline" : "none")
         .style("opacity", 1.0);
 
-      // Smooth pan to center of focus with a slight zoom in
+      // Frame the entire connected subgraph (selected node + all connected neighbors) into the viewport
       if (zoomBehaviorRef.current) {
-        let targetNode: GraphNode | undefined;
+        const connectedNodesList: GraphNode[] = [];
         svg.selectAll<SVGGElement, GraphNode>("g.node").each(function(d) {
-          if (d.id === selectedNode.id) {
-            targetNode = d;
+          if (connectedNodeIds.has(d.id)) {
+            connectedNodesList.push(d);
           }
         });
 
-        if (targetNode && targetNode.x !== undefined && targetNode.y !== undefined) {
+        if (connectedNodesList.length > 0) {
+          let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+          for (const n of connectedNodesList) {
+            if (n.x === undefined || n.y === undefined) continue;
+            if (n.x < minX) minX = n.x;
+            if (n.x > maxX) maxX = n.x;
+            if (n.y < minY) minY = n.y;
+            if (n.y > maxY) maxY = n.y;
+          }
+
           const width = containerRef.current.clientWidth || 800;
           const height = containerRef.current.clientHeight || 600;
-          const targetScale = 1.35;
-          const tx = width / 2 - targetNode.x * targetScale;
-          const ty = height / 2 - targetNode.y * targetScale;
-          const targetTransform = d3.zoomIdentity.translate(tx, ty).scale(targetScale);
+          const padX = 220;
+          const padY = 160;
+          const clusterWidth = Math.max(maxX - minX + padX * 2, 280);
+          const clusterHeight = Math.max(maxY - minY + padY * 2, 240);
+
+          const scaleX = width / clusterWidth;
+          const scaleY = height / clusterHeight;
+          const fitScale = Math.max(0.65, Math.min(scaleX, scaleY, 1.35));
+
+          const midX = (minX + maxX) / 2;
+          const midY = (minY + maxY) / 2;
+
+          const tx = width / 2 - midX * fitScale;
+          const ty = height / 2 - midY * fitScale;
 
           svg.transition()
             .duration(500)
-            .call(zoomBehaviorRef.current.transform, targetTransform);
+            .call(zoomBehaviorRef.current.transform, d3.zoomIdentity.translate(tx, ty).scale(fitScale));
         }
       }
     } else {
@@ -241,7 +276,9 @@ function CitationGraphCanvas({
         });
 
       svg.selectAll<SVGTextElement, GraphNode>("g.node text")
+        .text((n) => n.label)
         .style("opacity", 1.0)
+        .style("font-size", "11px")
         .style("font-weight", "600")
         .attr("fill", "#475569");
 
