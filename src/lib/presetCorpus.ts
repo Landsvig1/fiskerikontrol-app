@@ -1,10 +1,12 @@
+import type { DocType } from "./parser";
+
 export interface PresetDoc {
   id: string;
   filename: string;
   code: string;
   titleDa: string;
   titleEn: string;
-  type: "eu" | "bek" | "lov";
+  type: DocType;
   typeLabelDa: string;
   typeLabelEn: string;
   descriptionDa: string;
@@ -154,7 +156,7 @@ export const PRESET_DOCUMENTS: PresetDoc[] = [
 export async function fetchPresetFiles(
   presetIds: string[],
   fetchFn: typeof fetch = fetch
-): Promise<Array<{ file: File; label: string }>> {
+): Promise<Array<{ file: File; label: string; type: DocType }>> {
   const selectedPresets = PRESET_DOCUMENTS.filter((doc) => presetIds.includes(doc.id));
   
   const results = await Promise.all(
@@ -168,6 +170,7 @@ export async function fetchPresetFiles(
       return {
         file,
         label: doc.code,
+        type: doc.type,
       };
     })
   );

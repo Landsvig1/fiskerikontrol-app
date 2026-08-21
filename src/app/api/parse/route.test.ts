@@ -55,6 +55,54 @@ describe("/api/parse", () => {
     expect(body.error).toMatch(/non-empty/i);
   });
 
+  it("carries an authoritative preset type through to the returned docs", async () => {
+    const fd = new FormData();
+    fd.append("pdf0", pdf("a.pdf"));
+    fd.append("label0", "Fisheries Regulation Act");
+    fd.append("type0", "lov");
+    fd.append("pdf1", pdf("b.pdf"));
+    fd.append("label1", "EU 1224/2009");
+    fd.append("type1", "eu");
+
+    const res = await POST(makeRequest(fd));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.docs).toEqual([
+      { id: "doc0", label: "Fisheries Regulation Act", type: "lov" },
+      { id: "doc1", label: "EU 1224/2009", type: "eu" },
+    ]);
+  });
+
+  it("omits the type for hand-uploaded documents that send none", async () => {
+    const fd = new FormData();
+    fd.append("pdf0", pdf("a.pdf"));
+    fd.append("label0", "A");
+    fd.append("pdf1", pdf("b.pdf"));
+    fd.append("label1", "B");
+
+    const res = await POST(makeRequest(fd));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.docs).toEqual([
+      { id: "doc0", label: "A" },
+      { id: "doc1", label: "B" },
+    ]);
+  });
+
+  it("rejects an unrecognised document type", async () => {
+    const fd = new FormData();
+    fd.append("pdf0", pdf("a.pdf"));
+    fd.append("label0", "A");
+    fd.append("type0", "directive");
+    fd.append("pdf1", pdf("b.pdf"));
+    fd.append("label1", "B");
+
+    const res = await POST(makeRequest(fd));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/type0 must be one of/i);
+  });
+
   it("stops the indexed pdf${i} loop at the first missing index, ignoring gaps", async () => {
     const fd = new FormData();
     fd.append("pdf0", pdf("a.pdf"));

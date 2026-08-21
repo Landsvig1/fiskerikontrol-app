@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { analyzeCitationsAndBuildGraph } from "@/lib/parser";
+import { analyzeCitationsAndBuildGraph, type DocType } from "@/lib/parser";
 import DOMMatrixPolyfill from "dommatrix";
 
 // pdfjs-dist (bundled in pdf-parse) constructs a DOMMatrix at module load time
@@ -43,6 +43,11 @@ const MAX_LABEL_CHARS = 200;
 // to the expensive work and needs its own bound.
 const MAX_CHARS_PER_DOC = 4_000_000;
 
+// Only the bundled preset corpus sends type${i}. It is the authoritative EU/national
+// classification and drives the supremacy verdict in the audit memo, so an unrecognised
+// value is rejected rather than coerced, and an absent one falls back to label matching.
+const DOC_TYPES: readonly DocType[] = ["eu", "bek", "lov"];
+
 async function handleParse(request: Request) {
   const contentType = request.headers.get("content-type") || "";
   if (!contentType.includes("multipart/form-data")) {
@@ -54,7 +59,7 @@ async function handleParse(request: Request) {
 
   const formData = await request.formData();
 
-  const docs: { file: File; label: string }[] = [];
+  const docs: { file: File; label: string; type?: DocType }[] = [];
   for (let i = 0; i <= MAX_DOCS; i++) {
     const file = formData.get(`pdf${i}`);
     if (!file) break;
@@ -81,7 +86,16 @@ async function handleParse(request: Request) {
         { status: 400 }
       );
     }
-    docs.push({ file, label });
+    const rawType = formData.get(`type${i}`);
+    if (rawType !== null && (typeof rawType !== "string" || !DOC_TYPES.includes(rawType as DocType))) {
+      return NextResponse.json(
+        { error: `Field type${i} must be one of: ${DOC_TYPES.join(", ")}.` },
+        { status: 400 }
+      );
+    }
+    const type = rawType === null ? undefined : (rawType as DocType);
+
+    docs.push({ file, label, ...(type ? { type } : {}) });
   }
 
   if (docs.length < 2) {
@@ -150,7 +164,7 @@ async function handleParse(request: Request) {
   let graphData;
   try {
     graphData = analyzeCitationsAndBuildGraph(
-      docs.map((d, i) => ({ text: extracted[i].text, label: d.label }))
+      docs.map((d, i) => ({ text: extracted[i].text, label: d.label, ...(d.type ? { type: d.type } : {}) }))
     );
   } catch (e: unknown) {
     if (e && typeof e === "object" && "code" in e) {

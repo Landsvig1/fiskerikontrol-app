@@ -1,8 +1,18 @@
 // Helper library for parsing and analyzing citations
 
+/**
+ * Authoritative document type, carried by the bundled preset corpus. "bek" and "lov" are
+ * both Danish national instruments (bekendtgoerelse and lov), "eu" is Union law. Absent
+ * for hand-uploaded files, where nothing but the user's label is known.
+ */
+export type DocType = "eu" | "bek" | "lov";
+
 export interface DocRef {
   id: string;      // stable per-document key, e.g. "doc0", "doc1", ... assigned by upload order
   label: string;
+  // Set only for preset documents. Consumers that need the legal hierarchy must prefer this
+  // over any guess made from the label text.
+  type?: DocType;
 }
 
 /** Internal type, describes a heading pattern used for multi-pattern section detection. */
@@ -631,7 +641,7 @@ function parseCitations(
   return citations;
 }
 
-export function analyzeCitationsAndBuildGraph(docs: { text: string; label: string }[]): ParseResult {
+export function analyzeCitationsAndBuildGraph(docs: { text: string; label: string; type?: DocType }[]): ParseResult {
   if (docs.length < 2) {
     throw {
       code: "TOO_FEW_DOCUMENTS",
@@ -639,7 +649,11 @@ export function analyzeCitationsAndBuildGraph(docs: { text: string; label: strin
     };
   }
 
-  const docRefs: DocRef[] = docs.map((d, i) => ({ id: `doc${i}`, label: d.label }));
+  const docRefs: DocRef[] = docs.map((d, i) => ({
+    id: `doc${i}`,
+    label: d.label,
+    ...(d.type ? { type: d.type } : {}),
+  }));
 
   const sectionsByDoc: RawSection[][] = docs.map((d, i) =>
     parsePdfTextIntoSections(d.text, docRefs[i].id, d.label)

@@ -55,6 +55,29 @@ describe("docJurisdiction", () => {
   it("returns unknown for an unregistered docId", () => {
     expect(docJurisdiction(docs, "doc9")).toBe("unknown");
   });
+
+  it("uses the authoritative type of a preset document instead of its label", () => {
+    // "Fisheries Regulation Act" matches the EU pattern via "regulation" and cannot be
+    // fixed by widening the national pattern, "EU Delegated Act" is a real EU label.
+    const preset: DocRef[] = [{ id: "doc0", label: "Fisheries Regulation Act", type: "lov" }];
+    expect(classifyDocLabel("Fisheries Regulation Act")).toBe("eu");
+    expect(docJurisdiction(preset, "doc0")).toBe("national");
+  });
+
+  it("maps every preset type onto the legal hierarchy", () => {
+    expect(docJurisdiction([{ id: "doc0", label: "", type: "eu" }], "doc0")).toBe("eu");
+    expect(docJurisdiction([{ id: "doc0", label: "", type: "bek" }], "doc0")).toBe("national");
+    expect(docJurisdiction([{ id: "doc0", label: "", type: "lov" }], "doc0")).toBe("national");
+  });
+
+  it("falls back to the label for a hand-uploaded document with no type", () => {
+    const uploaded: DocRef[] = [
+      { id: "doc0", label: "Bekendtgørelse om logbog" },
+      { id: "doc1", label: "Regulation 1380/2013" },
+    ];
+    expect(docJurisdiction(uploaded, "doc0")).toBe("national");
+    expect(docJurisdiction(uploaded, "doc1")).toBe("eu");
+  });
 });
 
 describe("nodeJurisdiction", () => {
@@ -70,6 +93,13 @@ describe("nodeJurisdiction", () => {
   it("prefers the docs array over the node label", () => {
     const docs: DocRef[] = [{ id: "doc0", label: "BEK 1197/2025" }];
     expect(nodeJurisdiction(docs, { doc: "doc0", label: "Art. 14" })).toBe("national");
+  });
+
+  it("prefers a preset type over both the doc label and the node label", () => {
+    const docs: DocRef[] = [{ id: "doc0", label: "Fisheries Regulation Act", type: "lov" }];
+    expect(
+      nodeJurisdiction(docs, { doc: "doc0", label: "Fisheries Regulation Act Art. 14" })
+    ).toBe("national");
   });
 });
 

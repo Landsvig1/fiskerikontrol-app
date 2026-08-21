@@ -198,6 +198,9 @@ export function UploadScreen({
       presetFiles.forEach((p, i) => {
         fd.append(`pdf${i}`, p.file);
         fd.append(`label${i}`, p.label);
+        // Authoritative EU/national classification, so the audit memo does not have to
+        // guess it back out of the label text.
+        fd.append(`type${i}`, p.type);
       });
 
       const res = await fetch("/api/parse", { method: "POST", body: fd });

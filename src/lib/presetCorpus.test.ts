@@ -13,6 +13,7 @@ describe("presetCorpus", () => {
       expect(doc.titleDa).toBeTruthy();
       expect(doc.titleEn).toBeTruthy();
       expect(doc.path.startsWith("/corpus/")).toBe(true);
+      expect(["eu", "bek", "lov"]).toContain(doc.type);
     }
   });
 
@@ -31,6 +32,10 @@ describe("presetCorpus", () => {
     expect(result[0].file.name).toBe("eu-2023-2842-kontrolrevision.pdf");
     expect(result[1].label).toBe("BEK 1197/2025");
     expect(result[1].file.name).toBe("bek-1197-2025-logbog.pdf");
+    // The authoritative type rides along with the file so the parse payload does not have
+    // to re-derive the jurisdiction from the label.
+    expect(result[0].type).toBe("eu");
+    expect(result[1].type).toBe("bek");
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 

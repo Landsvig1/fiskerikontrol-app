@@ -1,3 +1,4 @@
+import type { DocType } from "./parser";
 import type { DocRef } from "./docDisplay";
 
 export type Jurisdiction = "eu" | "national" | "unknown";
@@ -29,8 +30,22 @@ export function classifyDocLabel(label: string): Jurisdiction {
   return "unknown";
 }
 
+/**
+ * Maps a document's authoritative type onto the legal hierarchy. "bek" (bekendtgoerelse)
+ * and "lov" are both Danish national instruments.
+ */
+export function jurisdictionFromType(type: DocType): Jurisdiction {
+  return type === "eu" ? "eu" : "national";
+}
+
+/**
+ * Preset documents carry an authoritative `type` from the bundled corpus, so no guess is
+ * needed for them. classifyDocLabel is the fallback for hand-uploaded files only, where the
+ * user-supplied label is the sole signal available.
+ */
 export function docJurisdiction(docs: DocRef[], docId: string): Jurisdiction {
   const doc = docs.find(d => d.id === docId);
+  if (doc?.type) return jurisdictionFromType(doc.type);
   return classifyDocLabel(doc?.label ?? "");
 }
 
