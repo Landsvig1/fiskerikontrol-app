@@ -38,6 +38,7 @@ import { getT, Lang, TranslateFn, TranslationKey } from "@/lib/i18n";
 import { modalityColor, modalityBadgeClasses, MODALITY_LEGEND } from "@/lib/graphColors";
 import { filterGraph, computeDegree } from "@/lib/graphFilter";
 import { docLabel, docColorFor, docBadgeStyle, DocRef } from "@/lib/docDisplay";
+import { explainConnection } from "@/lib/connectionExplainer";
 import {
   GraphNode,
   GraphLink,
@@ -1289,6 +1290,7 @@ function InteractiveGraphView({
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(false);
   const [isRightDrawerOpen, setIsRightDrawerOpen] = useState(false);
   const [showDocText, setShowDocText] = useState(false);
+  const [expandedConnectionIndex, setExpandedConnectionIndex] = useState<number | null>(null);
 
   // Automatically fold down the left panel when a node is selected
   useEffect(() => {
@@ -1296,6 +1298,7 @@ function InteractiveGraphView({
       setIsLeftPanelOpen(false);
     }
     setShowDocText(false);
+    setExpandedConnectionIndex(null);
   }, [selectedNode]);
 
   // Group nodes by category to construct filters
@@ -1528,50 +1531,146 @@ function InteractiveGraphView({
                   <p className="text-xs text-slate-500 italic">{t("noConnections")}</p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {nodeConnections.map((item, i) => {
                     const { link, isOutgoing, otherNode } = item;
+                    const isExpanded = expandedConnectionIndex === i;
+                    const explanation = explainConnection(
+                      selectedNode,
+                      otherNode,
+                      link,
+                      isOutgoing,
+                      data.conflicts,
+                      data.docs,
+                      lang
+                    );
+
                     return (
                       <div 
                         key={i}
-                        onClick={() => setSelectedNode(otherNode)}
-                        className="p-3 bg-white border border-slate-200 rounded-xl hover:border-sky-400 hover:shadow-md cursor-pointer transition-all duration-200 group"
+                        className={`p-3.5 bg-white border rounded-xl transition-all duration-200 ${
+                          isExpanded ? "border-sky-500 shadow-md ring-2 ring-sky-100" : "border-slate-200 hover:border-sky-300 hover:shadow-xs"
+                        }`}
                       >
-                        <div className="flex items-center justify-between gap-2 mb-1.5">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            {isOutgoing ? (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200 shrink-0">
-                                <ArrowUpRight className="w-3 h-3 text-sky-600" />
-                                {t("outgoingCitation")}
+                        {/* Clickable Header that toggles explanation */}
+                        <div 
+                          onClick={() => setExpandedConnectionIndex(prev => prev === i ? null : i)}
+                          className="cursor-pointer select-none"
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-1.5">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              {isOutgoing ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200 shrink-0">
+                                  <ArrowUpRight className="w-3 h-3 text-sky-600" />
+                                  {t("outgoingCitation")}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 shrink-0">
+                                  <ArrowDownLeft className="w-3 h-3 text-indigo-600" />
+                                  {t("incomingCitation")}
+                                </span>
+                              )}
+                              <span 
+                                className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 border"
+                                style={docBadgeStyle(data.docs, otherNode.doc, { borderAlpha: "4d" })}
+                              >
+                                {docLabel(data.docs, otherNode.doc, t)}
                               </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 shrink-0">
-                                <ArrowDownLeft className="w-3 h-3 text-indigo-600" />
-                                {t("incomingCitation")}
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${modalityBadgeClasses(link.modality)}`}>
+                                {t(link.modality.toLowerCase() as TranslationKey)}
+                              </span>
+                              {isExpanded ? (
+                                <ChevronUp className="w-4 h-4 text-sky-600" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4 text-slate-400" />
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="text-xs font-bold text-slate-900 hover:text-sky-600 transition-colors flex items-center justify-between">
+                            <span>{otherNode.label}</span>
+                            {!isExpanded && (
+                              <span className="text-[10px] text-sky-600 font-medium hover:underline flex items-center gap-0.5">
+                                <span>{t("clickForExplanation")}</span>
                               </span>
                             )}
-                            <span 
-                              className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 border"
-                              style={docBadgeStyle(data.docs, otherNode.doc, { borderAlpha: "4d" })}
-                            >
-                              {docLabel(data.docs, otherNode.doc, t)}
-                            </span>
                           </div>
-                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${modalityBadgeClasses(link.modality)}`}>
-                            {t(link.modality.toLowerCase() as TranslationKey)}
-                          </span>
+                          <p className="text-[11px] text-slate-600 line-clamp-1 mt-0.5">
+                            {otherNode.title || t("noHeading")}
+                          </p>
                         </div>
 
-                        <div className="text-xs font-bold text-slate-900 group-hover:text-sky-600 transition-colors">
-                          {otherNode.label}
-                        </div>
-                        <p className="text-[11px] text-slate-600 line-clamp-1 mt-0.5">
-                          {otherNode.title || t("noHeading")}
-                        </p>
+                        {/* Expanded Comprehensive Connection Explanation */}
+                        {isExpanded && (
+                          <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col gap-3 text-xs animate-in fade-in slide-in-from-top-1 duration-200">
+                            {/* Conflict Warning if present */}
+                            {explanation.hasConflict && (
+                              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-900 text-[11px] flex flex-col gap-1">
+                                <div className="font-bold flex items-center gap-1.5 text-rose-700">
+                                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-rose-600" />
+                                  <span>{t("conflictWarning")}</span>
+                                </div>
+                                <p className="leading-snug">{explanation.conflictDescription}</p>
+                              </div>
+                            )}
 
-                        {link.snippet && (
-                          <div className="mt-2 pt-2 border-t border-slate-100 text-[11px] text-slate-500 italic bg-slate-50/80 p-2 rounded leading-snug">
-                            &ldquo;{link.snippet}&rdquo;
+                            {/* Legal Summary & Relationship Analysis */}
+                            <div className="p-2.5 bg-sky-50/70 border border-sky-100 rounded-lg flex flex-col gap-1.5">
+                              <div className="text-[11px] font-bold text-sky-900 flex items-center gap-1">
+                                <BookOpen className="w-3.5 h-3.5 text-sky-600" />
+                                <span>{t("explainConnectionTitle")}</span>
+                              </div>
+                              <p className="text-[11px] text-slate-800 leading-relaxed font-medium">
+                                {explanation.summary}
+                              </p>
+                              <div className="text-[10px] text-slate-600 bg-white/80 p-1.5 rounded border border-sky-100 flex flex-col gap-0.5">
+                                <span className="font-bold text-slate-700">{t("legalRelation")}:</span>
+                                <span>{explanation.legalRole}</span>
+                              </div>
+                              <div className="text-[10px] text-slate-500 italic">
+                                {explanation.hierarchyContext}
+                              </div>
+                            </div>
+
+                            {/* Citation snippet if present */}
+                            {explanation.snippet && (
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                                  {t("citationContext")}
+                                </span>
+                                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg italic text-[11px] text-slate-700 leading-snug">
+                                  &ldquo;{explanation.snippet}&rdquo;
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Connected Provision Text Excerpt */}
+                            {otherNode.body && (
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                                  {t("connectedTextSnippet")} ({otherNode.label})
+                                </span>
+                                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-600 leading-relaxed max-h-36 overflow-y-auto whitespace-pre-wrap">
+                                  {otherNode.body}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Action button to switch graph focus */}
+                            <div className="pt-1 flex items-center justify-between gap-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedNode(otherNode);
+                                }}
+                                className="w-full py-2 px-3 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                              >
+                                <ArrowUpRight className="w-3.5 h-3.5" />
+                                <span>{t("switchFocusToProvision")}</span>
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>

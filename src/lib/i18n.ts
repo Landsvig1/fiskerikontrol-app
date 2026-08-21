@@ -35,7 +35,11 @@ export type TranslationKey =
   | "showDocumentText" | "hideDocumentText" | "noConnections"
   | "outgoingCitation" | "incomingCitation"
   | "toggleFilters" | "showDetailsPanel" | "hideDetailsPanel"
-  | "clearSelection" | "selectedProvision";
+  | "clearSelection" | "selectedProvision"
+  | "connectedProvisions" | "jumpToProvision"
+  | "explainConnectionTitle" | "citationContext" | "connectedTextSnippet"
+  | "switchFocusToProvision" | "legalRelation" | "hierarchyRule"
+  | "clickForExplanation" | "conflictWarning";
 
 export type Translations = Record<TranslationKey, string>;
 
@@ -120,6 +124,14 @@ const da: Translations = {
   selectedProvision: "Valgt bestemmelse",
   connectedProvisions: "Forbundne bestemmelser",
   jumpToProvision: "Fokusér bestemmelse",
+  explainConnectionTitle: "Juridisk sammenhæng & retsvirkning",
+  citationContext: "Citatkontekst & passus",
+  connectedTextSnippet: "Lovtekst for forbundet bestemmelse",
+  switchFocusToProvision: "Skift graf-fokus til denne bestemmelse",
+  legalRelation: "Retlig relation",
+  hierarchyRule: "Hierarki & Retsorden",
+  clickForExplanation: "Klik for forklaring af sammenhæng",
+  conflictWarning: "Konstateret retskonflikt / overlap",
 };
 
 const en: Translations = {
@@ -148,7 +160,7 @@ const en: Translations = {
   uploadModeIndividual: "Add one at a time",
   addDocument: "Add document",
   removeDocument: "Remove document",
-  loadingGraph: "Analysing documents...",
+  loadingGraph: "Analyzing documents...",
   allDocuments: "All documents",
   allCategories: "All categories",
   sectionCount: "Sections",
@@ -169,29 +181,29 @@ const en: Translations = {
   viewConflicts: "View conflicts",
   docFallback: "Document",
   aboutButton: "What is LexGraph?",
-  backToApp: "Back to the app",
+  backToApp: "Back to app",
   copyErrorDetails: "Copy error details",
   copiedErrorDetails: "Copied!",
-  presetLibraryTitle: "Select from Regulatory Library",
-  presetLibrarySubtitle: "Choose 2 or more official fisheries control regulations for instant analysis:",
-  analyzePresets: "Analyse Selected",
+  presetLibraryTitle: "Select from Regulatory Archive",
+  presetLibrarySubtitle: "Select 2 or more official fisheries legal acts for instant cross-analysis:",
+  analyzePresets: "Analyze selected",
   inspectConflict: "Inspect Conflict",
   conflictSummaryBanner: "Legal Conflict Analysis",
   baseProvision: "Base Provision / Requirement",
-  derogatingProvision: "Derogation / Conflicting Provision",
-  copyConflictBrief: "Copy Brief",
+  derogatingProvision: "Exception / Conflicting Provision",
+  copyConflictBrief: "Copy brief",
   copiedToClipboard: "Copied to clipboard!",
   closeModal: "Close",
   selectedPresetCount: "{count} selected",
   exportAuditMemo: "Export Audit Memo",
   fleetScenarios: "Fleet Scenarios",
   conflictsHeaderTitle: "Regulatory Conflicts & Legal Risks",
-  conflictsHeaderSubtitle: "Automated detection of contradictions between binding EU regulations and national orders. EU regulations take direct legal precedence over national law.",
-  euPrecedenceBadge: "EU Regulation Takes Precedence",
-  inspectionVerdictTitle: "Enforcement Assessment",
-  euRuleLabel: "EU Base Rule (Requirement)",
-  nationalDeviationLabel: "National Derogation (Exemption)",
-  showDocumentText: "Show full legal text / document text",
+  conflictsHeaderSubtitle: "Automatic detection of contradictions between binding EU regulations and national orders. EU regulations have direct legal effect and supremacy over national law.",
+  euPrecedenceBadge: "EU regulation takes precedence",
+  inspectionVerdictTitle: "Audit Finding & Conclusion",
+  euRuleLabel: "EU Main Rule (Requirement)",
+  nationalDeviationLabel: "National Deviation (Exception)",
+  showDocumentText: "Show full legal text",
   hideDocumentText: "Hide legal text",
   noConnections: "No direct graph connections found for this provision.",
   outgoingCitation: "References",
@@ -203,6 +215,14 @@ const en: Translations = {
   selectedProvision: "Selected provision",
   connectedProvisions: "Connected provisions",
   jumpToProvision: "Focus provision",
+  explainConnectionTitle: "Legal Connection & Effect",
+  citationContext: "Citation Context & Passage",
+  connectedTextSnippet: "Legal text for connected provision",
+  switchFocusToProvision: "Switch graph focus to this provision",
+  legalRelation: "Legal Relationship",
+  hierarchyRule: "Hierarchy & Precedence",
+  clickForExplanation: "Click for connection explanation",
+  conflictWarning: "Identified regulatory conflict / overlap",
 };
 
 export const translations: Record<Lang, Translations> = { da, en };
