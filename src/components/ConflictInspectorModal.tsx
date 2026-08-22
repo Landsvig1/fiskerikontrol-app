@@ -16,6 +16,7 @@ import { Lang, TranslateFn, TranslationKey } from "@/lib/i18n";
 import { docLabel, docBadgeStyle } from "@/lib/docDisplay";
 import { highlightModalKeywords } from "@/lib/highlightText";
 import { formatConflictDescription } from "@/lib/labels";
+import { euSupremacyApplies } from "@/lib/jurisdiction";
 
 interface ConflictInspectorModalProps {
   conflict: ConflictRecord;
@@ -86,6 +87,8 @@ export function ConflictInspectorModal({
     }
   };
 
+  const euSupremacy = targetNode ? euSupremacyApplies(data.docs, sourceNode, targetNode) : false;
+
   if (!targetNode) return null;
 
   return (
@@ -129,13 +132,21 @@ export function ConflictInspectorModal({
           </button>
         </div>
 
-        {/* Legal Guidance Precedence Callout */}
-        <div className="px-6 py-3 bg-sky-50/60 border-b border-sky-100 flex items-center justify-between gap-4 flex-wrap min-w-0">
-          <div className="flex items-center gap-2 text-xs text-sky-900 min-w-0 flex-1">
-            <AlertTriangle className="w-4 h-4 text-sky-700 shrink-0" />
-            <span className="font-semibold shrink-0">EU-retlig forrang:</span>
-            <span className="text-sky-800 break-words">
-              EU-forordninger har direkte retsvirkning og overtrumfer nationale bekendtgørelser. Nationale undtagelser kan ikke lovligt fravige bindende EU-krav.
+        {/* Legal Guidance Precedence Callout. Gated on the same rule as the Conflicts view
+            and the audit memo: EU supremacy is only defensible when a national instrument
+            derogates from an EU one, so an EU-to-EU collision must not claim it. */}
+        <div className={`px-6 py-3 border-b flex items-center justify-between gap-4 flex-wrap min-w-0 ${
+          euSupremacy ? "bg-sky-50/60 border-sky-100" : "bg-amber-50/60 border-amber-100"
+        }`}>
+          <div className={`flex items-center gap-2 text-xs min-w-0 flex-1 ${
+            euSupremacy ? "text-sky-900" : "text-amber-900"
+          }`}>
+            <AlertTriangle className={`w-4 h-4 shrink-0 ${euSupremacy ? "text-sky-700" : "text-amber-700"}`} />
+            <span className="font-semibold shrink-0">
+              {euSupremacy ? t("euPrecedenceLabel") : t("clarificationLabel")}
+            </span>
+            <span className={`break-words ${euSupremacy ? "text-sky-800" : "text-amber-800"}`}>
+              {euSupremacy ? t("euPrecedenceBody") : t("clarificationBody")}
             </span>
           </div>
         </div>

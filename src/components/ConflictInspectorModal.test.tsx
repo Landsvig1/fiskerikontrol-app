@@ -234,3 +234,52 @@ describe("ConflictInspectorModal copy path", () => {
     expect(brief).not.toContain("Potentiel regulatorisk modstrid");
   });
 });
+
+describe("ConflictInspectorModal precedence callout", () => {
+  function renderWithDocs(docs: GraphData["docs"], lang: "da" | "en") {
+    render(
+      <ConflictInspectorModal
+        conflict={mockData.conflicts[0]}
+        data={{ ...mockData, docs }}
+        onClose={vi.fn()}
+        onSelectNode={vi.fn()}
+        t={getT(lang)}
+        lang={lang}
+      />
+    );
+  }
+
+  const euAndNational = [
+    { id: "doc0", label: "EU 2023/2842" },
+    { id: "doc1", label: "BEK 1197/2025" },
+  ];
+  // doc1 is the citing side, so this is an EU regulation derogating from an EU regulation.
+  const twoEuRegulations = [
+    { id: "doc0", label: "EU 2023/2842" },
+    { id: "doc1", label: "EU 1224/2009" },
+  ];
+
+  it("claims EU supremacy when a national order derogates from an EU regulation", () => {
+    renderWithDocs(euAndNational, "da");
+    expect(screen.getByText(/EU-retlig forrang:/i)).toBeInTheDocument();
+    expect(screen.getByText(/overtrumfer nationale bekendtgørelser/i)).toBeInTheDocument();
+  });
+
+  it("does not claim EU supremacy between two EU regulations", () => {
+    renderWithDocs(twoEuRegulations, "da");
+    expect(screen.queryByText(/EU-retlig forrang:/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Retslig afklaring påkrævet:/i)).toBeInTheDocument();
+  });
+
+  it("renders the supremacy callout in English", () => {
+    renderWithDocs(euAndNational, "en");
+    expect(screen.getByText(/EU legal supremacy:/i)).toBeInTheDocument();
+    expect(screen.getByText(/cannot lawfully derogate/i)).toBeInTheDocument();
+  });
+
+  it("renders the clarification callout in English", () => {
+    renderWithDocs(twoEuRegulations, "en");
+    expect(screen.queryByText(/EU legal supremacy:/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Clarification required:/i)).toBeInTheDocument();
+  });
+});

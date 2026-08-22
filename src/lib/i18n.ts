@@ -25,6 +25,8 @@ export type TranslationKey =
   | "copyErrorDetails" | "copiedErrorDetails"
   | "presetLibraryTitle" | "presetLibrarySubtitle" | "analyzePresets"
   | "inspectConflict" | "conflictSummaryBanner"
+  | "euPrecedenceLabel" | "euPrecedenceBody"
+  | "clarificationLabel" | "clarificationBody"
   | "baseProvision" | "derogatingProvision"
   | "copyConflictBrief" | "copiedToClipboard" | "closeModal"
   | "selectedPresetCount"
@@ -98,6 +100,10 @@ const da: Translations = {
   analyzePresets: "Analysér valgte",
   inspectConflict: "Inspicer modstrid",
   conflictSummaryBanner: "Juridisk modstridsanalyse",
+  euPrecedenceLabel: "EU-retlig forrang:",
+  euPrecedenceBody: "EU-forordninger har direkte retsvirkning og overtrumfer nationale bekendtgørelser. Nationale undtagelser kan ikke lovligt fravige bindende EU-krav.",
+  clarificationLabel: "Retslig afklaring påkrævet:",
+  clarificationBody: "Der foreligger modstridende modaliteter mellem bestemmelserne, men forholdet er ikke et EU/national forrangsspørgsmål ud fra dokumentbetegnelserne.",
   baseProvision: "Hovedbestemmelse / Krav",
   derogatingProvision: "Undtagelse / Modstridende bestemmelse",
   copyConflictBrief: "Kopiér notat",
@@ -191,6 +197,10 @@ const en: Translations = {
   analyzePresets: "Analyze selected",
   inspectConflict: "Inspect Conflict",
   conflictSummaryBanner: "Legal Conflict Analysis",
+  euPrecedenceLabel: "EU legal supremacy:",
+  euPrecedenceBody: "EU regulations have direct effect and override national orders. National exemptions cannot lawfully derogate from binding EU requirements.",
+  clarificationLabel: "Clarification required:",
+  clarificationBody: "Contradictory modalities exist between the provisions, but the relationship is not an EU versus national precedence question based on the document labels.",
   baseProvision: "Base Provision / Requirement",
   derogatingProvision: "Exception / Conflicting Provision",
   copyConflictBrief: "Copy brief",
