@@ -18,7 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { FleetFilterCriteria, matchesFleetCriteria } from "@/lib/fleetFilter";
-import { Lang, TranslateFn, TranslationKey } from "@/lib/i18n";
+import { TranslateFn, TranslationKey } from "@/lib/i18n";
 import { modalityColor, modalityBadgeClasses } from "@/lib/graphColors";
 import { filterGraph, computeDegree } from "@/lib/graphFilter";
 import { buildNodeConnections, groupNodeConnections } from "@/lib/nodeConnections";
@@ -39,7 +39,6 @@ interface D3GraphCanvasProps {
   fleetCriteria?: FleetFilterCriteria;
   setSelectedNode: (node: GraphNode | null) => void;
   t: TranslateFn;
-  lang?: Lang;
   rightInset?: number;
 }
 
@@ -55,7 +54,6 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
   fleetCriteria,
   setSelectedNode,
   t,
-  lang = "da",
   rightInset = 0
 }: D3GraphCanvasProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -658,7 +656,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
         {isFleetFiltered && (
           <div className="bg-sky-50 border border-sky-200 px-3 py-1 rounded-xl text-[11px] font-bold text-sky-800 flex items-center gap-1.5 shadow-2xs">
             <Filter className="w-3 h-3 text-sky-600" />
-            <span>{lang === "da" ? "Flådefilter aktivt" : "Fleet filter active"}</span>
+            <span>{"Flådefilter aktivt"}</span>
           </div>
         )}
 
@@ -743,7 +741,6 @@ interface InteractiveGraphViewProps {
   setActiveCategoryFilter: (val: string) => void;
   fleetCriteria?: FleetFilterCriteria;
   t: TranslateFn;
-  lang?: Lang;
 }
 
 export function InteractiveGraphView({ 
@@ -755,8 +752,7 @@ export function InteractiveGraphView({
   activeCategoryFilter,
   setActiveCategoryFilter,
   fleetCriteria,
-  t,
-  lang = "da"
+  t
 }: InteractiveGraphViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
   // The graph effect tears down and rebuilds the whole SVG, including 280 synchronous force
@@ -895,7 +891,7 @@ export function InteractiveGraphView({
           <div className="relative">
             <input
               type="text"
-              placeholder={lang === "en" ? "Enter search term..." : "Indtast søgeord..."}
+              placeholder={"Indtast søgeord..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 text-xs text-slate-900 px-3 py-2 rounded-lg outline-none focus:border-sky-500 focus:bg-white"
@@ -942,9 +938,9 @@ export function InteractiveGraphView({
                   key={cat}
                   onClick={() => setActiveCategoryFilter(cat)}
                   className={`text-left px-3 py-2 rounded-lg text-xs font-semibold truncate transition-all ${activeCategoryFilter === cat ? "bg-sky-50 text-sky-800 border border-sky-200 shadow-2xs" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}
-                  title={`${themeLabel(cat, lang)} (${count})`}
+                  title={`${themeLabel(cat)} (${count})`}
                 >
-                  {themeLabel(cat, lang)} ({count})
+                  {themeLabel(cat)} ({count})
                 </button>
               );
             })}
@@ -963,7 +959,6 @@ export function InteractiveGraphView({
         fleetCriteria={fleetCriteria}
         setSelectedNode={setSelectedNode}
         t={t}
-        lang={lang}
       />
 
       {/* Optional Details sidebar drawer, toggled via button */}
@@ -985,7 +980,7 @@ export function InteractiveGraphView({
                 {docLabel(data.docs, selectedNode.doc, t)}
               </span>
               <span className="inline-block px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[10px] font-semibold text-slate-700">
-                {themeLabel(selectedNode.theme, lang)}
+                {themeLabel(selectedNode.theme)}
               </span>
             </div>
             <h2 className="text-base font-bold text-slate-900 leading-tight">{selectedNode.label}</h2>
@@ -1041,8 +1036,7 @@ export function InteractiveGraphView({
                       link,
                       isOutgoing,
                       data.conflicts,
-                      data.docs,
-                      lang
+                      data.docs
                     );
 
                     return (

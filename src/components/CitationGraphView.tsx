@@ -34,7 +34,6 @@ interface CitationGraphViewProps {
   fleetCriteria?: FleetFilterCriteria;
   setSelectedNode: (node: GraphNode | null) => void;
   t: TranslateFn;
-  lang?: "da" | "en";
   rightInset?: number;
 }
 
@@ -47,7 +46,6 @@ export function CitationGraphView({
   fleetCriteria,
   setSelectedNode,
   t,
-  lang = "da",
 }: CitationGraphViewProps) {
   const [isRightDrawerOpen, setIsRightDrawerOpen] = useState(false);
   const [expandedConnectionKey, setExpandedConnectionKey] = useState<string | null>(null);
@@ -87,7 +85,7 @@ export function CitationGraphView({
             {isFleetFiltered && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-300 flex items-center gap-1">
                 <Filter className="w-2.5 h-2.5" />
-                {lang === "da" ? "Flådefiltreret" : "Fleet Filtered"}
+                {"Flådefiltreret"}
               </span>
             )}
           </div>
@@ -161,7 +159,6 @@ export function CitationGraphView({
           fleetCriteria={fleetCriteria}
           setSelectedNode={setSelectedNode}
           t={t}
-          lang={lang}
         />
       </div>
 
@@ -184,7 +181,7 @@ export function CitationGraphView({
                 {docLabel(data.docs, selectedNode.doc, t)}
               </span>
               <span className="inline-block px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[10px] font-semibold text-slate-700">
-                {themeLabel(selectedNode.theme, lang)}
+                {themeLabel(selectedNode.theme)}
               </span>
             </div>
             <h2 className="text-base font-bold text-slate-900 leading-tight">{selectedNode.label}</h2>
@@ -240,8 +237,7 @@ export function CitationGraphView({
                       link,
                       isOutgoing,
                       data.conflicts,
-                      data.docs,
-                      lang
+                      data.docs
                     );
 
                     return (

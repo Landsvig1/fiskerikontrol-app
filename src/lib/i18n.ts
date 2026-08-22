@@ -1,6 +1,5 @@
 // src/lib/i18n.ts
 
-export type Lang = "da" | "en";
 
 // All UI string keys (compile-time exhaustiveness enforced by TypeScript)
 export type TranslationKey =
@@ -146,115 +145,16 @@ const da: Translations = {
   conflictWarning: "Konstateret retskonflikt / overlap",
 };
 
-const en: Translations = {
-  appTitle: "LexGraph",
-  appTagline: "Document Citation & Conflict Analysis",
-  newAnalysis: "New Analysis",
-  dashboard: "Dashboard",
-  citationGraph: "Citation Graph",
-  nodeGraph: "Node Graph (Physics)",
-  overlaps: "Overlaps",
-  conflicts: "Conflicts",
-  browse: "Search & Browse",
-  timeline: "Timeline & Deadlines",
-  uploadTitle: "Start a new analysis",
-  uploadSubtitle: "Upload your PDF documents and provide names to map citations and conflicts.",
-  dropZoneSlot: "Drag and drop a PDF here, or click to select",
-  dropZoneBulk: "Drag and drop your PDF documents here, or click to select multiple",
-  analyseButton: "Analyse",
-  analysing: "Analysing...",
-  invalidPdfError: "Only PDF files are accepted.",
-  sizeLimitError: "Combined file size exceeds 10 MB.",
-  unknownError: "Unknown error. Please try again.",
-  malformedResponseError: "The server returned an unexpected response. Please try again.",
-  multiDropNonPdfIgnored: "Non-PDF files were ignored.",
-  multiDropCapReached: "Only the first {max} PDF files were used; the rest were ignored.",
-  uploadModeBulk: "Drop all at once",
-  uploadModeIndividual: "Add one at a time",
-  addDocument: "Add document",
-  removeDocument: "Remove document",
-  loadingGraph: "Analyzing documents...",
-  allDocuments: "All documents",
-  allCategories: "All categories",
-  sectionCount: "Sections",
-  citationsCount: "Citations",
-  overlapsCount: "Overlaps",
-  conflictsCount: "Conflicts",
-  category: "Category",
-  documentText: "Document text",
-  connections: "Graph connections",
-  obligation: "Obligation",
-  exception: "Exception",
-  prohibition: "Prohibition",
-  permission: "Permission",
-  noTitle: "(No heading)",
-  noHeading: "(No title)",
-  showInGraph: "Show in graph",
-  viewAnalysis: "View analysis",
-  viewConflicts: "View conflicts",
-  docFallback: "Document",
-  aboutButton: "What is LexGraph?",
-  backToApp: "Back to app",
-  copyErrorDetails: "Copy error details",
-  copiedErrorDetails: "Copied!",
-  presetLibraryTitle: "Select from Regulatory Archive",
-  presetLibrarySubtitle: "Select 2 or more official fisheries legal acts for instant cross-analysis:",
-  analyzePresets: "Analyze selected",
-  inspectConflict: "Inspect Conflict",
-  conflictSummaryBanner: "Legal Conflict Analysis",
-  provisionText: "Provision text",
-  groupConflict: "Conflict",
-  groupOutgoing: "Outgoing citations",
-  groupIncoming: "Incoming citations",
-  euPrecedenceLabel: "EU legal supremacy:",
-  euPrecedenceBody: "EU regulations have direct effect and override national orders. National exemptions cannot lawfully derogate from binding EU requirements.",
-  clarificationLabel: "Clarification required:",
-  clarificationBody: "Contradictory modalities exist between the provisions, but the relationship is not an EU versus national precedence question based on the document labels.",
-  baseProvision: "Base Provision / Requirement",
-  derogatingProvision: "Exception / Conflicting Provision",
-  copyConflictBrief: "Copy brief",
-  copiedToClipboard: "Copied to clipboard!",
-  closeModal: "Close",
-  selectedPresetCount: "{count} selected",
-  exportAuditMemo: "Export Audit Memo",
-  fleetScenarios: "Fleet Scenarios",
-  conflictsHeaderTitle: "Regulatory Conflicts & Legal Risks",
-  conflictsHeaderSubtitle: "Automatic detection of contradictions between binding EU regulations and national orders. EU regulations have direct legal effect and supremacy over national law.",
-  euPrecedenceBadge: "EU regulation takes precedence",
-  inspectionVerdictTitle: "Audit Finding & Conclusion",
-  euRuleLabel: "EU Main Rule (Requirement)",
-  nationalDeviationLabel: "National Deviation (Exception)",
-  showDocumentText: "Show full legal text",
-  hideDocumentText: "Hide legal text",
-  noConnections: "No direct graph connections found for this provision.",
-  outgoingCitation: "References",
-  incomingCitation: "Cited by",
-  toggleFilters: "Filters & Search",
-  showDetailsPanel: "Show connections & details",
-  hideDetailsPanel: "Hide details",
-  clearSelection: "Clear selection",
-  selectedProvision: "Selected provision",
-  connectedProvisions: "Connected provisions",
-  jumpToProvision: "Focus provision",
-  explainConnectionTitle: "Legal Connection & Effect",
-  citationContext: "Citation Context & Passage",
-  connectedTextSnippet: "Legal text for connected provision",
-  switchFocusToProvision: "Switch graph focus to this provision",
-  legalRelation: "Legal Relationship",
-  hierarchyRule: "Hierarchy & Precedence",
-  clickForExplanation: "Click for connection explanation",
-  conflictWarning: "Identified regulatory conflict / overlap",
-};
 
-export const translations: Record<Lang, Translations> = { da, en };
+export const translations: Translations = da;
 
 export type TranslateFn = (key: TranslationKey) => string;
 
 /**
- * Returns a translation function for the given language.
- * Falls back to English for any key missing from the Danish dictionary.
+ * Returns the translation function. The app is Danish only: it is a tool for Danish
+ * fisheries-control caseworkers reading Danish and EU law in Danish, and an unreviewed
+ * English rendering of legal text is a liability rather than a feature.
  */
-export function getT(lang: Lang): TranslateFn {
-  return (key: TranslationKey) =>
-    translations[lang][key] ?? translations["en"][key];
+export function getT(): TranslateFn {
+  return (key: TranslationKey) => translations[key];
 }

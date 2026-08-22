@@ -9,7 +9,7 @@ import {
   Lightbulb,
   Scale,
 } from "lucide-react";
-import { Lang, TranslateFn } from "@/lib/i18n";
+import { TranslateFn } from "@/lib/i18n";
 import { docLabel, docBadgeStyle } from "@/lib/docDisplay";
 import { euSupremacyApplies } from "@/lib/jurisdiction";
 import { GraphNode, ConflictRecord, GraphData } from "@/lib/types";
@@ -67,14 +67,12 @@ export function ConflictsView({
   setActiveTab,
   onInspectConflict,
   t,
-  lang,
 }: { 
   data: GraphData; 
   setSelectedNode: (node: GraphNode) => void;
   setActiveTab: (tab: TabType) => void;
   onInspectConflict: (conflict: ConflictRecord) => void;
   t: TranslateFn;
-  lang: Lang;
 }) {
   // One index instead of an O(n) scan per conflict, per citation, per render.
   const nodeById = useMemo(() => new Map(data.nodes.map(n => [n.id, n])), [data.nodes]);
@@ -97,7 +95,7 @@ export function ConflictsView({
               {t("conflictsHeaderTitle")}
             </h2>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
-              {realConflicts.length} {lang === "da" ? "identificerede modstridskollisioner på tværs af retsakter" : "identified cross-act conflict collisions"}
+              {realConflicts.length} {"identificerede modstridskollisioner på tværs af retsakter"}
             </p>
           </div>
         </div>
@@ -109,7 +107,7 @@ export function ConflictsView({
       <div className="grid grid-cols-1 gap-6 max-w-4xl w-full min-w-0">
         {realConflicts.length === 0 ? (
           <div className="bg-white border border-slate-200 p-12 rounded-2xl text-center text-slate-500 text-sm shadow-xs">
-            {lang === "da" ? "Ingen retlige modstrid fundet i det indlæste korpus." : "No regulatory conflicts detected in loaded corpus."}
+            {"Ingen retlige modstrid fundet i det indlæste korpus."}
           </div>
         ) : (
           realConflicts.map((record, i) => {
@@ -123,16 +121,12 @@ export function ConflictsView({
             const euSupremacy = euSupremacyApplies(data.docs, sourceNode, targetNode);
 
             const precedenceBadgeText = euSupremacy
-              ? (lang === "da" ? "⚖️ EU-forordning har forrang" : "⚖️ EU Regulation Takes Precedence")
-              : (lang === "da" ? "⚖️ Retslig afklaring påkrævet" : "⚖️ Clarification Required");
+              ? ("⚖️ EU-forordning har forrang")
+              : ("⚖️ Retslig afklaring påkrævet");
 
             const verdictText = euSupremacy
-              ? (lang === "da"
-                  ? `EU-forordningen (${targetNode.label}) er direkte gældende og har forrang over for dansk bekendtgørelse. Fiskeristyrelsens tilsyn kan ikke lovligt håndhæve en national dispensation i modstrid med EU-kravet, og fartøjer risikerer overtrædelsessag ved EU-inspektion eller ved landing i andre EU-medlemsstater.`
-                  : `The EU regulation (${targetNode.label}) applies directly and supersedes Danish national orders. The Danish Fisheries Agency cannot lawfully enforce a national exemption that contradicts mandatory EU requirements.`)
-              : (lang === "da"
-                  ? `Der foreligger modstridende modaliteter mellem bestemmelserne. Delegerede retsakter og bekendtgørelser skal fortolkes i overensstemmelse med grundforordningens kontrolformål.`
-                  : `Contradictory modalities detected between provisions. Secondary acts must be interpreted in compliance with baseline control objectives.`);
+              ? (`EU-forordningen (${targetNode.label}) er direkte gældende og har forrang over for dansk bekendtgørelse. Fiskeristyrelsens tilsyn kan ikke lovligt håndhæve en national dispensation i modstrid med EU-kravet, og fartøjer risikerer overtrædelsessag ved EU-inspektion eller ved landing i andre EU-medlemsstater.`)
+              : (`Der foreligger modstridende modaliteter mellem bestemmelserne. Delegerede retsakter og bekendtgørelser skal fortolkes i overensstemmelse med grundforordningens kontrolformål.`);
 
             return (
               <div 
@@ -145,7 +139,7 @@ export function ConflictsView({
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-800 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-md flex items-center gap-1 shrink-0">
                         <Scale className="w-3 h-3 text-slate-600 shrink-0" />
-                        {lang === "da" ? "Modstrid: Krav vs. Undtagelse" : "Conflict: Rule vs. Exemption"}
+                        {"Modstrid: Krav vs. Undtagelse"}
                       </span>
                       <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md border shrink-0 ${
                         euSupremacy
@@ -159,7 +153,7 @@ export function ConflictsView({
                     <h3 className="text-base font-bold text-slate-900 pt-0.5 break-words flex flex-wrap items-center gap-1.5">
                       <span className="text-sky-800 shrink-0">{targetNode.label}</span>
                       <span className="text-slate-400 font-normal">⟷</span>
-                      <span className="text-amber-800 break-words">{sourceNode?.label || (lang === "da" ? "National bestemmelse" : "National rule")}</span>
+                      <span className="text-amber-800 break-words">{sourceNode?.label || ("National bestemmelse")}</span>
                     </h3>
                   </div>
 
@@ -236,14 +230,14 @@ export function ConflictsView({
                         )}
                       </div>
                       <h4 className="text-xs font-bold text-slate-900 mt-1 break-words line-clamp-2">
-                        {sourceNode?.label || (lang === "da" ? "National sektion" : "National section")} {sourceNode?.title ? `- ${cleanAndNormalizeText(sourceNode.title)}` : ""}
+                        {sourceNode?.label || ("National sektion")} {sourceNode?.title ? `- ${cleanAndNormalizeText(sourceNode.title)}` : ""}
                       </h4>
                     </div>
 
                     <div className="mt-3 p-3 bg-amber-50/50 rounded-lg text-xs leading-relaxed text-slate-800 border border-amber-100 border-l-2 border-l-amber-600 break-words whitespace-normal overflow-hidden">
                       {highlightConflictKeywords(
                         (() => {
-                          const rawText = primaryCitation?.snippet || sourceNode?.body || (lang === "da" ? "Dispenserende bestemmelse" : "Exemption rule");
+                          const rawText = primaryCitation?.snippet || sourceNode?.body || ("Dispenserende bestemmelse");
                           const cleanSnippet = cleanAndNormalizeText(rawText);
                           return cleanSnippet.slice(0, 220) + (cleanSnippet.length > 220 ? "..." : "");
                         })()

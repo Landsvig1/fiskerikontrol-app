@@ -5,7 +5,7 @@ import {
   Layers,
   ArrowRight,
 } from "lucide-react";
-import { Lang, TranslateFn, TranslationKey } from "@/lib/i18n";
+import { TranslateFn, TranslationKey } from "@/lib/i18n";
 import { docLabel, docBadgeStyle } from "@/lib/docDisplay";
 import { GraphNode, GraphData } from "@/lib/types";
 import type { TabType } from "@/app/page";
@@ -17,14 +17,12 @@ export function OverlapsView({
   data, 
   setSelectedNode, 
   setActiveTab,
-  t,
-  lang = "da"
+  t
 }: { 
   data: GraphData; 
   setSelectedNode: (node: GraphNode) => void;
   setActiveTab: (tab: TabType) => void;
   t: TranslateFn;
-  lang?: Lang;
 }) {
   // Copy before sorting, sort() mutates in place, and data.overlaps is owned by the parent.
   const overlapsList = [...data.overlaps].sort((a, b) => b.count - a.count);
@@ -38,9 +36,7 @@ export function OverlapsView({
           <Layers className="text-amber-600 w-6 h-6" /> {t("overlapsCount") /* Overlappende sektionsreferencer */}
         </h2>
         <p className="text-sm text-slate-600 leading-relaxed">
-          {lang === "en"
-            ? "Below is a list of sections or provisions that are subject to multiple independent cross-references. These are indicators of regulatory complexity."
-            : "Nedenfor vises en liste over bestemmelser, der er genstand for flere uafhængige kildehenvisninger. Dette er indikatorer for retlig kompleksitet."
+          {"Nedenfor vises en liste over bestemmelser, der er genstand for flere uafhængige kildehenvisninger. Dette er indikatorer for retlig kompleksitet."
           }
         </p>
       </div>
@@ -48,7 +44,7 @@ export function OverlapsView({
       <div className="grid grid-cols-1 gap-6 max-w-4xl">
         {overlapsList.length === 0 ? (
           <div className="bg-white border border-slate-200 p-8 rounded-2xl text-center text-slate-500 text-sm shadow-xs">
-            {lang === "en" ? "No overlaps detected." : "Ingen overlap fundet."}
+            {"Ingen overlap fundet."}
           </div>
         ) : (
           overlapsList.map((record, i) => {
@@ -61,7 +57,7 @@ export function OverlapsView({
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[10px] font-bold uppercase text-amber-900 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded">
-                        {lang === "en" ? `Overlap (${record.count} references)` : `Overlap (${record.count} referencer)`}
+                        {`Overlap (${record.count} referencer)`}
                       </span>
                       <span
                         className="text-[10px] font-bold px-2 py-0.5 rounded border"
@@ -71,7 +67,7 @@ export function OverlapsView({
                       </span>
                     </div>
                     <h3 className="text-base font-bold mt-2 text-slate-900">
-                      {lang === "en" ? "Target Section: " : "Målsektion: "} <span className="text-sky-800">{targetNode.label}</span>
+                      {"Målsektion: "} <span className="text-sky-800">{targetNode.label}</span>
                     </h3>
                     <p className="text-xs text-slate-600 leading-relaxed font-medium">{targetNode.title}</p>
                   </div>
@@ -88,7 +84,7 @@ export function OverlapsView({
 
                 <div className="border-t border-slate-200 pt-4">
                   <h4 className="text-xs uppercase font-bold text-slate-500 tracking-wider mb-3">
-                    {lang === "en" ? "Referencing sections:" : "Refererende sektioner:"}
+                    {"Refererende sektioner:"}
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {record.citations.map((c, idx) => {

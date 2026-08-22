@@ -5,7 +5,7 @@ import {
   Search,
   ArrowRight,
 } from "lucide-react";
-import { Lang, TranslateFn } from "@/lib/i18n";
+import { TranslateFn } from "@/lib/i18n";
 import { docLabel, docBadgeStyle } from "@/lib/docDisplay";
 import { themeLabel } from "@/lib/labels";
 import { GraphNode, GraphData } from "@/lib/types";
@@ -20,8 +20,7 @@ export function BrowseView({
   setSearchQuery, 
   setSelectedNode, 
   setActiveTab,
-  t,
-  lang = "da"
+  t
 }: { 
   data: GraphData; 
   searchQuery: string; 
@@ -29,7 +28,6 @@ export function BrowseView({
   setSelectedNode: (node: GraphNode) => void;
   setActiveTab: (tab: TabType) => void;
   t: TranslateFn;
-  lang?: Lang;
 }) {
   const filteredNodes = React.useMemo(() => {
     if (!searchQuery.trim()) return data.nodes;
@@ -73,11 +71,11 @@ export function BrowseView({
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-[#fafaf9] text-slate-900">
       <div className="p-8 bg-white border-b border-slate-200 space-y-4 shadow-2xs">
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900">{lang === "en" ? "Browse Sections" : "Gennemse sektioner"}</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900">{"Gennemse sektioner"}</h2>
         <div className="max-w-xl relative">
           <input
             type="text"
-            placeholder={lang === "en" ? "Search in text, sections, categories..." : "Søg i tekst, sektioner, kategorier..."}
+            placeholder={"Søg i tekst, sektioner, kategorier..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-4 py-2.5 pl-11 rounded-xl outline-none focus:border-sky-500 focus:bg-white text-xs transition-colors"
@@ -102,8 +100,8 @@ export function BrowseView({
                   >
                     {docLabel(data.docs, node.doc, t)}
                   </span>
-                  <span className="text-[10px] font-semibold text-slate-700 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded truncate max-w-[140px]" title={themeLabel(node.theme, lang)}>
-                    {themeLabel(node.theme, lang)}
+                  <span className="text-[10px] font-semibold text-slate-700 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded truncate max-w-[140px]" title={themeLabel(node.theme)}>
+                    {themeLabel(node.theme)}
                   </span>
                 </div>
                 <h3 className="text-base font-bold text-slate-900 mt-3">{node.label}</h3>
@@ -122,7 +120,7 @@ export function BrowseView({
                   }}
                   className="text-xs font-semibold text-sky-700 hover:text-sky-900 flex items-center gap-1.5 cursor-pointer"
                 >
-                  {lang === "en" ? "Inspect connections" : "Inspicer forbindelser"} <ArrowRight className="w-3.5 h-3.5" />
+                  {"Inspicer forbindelser"} <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>

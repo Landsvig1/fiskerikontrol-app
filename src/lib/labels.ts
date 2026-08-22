@@ -58,52 +58,25 @@ const THEME_TRANSLATIONS_DA: Record<string, string> = {
   "Prohibition": "Forbud",
 };
 
-const THEME_TRANSLATIONS_EN: Record<string, string> = {
-  "Licenser & Tilladelser": "Licensing & Authorizations",
-  "VMS, Sporing & AIS": "VMS, Tracking & AIS",
-  "Fangst & Logbog": "Catch & Logbook",
-  "Forhåndsanmeldelse & Anløb": "Prior Notification & Port Call",
-  "Landing & Omladning": "Landing & Transhipment",
-  "Vejning & Landingsopgørelse": "Weighing & Landing Declaration",
-  "Salgsnotater & Førsteomsætning": "Sales Notes & First Sale",
-  "Sporbarhed & Mærkning": "Traceability & Labeling",
-  "Kontrol, Tilsyn & REM": "Inspection, Surveillance & REM",
-  "Sanktioner & Pointsystem": "Sanctions & Penalty Points",
-  "Datavalidering & Samarbejde": "Data Validation & Cooperation",
-  "Definitioner & Retsgrundlag": "Definitions & Legal Framework",
-  "Generelle Bestemmelser": "General Provisions",
-  "Definitions and Scope": "Definitions and Scope",
-  "Obligations and Duties": "Obligations and Duties",
-  "Rights and Permissions": "Rights and Permissions",
-  "Exceptions and Exemptions": "Exceptions and Exemptions",
-  "Enforcement and Sanctions": "Enforcement and Sanctions",
-  "Reporting and Documentation": "Reporting and Documentation",
-  "Procedures and Processes": "Procedures and Processes",
-  "Transitional and Final Provisions": "Transitional and Final Provisions",
-  "General": "General",
-};
 
-/** Translates an internal theme / category name to Danish (da) or English (en). */
-export function themeLabel(theme: string, lang: "da" | "en" = "da"): string {
+/** Translates an internal theme / category name to Danish. */
+export function themeLabel(theme: string): string {
   if (!theme) return "";
-  if (lang === "en") {
-    return THEME_TRANSLATIONS_EN[theme] || theme;
-  }
   return THEME_TRANSLATIONS_DA[theme] || theme;
 }
 
-/** Formats a conflict description into Danish when lang is "da". */
+/**
+ * Formats a conflict description for display. The parser emits its generic collision
+ * sentence in English, so that one case is rewritten into Danish; a description the parser
+ * derived from the actual provisions is passed through as it stands.
+ */
 export function formatConflictDescription(
   rawDescription: string,
-  targetLabel: string = "",
-  lang: "da" | "en" = "da"
+  targetLabel: string = ""
 ): string {
-  if (lang === "da") {
-    if (!rawDescription || rawDescription.toLowerCase().includes("potential conflict: one section creates an exception")) {
-      const subject = targetLabel ? `vedrørende ${targetLabel}` : "for denne regulering";
-      return `Potentiel regulatorisk modstrid: Én bestemmelse fastsætter en undtagelse/lempelse, mens en anden bestemmelse pålægger en bindende forpligtelse eller et forbud ${subject}.`;
-    }
-    return rawDescription;
+  if (!rawDescription || rawDescription.toLowerCase().includes("potential conflict: one section creates an exception")) {
+    const subject = targetLabel ? `vedrørende ${targetLabel}` : "for denne regulering";
+    return `Potentiel regulatorisk modstrid: Én bestemmelse fastsætter en undtagelse/lempelse, mens en anden bestemmelse pålægger en bindende forpligtelse eller et forbud ${subject}.`;
   }
-  return rawDescription || `Potential regulatory conflict regarding ${targetLabel || "this provision"}.`;
+  return rawDescription;
 }

@@ -14,14 +14,13 @@ import {
 import { GraphData } from "@/lib/types";
 import { FleetFilterCriteria } from "@/lib/fleetFilter";
 import { generateAuditMemoMarkdown } from "@/lib/generateAuditMemo";
-import { Lang, TranslateFn } from "@/lib/i18n";
+import { TranslateFn } from "@/lib/i18n";
 
 interface AuditMemoModalProps {
   isOpen: boolean;
   onClose: () => void;
   data: GraphData;
   criteria: FleetFilterCriteria;
-  lang: Lang;
   t?: TranslateFn;
 }
 
@@ -30,15 +29,14 @@ export function AuditMemoModal({
   onClose,
   data,
   criteria,
-  lang,
 }: AuditMemoModalProps) {
   const [copied, setCopied] = useState(false);
 
   // Memoized because generateAuditMemoMarkdown stamps a random case reference: regenerating
   // it on every render made the memo's case number change while the user was reading it.
   const markdownContent = useMemo(
-    () => (isOpen ? generateAuditMemoMarkdown({ data, criteria, lang }) : ""),
-    [isOpen, data, criteria, lang]
+    () => (isOpen ? generateAuditMemoMarkdown({ data, criteria }) : ""),
+    [isOpen, data, criteria]
   );
 
   if (!isOpen) return null;
@@ -78,12 +76,10 @@ export function AuditMemoModal({
             </div>
             <div>
               <h2 className="text-sm font-bold text-slate-900">
-                {lang === "da" ? "Juridisk Tilsynsnotat & Audit-Memo" : "Legal Audit & Compliance Memo"}
+                {"Juridisk Tilsynsnotat & Audit-Memo"}
               </h2>
               <p className="text-[11px] text-slate-500">
-                {lang === "da"
-                  ? "Struktureret tilsynsrapport klar til print, journalisering eller eksport"
-                  : "Structured inspection report ready for print, filing, or export"}
+                {"Struktureret tilsynsrapport klar til print, journalisering eller eksport"}
               </p>
             </div>
           </div>
@@ -95,7 +91,7 @@ export function AuditMemoModal({
               className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-2xs hover:bg-slate-50 transition-colors cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
-              {lang === "da" ? "Udskriv / Gem som PDF" : "Print / Save PDF"}
+              {"Udskriv / Gem som PDF"}
             </button>
 
             <button
@@ -104,7 +100,7 @@ export function AuditMemoModal({
               className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-2xs hover:bg-slate-50 transition-colors cursor-pointer"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-              {copied ? (lang === "da" ? "Kopieret!" : "Copied!") : lang === "da" ? "Kopiér Markdown" : "Copy Markdown"}
+              {copied ? ("Kopieret!") : "Kopiér Markdown"}
             </button>
 
             <button
@@ -113,7 +109,7 @@ export function AuditMemoModal({
               className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
-              {lang === "da" ? "Download .md" : "Download .md"}
+              {"Download .md"}
             </button>
 
             <button

@@ -33,38 +33,25 @@ describe("deriveLabelFromFilename", () => {
 
 describe("themeLabel", () => {
   it("translates process theme names to Danish when lang is da", () => {
-    expect(themeLabel("Catch & Logbook", "da")).toBe("Fangst & Logbog");
-    expect(themeLabel("Landing & Transhipment", "da")).toBe("Landing & Omladning");
-    expect(themeLabel("Weighing & Landing Declaration", "da")).toBe("Vejning & Landingsopgørelse");
-    expect(themeLabel("Sales Notes & First Sale", "da")).toBe("Salgsnotater & Førsteomsætning");
-    expect(themeLabel("Traceability & Labeling", "da")).toBe("Sporbarhed & Mærkning");
-    expect(themeLabel("Licensing & Authorizations", "da")).toBe("Licenser & Tilladelser");
-    expect(themeLabel("Fangst & Logbog", "da")).toBe("Fangst & Logbog");
+    expect(themeLabel("Catch & Logbook")).toBe("Fangst & Logbog");
+    expect(themeLabel("Landing & Transhipment")).toBe("Landing & Omladning");
+    expect(themeLabel("Weighing & Landing Declaration")).toBe("Vejning & Landingsopgørelse");
+    expect(themeLabel("Sales Notes & First Sale")).toBe("Salgsnotater & Førsteomsætning");
+    expect(themeLabel("Traceability & Labeling")).toBe("Sporbarhed & Mærkning");
+    expect(themeLabel("Licensing & Authorizations")).toBe("Licenser & Tilladelser");
+    expect(themeLabel("Fangst & Logbog")).toBe("Fangst & Logbog");
   });
 
-  it("translates process theme names to English when lang is en", () => {
-    expect(themeLabel("Fangst & Logbog", "en")).toBe("Catch & Logbook");
-    expect(themeLabel("Landing & Omladning", "en")).toBe("Landing & Transhipment");
-    expect(themeLabel("Vejning & Landingsopgørelse", "en")).toBe("Weighing & Landing Declaration");
-    expect(themeLabel("Salgsnotater & Førsteomsætning", "en")).toBe("Sales Notes & First Sale");
-    expect(themeLabel("Sporbarhed & Mærkning", "en")).toBe("Traceability & Labeling");
-    expect(themeLabel("Licenser & Tilladelser", "en")).toBe("Licensing & Authorizations");
-  });
 });
 
 describe("formatConflictDescription", () => {
-  it("formats generic conflict descriptions to Danish when lang is da", () => {
+  it("rewrites the parser's generic English conflict description into Danish", () => {
     const raw = "Potential conflict: one section creates an exception/exemption while another imposes an obligation or prohibition regarding Art. 33.";
-    const result = formatConflictDescription(raw, "Art. 33", "da");
+    const result = formatConflictDescription(raw, "Art. 33");
     expect(result).toContain("Potentiel regulatorisk modstrid");
     expect(result).toContain("undtagelse/lempelse");
     expect(result).toContain("Art. 33");
   });
 
-  it("preserves English conflict description when lang is en", () => {
-    const raw = "Potential conflict: one section creates an exception regarding Art. 33.";
-    const result = formatConflictDescription(raw, "Art. 33", "en");
-    expect(result).toBe(raw);
-  });
 });
 

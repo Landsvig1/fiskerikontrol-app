@@ -50,8 +50,9 @@ const mockData: GraphData = {
   ],
 };
 
+const t = getT();
+
 describe("ConflictInspectorModal", () => {
-  const t = getT("da");
 
   it("renders dual-pane modal with base provision and derogating provision", () => {
     const handleClose = vi.fn();
@@ -64,7 +65,6 @@ describe("ConflictInspectorModal", () => {
         onClose={handleClose}
         onSelectNode={handleSelectNode}
         t={t}
-        lang="da"
       />
     );
 
@@ -93,7 +93,6 @@ describe("ConflictInspectorModal", () => {
         onClose={handleClose}
         onSelectNode={handleSelectNode}
         t={t}
-        lang="da"
       />
     );
 
@@ -115,34 +114,11 @@ describe("ConflictInspectorModal", () => {
         onClose={handleClose}
         onSelectNode={handleSelectNode}
         t={t}
-        lang="da"
       />
     );
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(handleClose).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("ConflictInspectorModal language handling", () => {
-  it("renders the English pane labels and actions when lang is en", () => {
-    render(
-      <ConflictInspectorModal
-        conflict={mockData.conflicts[0]}
-        data={mockData}
-        onClose={vi.fn()}
-        onSelectNode={vi.fn()}
-        t={getT("en")}
-        lang="en"
-      />
-    );
-
-    expect(screen.getByText(/Base Provision \/ Requirement/i)).toBeInTheDocument();
-    expect(screen.getByText(/Exception \/ Conflicting Provision/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Copy brief/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Show in graph/i })).toBeInTheDocument();
-    // The header dismiss icon and the footer button share the closeModal label.
-    expect(screen.getAllByRole("button", { name: /^Close$/i })).toHaveLength(2);
   });
 });
 
@@ -158,8 +134,8 @@ describe("ConflictInspectorModal copy path", () => {
   }
 
   // The parser emits this English sentence for every rule-versus-exception collision.
-  // It is the only description that formatConflictDescription rewrites, so it is what
-  // makes the lang prop observable in the exported brief.
+  // formatConflictDescription rewrites exactly that one case into Danish, and the exported
+  // brief is where a caseworker would otherwise see the raw English.
   function rawDescriptionConflict(): ConflictRecord {
     return {
       ...mockData.conflicts[0],
@@ -168,22 +144,21 @@ describe("ConflictInspectorModal copy path", () => {
     };
   }
 
-  function renderModal(conflict: ConflictRecord, lang: "da" | "en") {
+  function renderModal(conflict: ConflictRecord) {
     render(
       <ConflictInspectorModal
         conflict={conflict}
         data={mockData}
         onClose={vi.fn()}
         onSelectNode={vi.fn()}
-        t={getT(lang)}
-        lang={lang}
+        t={t}
       />
     );
   }
 
   it("copies both provisions, their documents and the citation context", async () => {
     const writeText = mockClipboard();
-    renderModal(mockData.conflicts[0], "da");
+    renderModal(mockData.conflicts[0]);
 
     fireEvent.click(screen.getByRole("button", { name: /Kopiér notat/i }));
 
@@ -198,18 +173,18 @@ describe("ConflictInspectorModal copy path", () => {
     expect(brief).toContain("fartøjer under 12 meter");
   });
 
-  it("confirms the copy in the active language", async () => {
+  it("confirms the copy to the user", async () => {
     mockClipboard();
-    renderModal(mockData.conflicts[0], "en");
+    renderModal(mockData.conflicts[0]);
 
-    fireEvent.click(screen.getByRole("button", { name: /Copy brief/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Kopiér notat/i }));
 
-    expect(await screen.findByText(/Copied to clipboard!/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Kopieret til udklipsholder!/i)).toBeInTheDocument();
   });
 
-  it("rewrites a raw parser description into Danish in the exported brief", async () => {
+  it("rewrites the raw parser description into Danish in the exported brief", async () => {
     const writeText = mockClipboard();
-    renderModal(rawDescriptionConflict(), "da");
+    renderModal(rawDescriptionConflict());
 
     fireEvent.click(screen.getByRole("button", { name: /Kopiér notat/i }));
 
@@ -220,31 +195,17 @@ describe("ConflictInspectorModal copy path", () => {
     expect(brief).toContain("vedrørende EU 2023/2842 Art. 14");
     expect(brief).not.toContain("Potential conflict: one section creates an exception");
   });
-
-  it("keeps the English description in the exported brief when lang is en", async () => {
-    const writeText = mockClipboard();
-    renderModal(rawDescriptionConflict(), "en");
-
-    fireEvent.click(screen.getByRole("button", { name: /Copy brief/i }));
-
-    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
-    const brief = writeText.mock.calls[0][0] as string;
-
-    expect(brief).toContain("Potential conflict: one section creates an exception");
-    expect(brief).not.toContain("Potentiel regulatorisk modstrid");
-  });
 });
 
 describe("ConflictInspectorModal precedence callout", () => {
-  function renderWithDocs(docs: GraphData["docs"], lang: "da" | "en") {
+  function renderWithDocs(docs: GraphData["docs"]) {
     render(
       <ConflictInspectorModal
         conflict={mockData.conflicts[0]}
         data={{ ...mockData, docs }}
         onClose={vi.fn()}
         onSelectNode={vi.fn()}
-        t={getT(lang)}
-        lang={lang}
+        t={t}
       />
     );
   }
@@ -260,26 +221,14 @@ describe("ConflictInspectorModal precedence callout", () => {
   ];
 
   it("claims EU supremacy when a national order derogates from an EU regulation", () => {
-    renderWithDocs(euAndNational, "da");
+    renderWithDocs(euAndNational);
     expect(screen.getByText(/EU-retlig forrang:/i)).toBeInTheDocument();
     expect(screen.getByText(/overtrumfer nationale bekendtgørelser/i)).toBeInTheDocument();
   });
 
   it("does not claim EU supremacy between two EU regulations", () => {
-    renderWithDocs(twoEuRegulations, "da");
+    renderWithDocs(twoEuRegulations);
     expect(screen.queryByText(/EU-retlig forrang:/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Retslig afklaring påkrævet:/i)).toBeInTheDocument();
-  });
-
-  it("renders the supremacy callout in English", () => {
-    renderWithDocs(euAndNational, "en");
-    expect(screen.getByText(/EU legal supremacy:/i)).toBeInTheDocument();
-    expect(screen.getByText(/cannot lawfully derogate/i)).toBeInTheDocument();
-  });
-
-  it("renders the clarification callout in English", () => {
-    renderWithDocs(twoEuRegulations, "en");
-    expect(screen.queryByText(/EU legal supremacy:/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/Clarification required:/i)).toBeInTheDocument();
   });
 });

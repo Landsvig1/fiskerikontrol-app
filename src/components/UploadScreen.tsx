@@ -9,8 +9,6 @@ import { TranslateFn } from "@/lib/i18n";
 import { deriveLabelFromFilename } from "@/lib/labels";
 import { PRESET_DOCUMENTS, fetchPresetFiles } from "@/lib/presetCorpus";
 
-import { Lang } from "@/lib/i18n";
-
 const MIN_SLOTS = 2;
 const MAX_SLOTS = 12;
 
@@ -28,8 +26,6 @@ function emptySlot(): SlotState {
 interface UploadScreenProps {
   onSuccess: (data: GraphData) => void;
   t: TranslateFn;
-  lang: Lang;
-  setLang: (lang: Lang) => void;
 }
 
 interface FileSlotProps {
@@ -158,8 +154,6 @@ function FileSlot({ file, error, label, dropZoneText, onFile, inputRef, disabled
 export function UploadScreen({
   onSuccess,
   t,
-  lang,
-  setLang,
 }: UploadScreenProps) {
   const [mode, setMode] = useState<"bulk" | "individual">("bulk");
   const [slots, setSlots] = useState<SlotState[]>([emptySlot(), emptySlot()]);
@@ -551,28 +545,6 @@ export function UploadScreen({
             <Info className="w-3.5 h-3.5" />
             {t("aboutButton")}
           </Link>
-
-          {/* Language Toggle */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
-            <button
-              type="button"
-              onClick={() => setLang("da")}
-              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all duration-200 ${
-                lang === "da" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              DA
-            </button>
-            <button
-              type="button"
-              onClick={() => setLang("en")}
-              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all duration-200 ${
-                lang === "en" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              EN
-            </button>
-          </div>
         </div>
       </header>
 
@@ -619,7 +591,7 @@ export function UploadScreen({
                       presetFilter === "all" ? "bg-white text-slate-900 font-semibold shadow-xs" : "text-slate-500 hover:text-slate-800"
                     }`}
                   >
-                    {lang === "da" ? "Alle" : "All"} ({PRESET_DOCUMENTS.length})
+                    {"Alle"} ({PRESET_DOCUMENTS.length})
                   </button>
                   <button
                     type="button"
@@ -637,7 +609,7 @@ export function UploadScreen({
                       presetFilter === "bek" ? "bg-white text-slate-900 font-semibold shadow-xs" : "text-slate-500 hover:text-slate-800"
                     }`}
                   >
-                    {lang === "da" ? "Bekendtgørelser" : "Orders"} ({PRESET_DOCUMENTS.filter(d => d.type === "bek").length})
+                    {"Bekendtgørelser"} ({PRESET_DOCUMENTS.filter(d => d.type === "bek").length})
                   </button>
                   <button
                     type="button"
@@ -646,7 +618,7 @@ export function UploadScreen({
                       presetFilter === "lov" ? "bg-white text-slate-900 font-semibold shadow-xs" : "text-slate-500 hover:text-slate-800"
                     }`}
                   >
-                    {lang === "da" ? "Love" : "Acts"} ({PRESET_DOCUMENTS.filter(d => d.type === "lov").length})
+                    {"Love"} ({PRESET_DOCUMENTS.filter(d => d.type === "lov").length})
                   </button>
                 </div>
 
@@ -656,7 +628,7 @@ export function UploadScreen({
                     onClick={selectAllPresets}
                     className="text-sky-700 hover:text-sky-900 font-medium hover:underline cursor-pointer"
                   >
-                    {lang === "da" ? "Vælg alle" : "Select all"}
+                    {"Vælg alle"}
                   </button>
                   <span className="text-slate-300">|</span>
                   <button
@@ -664,7 +636,7 @@ export function UploadScreen({
                     onClick={clearAllPresets}
                     className="text-slate-500 hover:text-slate-800 font-medium hover:underline cursor-pointer"
                   >
-                    {lang === "da" ? "Ryd" : "Clear"}
+                    {"Ryd"}
                   </button>
                 </div>
               </div>
@@ -696,7 +668,7 @@ export function UploadScreen({
                               ? "bg-sky-100 text-sky-900 border border-sky-300 font-bold" 
                               : "bg-slate-100 text-slate-500 border border-slate-200/90 font-medium"
                           }`}>
-                            {lang === "da" ? doc.typeLabelDa : doc.typeLabelEn}
+                            {doc.typeLabelDa}
                           </span>
                           <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
                             isSelected 
@@ -712,11 +684,11 @@ export function UploadScreen({
                           {doc.code}
                         </h4>
                         <p className={`text-xs mt-0.5 ${isEu ? "text-slate-700 font-semibold" : "text-slate-500 font-normal"}`}>
-                          {lang === "da" ? doc.titleDa : doc.titleEn}
+                          {doc.titleDa}
                         </p>
                       </div>
                       <p className={`text-[11px] mt-2 line-clamp-2 leading-relaxed ${isEu ? "text-slate-600" : "text-slate-400"}`}>
-                        {lang === "da" ? doc.descriptionDa : doc.descriptionEn}
+                        {doc.descriptionDa}
                       </p>
                     </div>
                   );
@@ -749,7 +721,7 @@ export function UploadScreen({
             <div className="relative flex py-2 items-center mb-6">
               <div className="flex-grow border-t border-slate-200"></div>
               <span className="flex-shrink mx-4 text-xs font-medium uppercase text-slate-400 tracking-wider">
-                {lang === "da" ? "Eller upload egne PDF-filer" : "Or upload custom PDFs"}
+                {"Eller upload egne PDF-filer"}
               </span>
               <div className="flex-grow border-t border-slate-200"></div>
             </div>

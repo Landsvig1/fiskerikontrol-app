@@ -3,7 +3,7 @@ import { docLabel, docColorFor, docBadgeStyle } from "./docDisplay";
 import { DOC_COLOR_PALETTE } from "./graphColors";
 import { getT } from "./i18n";
 
-const t = getT("en");
+const t = getT();
 const docs = [
   { id: "doc0", label: "Base Act" },
   { id: "doc1", label: "" },
@@ -15,7 +15,7 @@ describe("docLabel", () => {
   });
 
   it("falls back to '{docFallback} {index+1}' when the label is blank", () => {
-    expect(docLabel(docs, "doc1", t)).toBe("Document 2");
+    expect(docLabel(docs, "doc1", t)).toBe("Dokument 2");
   });
 
   it("returns the raw docId when it isn't present in docs[]", () => {

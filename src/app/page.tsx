@@ -18,7 +18,7 @@ import { ConflictsView } from "@/components/views/ConflictsView";
 import { BrowseView } from "@/components/views/BrowseView";
 import { AuditMemoModal } from "@/components/AuditMemoModal";
 import { FleetFilterCriteria, DEFAULT_FLEET_CRITERIA } from "@/lib/fleetFilter";
-import { getT, Lang } from "@/lib/i18n";
+import { getT } from "@/lib/i18n";
 import { DocRef } from "@/lib/docDisplay";
 import {
   GraphNode,
@@ -51,21 +51,6 @@ export default function Home() {
   const [activeDocFilter, setActiveDocFilter] = useState<"all" | string>("all");
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>("all");
   
-  const [lang, setLang] = useState<Lang>("da");
-
-  // Load language preference from localStorage on mount
-  useEffect(() => {
-    const savedLang = localStorage.getItem("lexgraph-lang") as Lang | null;
-    if (savedLang === "da" || savedLang === "en") {
-      setLang(savedLang);
-    }
-  }, []);
-
-  const changeLang = (newLang: Lang) => {
-    setLang(newLang);
-    localStorage.setItem("lexgraph-lang", newLang);
-  };
-
   // Listen for Escape key to unfocus/close selected node details.
   // Modals register their own Escape handler, so this one stands down while one is open;
   // otherwise a single Escape both closes the modal and clears the selection behind it.
@@ -84,7 +69,7 @@ export default function Home() {
 
   // Memoized: a fresh `t` on every render defeats React.memo on the graph canvases and
   // re-fires their teardown-and-rebuild effects, which include 280 synchronous force ticks.
-  const t = useMemo(() => getT(lang), [lang]);
+  const t = useMemo(() => getT(), []);
 
   if (loading) {
     return (
@@ -103,8 +88,6 @@ export default function Home() {
           setActiveTab("dashboard");
         }}
         t={t}
-        lang={lang}
-        setLang={changeLang}
       />
     );
   }
@@ -165,28 +148,6 @@ export default function Home() {
             {t("exportAuditMemo")}
           </button>
 
-          {/* Language Toggle */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
-            <button
-              type="button"
-              onClick={() => changeLang("da")}
-              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all duration-200 ${
-                lang === "da" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              DA
-            </button>
-            <button
-              type="button"
-              onClick={() => changeLang("en")}
-              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all duration-200 ${
-                lang === "en" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              EN
-            </button>
-          </div>
-
           {/* New Analysis button */}
           <button
             onClick={() => {
@@ -210,13 +171,11 @@ export default function Home() {
             fleetCriteria={fleetCriteria}
             setFleetCriteria={setFleetCriteria}
             t={t}
-            lang={lang}
           />
         )}
         {activeTab === "timeline" && (
           <EnforcementTimelineView 
             data={data}
-            lang={lang}
             t={t}
             onInspectNode={(nodeLabel) => {
               const found = data.nodes.find(n => n.label.toLowerCase().includes(nodeLabel.toLowerCase()));
@@ -237,7 +196,6 @@ export default function Home() {
             fleetCriteria={fleetCriteria}
             setSelectedNode={setSelectedNode}
             t={t}
-            lang={lang}
           />
         )}
         {activeTab === "graph" && (
@@ -251,7 +209,6 @@ export default function Home() {
             setActiveCategoryFilter={setActiveCategoryFilter}
             fleetCriteria={fleetCriteria}
             t={t}
-            lang={lang}
           />
         )}
         {activeTab === "overlaps" && (
@@ -260,7 +217,6 @@ export default function Home() {
             setSelectedNode={setSelectedNode} 
             setActiveTab={setActiveTab} 
             t={t}
-            lang={lang}
           />
         )}
         {activeTab === "conflicts" && (
@@ -270,7 +226,6 @@ export default function Home() {
             setActiveTab={setActiveTab} 
             onInspectConflict={setInspectingConflict}
             t={t}
-            lang={lang}
           />
         )}
         {activeTab === "browse" && (
@@ -281,7 +236,6 @@ export default function Home() {
             setSelectedNode={setSelectedNode} 
             setActiveTab={setActiveTab} 
             t={t}
-            lang={lang}
           />
         )}
       </main>
@@ -297,7 +251,6 @@ export default function Home() {
             setActiveTab("citation");
           }}
           t={t}
-          lang={lang}
         />
       )}
 
@@ -308,7 +261,6 @@ export default function Home() {
           onClose={() => setIsAuditMemoOpen(false)}
           data={data}
           criteria={fleetCriteria}
-          lang={lang}
           t={t}
         />
       )}

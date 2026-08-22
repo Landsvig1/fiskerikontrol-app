@@ -5,7 +5,7 @@ import { UploadScreen } from "./UploadScreen";
 import { getT } from "@/lib/i18n";
 import type { GraphData } from "@/lib/types";
 
-const t = getT("en");
+const t = getT();
 
 function pdf(name: string): File {
   return new File(["%PDF-1.4 content"], name, { type: "application/pdf" });
@@ -24,7 +24,7 @@ function slotName(index: number): string {
 }
 
 function renderUploadScreen(onSuccess = vi.fn()) {
-  render(<UploadScreen onSuccess={onSuccess} t={t} lang="en" setLang={() => {}} />);
+  render(<UploadScreen onSuccess={onSuccess} t={t} />);
   return { onSuccess };
 }
 

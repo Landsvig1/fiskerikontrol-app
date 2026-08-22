@@ -62,7 +62,6 @@ describe("generateAuditMemoMarkdown", () => {
   it("generates structured markdown memo with authority header and summary", () => {
     const memo = generateAuditMemoMarkdown({
       data: mockData(),
-      lang: "da",
       caseworkerName: "Test Sagsbehandler",
     });
 
@@ -73,7 +72,7 @@ describe("generateAuditMemoMarkdown", () => {
   });
 
   it("reports conflicts from data.conflicts rather than re-deriving them from links", () => {
-    const memo = generateAuditMemoMarkdown({ data: mockData(), lang: "da" });
+    const memo = generateAuditMemoMarkdown({ data: mockData() });
 
     expect(memo).toContain("Identificerede modsigelser / konflikter:** 1");
     expect(memo).toContain("§ 3 ⟷ Art. 9");
@@ -81,7 +80,7 @@ describe("generateAuditMemoMarkdown", () => {
   });
 
   it("counts cross-document citations from the isCrossDoc flag", () => {
-    const memo = generateAuditMemoMarkdown({ data: mockData(), lang: "da" });
+    const memo = generateAuditMemoMarkdown({ data: mockData() });
 
     expect(memo).toContain("Krydsreferencer mellem dokumenter:** 1");
   });
@@ -90,7 +89,7 @@ describe("generateAuditMemoMarkdown", () => {
     const data = mockData();
     data.conflicts = [];
 
-    const memo = generateAuditMemoMarkdown({ data, lang: "da" });
+    const memo = generateAuditMemoMarkdown({ data });
 
     expect(memo).toContain("Ingen direkte retskonflikter");
   });
@@ -105,7 +104,7 @@ describe("generateAuditMemoMarkdown", () => {
     const data = mockData();
     data.nodes[0].body = "Fartøjer med bomtrawl skal have VMS installeret.";
 
-    const memo = generateAuditMemoMarkdown({ data, lang: "da", criteria: passiveNets });
+    const memo = generateAuditMemoMarkdown({ data, criteria: passiveNets });
 
     expect(memo).toContain("Identificerede modsigelser / konflikter:** 1");
     expect(memo).toContain("§ 3 ⟷ Art. 9");
@@ -115,7 +114,7 @@ describe("generateAuditMemoMarkdown", () => {
     const data = mockData();
     data.nodes[1].body = "Uanset regler kan fartøjer med bomtrawl undtages.";
 
-    const memo = generateAuditMemoMarkdown({ data, lang: "da", criteria: passiveNets });
+    const memo = generateAuditMemoMarkdown({ data, criteria: passiveNets });
 
     expect(memo).toContain("Identificerede modsigelser / konflikter:** 1");
     expect(memo).toContain("§ 3 ⟷ Art. 9");
@@ -126,7 +125,7 @@ describe("generateAuditMemoMarkdown", () => {
     data.nodes[0].body = "Fartøjer med bomtrawl skal have VMS installeret.";
     data.nodes[1].body = "Uanset regler kan fartøjer med bomtrawl undtages.";
 
-    const memo = generateAuditMemoMarkdown({ data, lang: "da", criteria: passiveNets });
+    const memo = generateAuditMemoMarkdown({ data, criteria: passiveNets });
 
     expect(memo).toContain("Ingen direkte retskonflikter");
     expect(memo).not.toContain("§ 3 ⟷ Art. 9");
@@ -145,19 +144,13 @@ describe("jurisdictional claims in the memo", () => {
   }
 
   it("does not assert EU supremacy for a conflict between two EU regulations", () => {
-    const memo = generateAuditMemoMarkdown({ data: euOnlyData(), lang: "da" });
+    const memo = generateAuditMemoMarkdown({ data: euOnlyData() });
     expect(memo).not.toContain("forrang frem for nationale bekendtgørelser");
     expect(memo).toContain("Retslig afklaring påkrævet");
   });
 
-  it("does not assert EU supremacy in the English memo for two EU regulations", () => {
-    const memo = generateAuditMemoMarkdown({ data: euOnlyData(), lang: "en" });
-    expect(memo).not.toContain("EU legal supremacy");
-    expect(memo).toContain("Clarification required");
-  });
-
   it("still asserts EU supremacy when a national order conflicts with an EU regulation", () => {
-    const memo = generateAuditMemoMarkdown({ data: mockData(), lang: "da" });
+    const memo = generateAuditMemoMarkdown({ data: mockData() });
     expect(memo).toContain("forrang frem for nationale bekendtgørelser");
   });
 
@@ -180,7 +173,7 @@ describe("jurisdictional claims in the memo", () => {
       context: "Uanset regler kan fartøjer fritages.",
     });
 
-    const memo = generateAuditMemoMarkdown({ data, lang: "da" });
+    const memo = generateAuditMemoMarkdown({ data });
     expect(memo).toContain("**Identificerede modsigelser / konflikter:** 1");
     expect(memo).toContain("**Berørte henvisningspar:** 2");
   });
