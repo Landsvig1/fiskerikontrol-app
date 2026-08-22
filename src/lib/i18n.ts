@@ -25,6 +25,7 @@ export type TranslationKey =
   | "copyErrorDetails" | "copiedErrorDetails"
   | "presetLibraryTitle" | "presetLibrarySubtitle" | "analyzePresets"
   | "inspectConflict" | "conflictSummaryBanner"
+  | "provisionText" | "groupConflict" | "groupOutgoing" | "groupIncoming"
   | "euPrecedenceLabel" | "euPrecedenceBody"
   | "clarificationLabel" | "clarificationBody"
   | "baseProvision" | "derogatingProvision"
@@ -100,6 +101,10 @@ const da: Translations = {
   analyzePresets: "Analysér valgte",
   inspectConflict: "Inspicer modstrid",
   conflictSummaryBanner: "Juridisk modstridsanalyse",
+  provisionText: "Bestemmelsens tekst",
+  groupConflict: "Modstrid",
+  groupOutgoing: "Udgående henvisninger",
+  groupIncoming: "Indgående henvisninger",
   euPrecedenceLabel: "EU-retlig forrang:",
   euPrecedenceBody: "EU-forordninger har direkte retsvirkning og overtrumfer nationale bekendtgørelser. Nationale undtagelser kan ikke lovligt fravige bindende EU-krav.",
   clarificationLabel: "Retslig afklaring påkrævet:",
@@ -197,6 +202,10 @@ const en: Translations = {
   analyzePresets: "Analyze selected",
   inspectConflict: "Inspect Conflict",
   conflictSummaryBanner: "Legal Conflict Analysis",
+  provisionText: "Provision text",
+  groupConflict: "Conflict",
+  groupOutgoing: "Outgoing citations",
+  groupIncoming: "Incoming citations",
   euPrecedenceLabel: "EU legal supremacy:",
   euPrecedenceBody: "EU regulations have direct effect and override national orders. National exemptions cannot lawfully derogate from binding EU requirements.",
   clarificationLabel: "Clarification required:",

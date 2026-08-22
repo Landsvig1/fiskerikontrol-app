@@ -2,6 +2,7 @@ import { GraphNode, GraphLink, ConflictRecord, DocRef } from "./types";
 import { docLabel } from "./docDisplay";
 import { formatConflictDescription, themeLabel } from "./labels";
 import { nodeJurisdiction } from "./jurisdiction";
+import { findConflictBetween } from "./nodeConnections";
 
 export interface ConnectionExplanation {
   headline: string;
@@ -37,18 +38,9 @@ export function explainConnection(
   const isEuOther = jurOther === "eu";
   const jurisdictionUnknown = jurSelected === "unknown" || jurOther === "unknown";
 
-  // Check if there is an active recorded conflict between these two specific provisions
-  const relevantConflict = conflicts.find((c) => {
-    const targetsSelected = c.target === selectedNode.id || c.target === selectedNode.label;
-    const targetsOther = c.target === otherNode.id || c.target === otherNode.label;
-    const sourcesContainSelected = c.citations.some(
-      (cit) => cit.source === selectedNode.id || cit.source === selectedNode.label
-    );
-    const sourcesContainOther = c.citations.some(
-      (cit) => cit.source === otherNode.id || cit.source === otherNode.label
-    );
-    return (targetsSelected && sourcesContainOther) || (targetsOther && sourcesContainSelected);
-  });
+  // Check if there is an active recorded conflict between these two specific provisions.
+  // Same rule the drawer uses to file a connection under its conflict group.
+  const relevantConflict = findConflictBetween(conflicts, selectedNode, otherNode);
 
   const modality = (link.modality || "Direct").toLowerCase();
 

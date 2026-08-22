@@ -21,6 +21,7 @@ import { FleetFilterCriteria, matchesFleetCriteria } from "@/lib/fleetFilter";
 import { Lang, TranslateFn, TranslationKey } from "@/lib/i18n";
 import { modalityColor, modalityBadgeClasses } from "@/lib/graphColors";
 import { filterGraph, computeDegree } from "@/lib/graphFilter";
+import { buildNodeConnections, groupNodeConnections } from "@/lib/nodeConnections";
 import { docLabel, docColorFor, docBadgeStyle } from "@/lib/docDisplay";
 import { explainConnection } from "@/lib/connectionExplainer";
 import { themeLabel, CANONICAL_PROCESS_ORDER } from "@/lib/labels";
@@ -39,7 +40,11 @@ interface D3GraphCanvasProps {
   setSelectedNode: (node: GraphNode | null) => void;
   t: TranslateFn;
   lang?: Lang;
+  rightInset?: number;
 }
+
+// Matches the drawer's sm:w-96 so the camera can frame around it.
+const DRAWER_WIDTH_PX = 384;
 
 const D3GraphCanvas = React.memo(function D3GraphCanvas({
   data,
@@ -50,7 +55,8 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
   fleetCriteria,
   setSelectedNode,
   t,
-  lang = "da"
+  lang = "da",
+  rightInset = 0
 }: D3GraphCanvasProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -120,6 +126,20 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
 
   const applyNodeSelectionRef = useRef<((node: GraphNode | null, animate?: boolean) => void) | null>(null);
   const zoomToFitRef = useRef<((animate?: boolean) => void) | null>(null);
+
+  // Width the connections drawer covers on the right. The camera frames the selected node
+  // in the visible strip instead of the full canvas, otherwise selecting a node parks it
+  // underneath the drawer. Never eats more than half the canvas on a narrow viewport.
+  const rightInsetRef = useRef(rightInset);
+  useEffect(() => {
+    rightInsetRef.current = rightInset;
+    if (selectedNodeRef.current) {
+      applyNodeSelectionRef.current?.(selectedNodeRef.current, true);
+    } else {
+      zoomToFitRef.current?.(true);
+    }
+  }, [rightInset]);
+
 
   // Keep ref updated and apply selection
   useEffect(() => {
@@ -225,7 +245,8 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       const scaleY = currentHeight / graphHeight;
       const fitScale = Math.max(0.06, Math.min(scaleX, scaleY, 0.95));
 
-      const tx = currentWidth / 2 - midX * fitScale;
+      const inset = Math.min(rightInsetRef.current, currentWidth / 2);
+      const tx = (currentWidth - inset) / 2 - midX * fitScale;
       const ty = currentHeight / 2 - midY * fitScale;
 
       const targetTransform = d3.zoomIdentity.translate(tx, ty).scale(fitScale);
@@ -441,7 +462,8 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
 
           const marginX = 140;
           const marginY = 100;
-          const availHalfW = Math.max(currentW / 2 - marginX, 100);
+          const inset = Math.min(rightInsetRef.current, currentW / 2);
+          const availHalfW = Math.max((currentW - inset) / 2 - marginX, 100);
           const availHalfH = Math.max(currentH / 2 - marginY, 80);
 
           let targetScale = 1.15;
@@ -467,7 +489,7 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
             }
           }
 
-          const tx = currentW / 2 - centerNode.x * targetScale;
+          const tx = (currentW - inset) / 2 - centerNode.x * targetScale;
           const ty = currentH / 2 - centerNode.y * targetScale;
           const targetTransform = d3.zoomIdentity.translate(tx, ty).scale(targetScale);
 
@@ -747,16 +769,14 @@ export function InteractiveGraphView({
   }, [searchQuery]);
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(false);
   const [isRightDrawerOpen, setIsRightDrawerOpen] = useState(false);
-  const [showDocText, setShowDocText] = useState(false);
-  const [expandedConnectionIndex, setExpandedConnectionIndex] = useState<number | null>(null);
+  const [expandedConnectionKey, setExpandedConnectionKey] = useState<string | null>(null);
 
   // Automatically fold down the left panel when a node is selected
   useEffect(() => {
     if (selectedNode) {
       setIsLeftPanelOpen(false);
     }
-    setShowDocText(false);
-    setExpandedConnectionIndex(null);
+    setExpandedConnectionKey(null);
   }, [selectedNode]);
 
   // Group nodes by category to construct filters in logical process order
@@ -769,25 +789,20 @@ export function InteractiveGraphView({
     return a.localeCompare(b);
   });
 
+  // Scoped to the same subgraph the canvas draws, not to data.links. Listing connections
+  // the canvas filtered out offers a switch-focus action that selects an undrawn node.
   const nodeConnections = useMemo(() => {
-    if (!selectedNode) return [];
-    return data.links.filter(l => {
-      const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
-      const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
-      return s === selectedNode.id || t === selectedNode.id;
-    }).map(l => {
-      const sId = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
-      const tId = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
-      const isOutgoing = sId === selectedNode.id;
-      const otherNodeId = isOutgoing ? tId : sId;
-      const otherNode = data.nodes.find(n => n.id === otherNodeId);
-      return {
-        link: l,
-        isOutgoing,
-        otherNode
-      };
-    }).filter((item): item is { link: GraphLink; isOutgoing: boolean; otherNode: GraphNode } => item.otherNode !== undefined);
-  }, [selectedNode, data.links, data.nodes]);
+    const { filteredNodes, filteredLinks } = filterGraph(
+      data.nodes,
+      data.links,
+      activeDocFilter,
+      activeCategoryFilter,
+      debouncedSearchQuery
+    );
+    return buildNodeConnections(selectedNode, filteredNodes, filteredLinks, data.conflicts);
+  }, [selectedNode, data, activeDocFilter, activeCategoryFilter, debouncedSearchQuery]);
+
+  const connectionGroups = useMemo(() => groupNodeConnections(nodeConnections), [nodeConnections]);
 
   return (
     <div className="flex-1 flex overflow-hidden relative bg-[#fafaf9]">
@@ -944,6 +959,7 @@ export function InteractiveGraphView({
         activeDocFilter={activeDocFilter}
         activeCategoryFilter={activeCategoryFilter}
         searchQuery={debouncedSearchQuery}
+        rightInset={isRightDrawerOpen ? DRAWER_WIDTH_PX : 0}
         fleetCriteria={fleetCriteria}
         setSelectedNode={setSelectedNode}
         t={t}
@@ -977,7 +993,17 @@ export function InteractiveGraphView({
           </div>
           
           <div className="flex-1 overflow-y-auto p-5 space-y-5">
-            {/* List connections at the TOP */}
+            {/* The provision you clicked, before anything said about it. */}
+            <div className="space-y-2">
+              <h3 className="text-xs uppercase font-bold text-slate-700 tracking-wider flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-slate-500" />
+                {t("provisionText")}
+              </h3>
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-xs leading-relaxed text-slate-800 max-h-72 overflow-y-auto whitespace-pre-wrap">
+                {selectedNode.body}
+              </div>
+            </div>
+
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs uppercase font-bold text-slate-700 tracking-wider flex items-center gap-1.5">
@@ -994,10 +1020,21 @@ export function InteractiveGraphView({
                   <p className="text-xs text-slate-500 italic">{t("noConnections")}</p>
                 </div>
               ) : (
-                <div className="space-y-2.5">
-                  {nodeConnections.map((item, i) => {
+                connectionGroups.map((group) => (
+                <div key={group.key} className="space-y-2.5">
+                  <div className="flex items-center gap-2 pt-1">
+                    <span className={`text-[10px] uppercase font-bold tracking-wider ${
+                      group.key === "conflict" ? "text-rose-700" : "text-slate-500"
+                    }`}>
+                      {group.key === "conflict" ? t("groupConflict") : group.key === "outgoing" ? t("groupOutgoing") : t("groupIncoming")}
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400">({group.items.length})</span>
+                    <span className="flex-1 h-px bg-slate-200" />
+                  </div>
+                  {group.items.map((item) => {
                     const { link, isOutgoing, otherNode } = item;
-                    const isExpanded = expandedConnectionIndex === i;
+                    const connectionKey = `${group.key}:${otherNode.id}:${link.modality}:${isOutgoing ? "out" : "in"}`;
+                    const isExpanded = expandedConnectionKey === connectionKey;
                     const explanation = explainConnection(
                       selectedNode,
                       otherNode,
@@ -1010,14 +1047,14 @@ export function InteractiveGraphView({
 
                     return (
                       <div 
-                        key={i}
+                        key={connectionKey}
                         className={`p-3.5 bg-white border rounded-xl transition-all duration-200 ${
                           isExpanded ? "border-sky-500 shadow-md ring-2 ring-sky-100" : "border-slate-200 hover:border-sky-300 hover:shadow-xs"
                         }`}
                       >
                         {/* Clickable Header that toggles explanation */}
                         <div 
-                          onClick={() => setExpandedConnectionIndex(prev => prev === i ? null : i)}
+                          onClick={() => setExpandedConnectionKey(prev => prev === connectionKey ? null : connectionKey)}
                           className="cursor-pointer select-none"
                         >
                           <div className="flex items-center justify-between gap-2 mb-1.5">
@@ -1140,34 +1177,10 @@ export function InteractiveGraphView({
                     );
                   })}
                 </div>
+                ))
               )}
             </div>
 
-            {/* Collapsible Document Text Accordion */}
-            <div className="pt-2 border-t border-slate-200">
-              <button
-                type="button"
-                onClick={() => setShowDocText(prev => !prev)}
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition-colors cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-slate-600" />
-                  <span className="text-xs font-bold text-slate-800">
-                    {t("documentText")}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500">
-                  <span>{showDocText ? t("hideDocumentText") : t("showDocumentText")}</span>
-                  {showDocText ? <ChevronUp className="w-4 h-4 text-slate-600" /> : <ChevronDown className="w-4 h-4 text-slate-600" />}
-                </div>
-              </button>
-
-              {showDocText && (
-                <div className="mt-3 bg-slate-50 border border-slate-200 p-4 rounded-xl text-xs leading-relaxed text-slate-800 max-h-72 overflow-y-auto whitespace-pre-wrap animate-in fade-in slide-in-from-top-1 duration-200">
-                  {selectedNode.body}
-                </div>
-              )}
-            </div>
           </div>
         </div>
       )}
