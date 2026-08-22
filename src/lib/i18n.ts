@@ -15,7 +15,7 @@ export type TranslationKey =
   | "loadingGraph"
   | "allDocuments" | "allCategories"
   | "sectionCount" | "citationsCount" | "overlapsCount" | "conflictsCount"
-  | "category" | "documentText" | "connections"
+  | "category" | "connections"
   | "obligation" | "exception" | "prohibition" | "permission"
   | "noTitle" | "noHeading"
   | "showInGraph" | "viewAnalysis" | "viewConflicts"
@@ -34,7 +34,7 @@ export type TranslationKey =
   | "conflictsHeaderTitle" | "conflictsHeaderSubtitle"
   | "euPrecedenceBadge" | "inspectionVerdictTitle"
   | "euRuleLabel" | "nationalDeviationLabel"
-  | "showDocumentText" | "hideDocumentText" | "noConnections"
+  | "noConnections"
   | "outgoingCitation" | "incomingCitation"
   | "toggleFilters" | "showDetailsPanel" | "hideDetailsPanel"
   | "clearSelection" | "selectedProvision"
@@ -79,7 +79,6 @@ const da: Translations = {
   overlapsCount: "Overlap",
   conflictsCount: "Konflikter",
   category: "Kategori",
-  documentText: "Dokumenttekst",
   connections: "Forbindelser i grafen",
   obligation: "Forpligtelse",
   exception: "Undtagelse",
@@ -123,8 +122,6 @@ const da: Translations = {
   inspectionVerdictTitle: "Konklusion for Tilsynet",
   euRuleLabel: "EU Hovedregel (Krav)",
   nationalDeviationLabel: "National Undtagelse (Afvigelse)",
-  showDocumentText: "Vis fuld lovtekst / dokumenttekst",
-  hideDocumentText: "Skjul lovtekst",
   noConnections: "Ingen direkte forbindelser fundet i grafen for denne bestemmelse.",
   outgoingCitation: "Refererer til",
   incomingCitation: "Citeret af",
