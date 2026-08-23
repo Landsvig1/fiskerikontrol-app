@@ -232,3 +232,62 @@ describe("ConflictInspectorModal precedence callout", () => {
     expect(screen.getByText(/Retslig afklaring påkrævet:/i)).toBeInTheDocument();
   });
 });
+
+describe("ConflictInspectorModal initial citation", () => {
+  // Same shape as the parser's doc0_sec_17 record: the Danish derogation is emitted last.
+  const multiSourceData: GraphData = {
+    ...mockData,
+    nodes: [
+      ...mockData.nodes,
+      {
+        id: "doc0_sec_19",
+        number: 19,
+        label: "EU 2023/2842 Art. 19",
+        title: "Undtagelser",
+        doc: "doc0",
+        theme: "Exceptions and Exemptions",
+        body: "Undtagelser for visse fartoejer.",
+      },
+    ],
+    conflicts: [
+      {
+        ...mockData.conflicts[0],
+        citations: [
+          {
+            source: "doc0_sec_19",
+            modality: "Exception",
+            snippet: "Undtagelser for visse",
+            context: "Undtagelser for visse fartoejer",
+          },
+          ...mockData.conflicts[0].citations,
+        ],
+      },
+    ],
+  };
+
+  function renderMultiSource() {
+    render(
+      <ConflictInspectorModal
+        conflict={multiSourceData.conflicts[0]}
+        data={multiSourceData}
+        onClose={vi.fn()}
+        onSelectNode={vi.fn()}
+        t={t}
+      />
+    );
+  }
+
+  it("opens on the national derogation rather than the first citation", () => {
+    renderMultiSource();
+    // The right pane heading is the active citation's source section.
+    expect(screen.getAllByText(/BEK 1197\/2025 § 4/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/EU-retlig forrang:/i)).toBeInTheDocument();
+  });
+
+  it("re-gates the callout per citation when the user switches source", () => {
+    renderMultiSource();
+    fireEvent.click(screen.getByRole("button", { name: /EU 2023\/2842 Art\. 19/ }));
+    expect(screen.getByText(/Retslig afklaring påkrævet:/i)).toBeInTheDocument();
+    expect(screen.queryByText(/EU-retlig forrang:/i)).not.toBeInTheDocument();
+  });
+});

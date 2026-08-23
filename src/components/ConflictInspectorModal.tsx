@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { 
   AlertTriangle, 
   X, 
@@ -16,7 +16,7 @@ import { TranslateFn, TranslationKey } from "@/lib/i18n";
 import { docLabel, docBadgeStyle } from "@/lib/docDisplay";
 import { highlightModalKeywords } from "@/lib/highlightText";
 import { formatConflictDescription } from "@/lib/labels";
-import { euSupremacyApplies } from "@/lib/jurisdiction";
+import { euSupremacyApplies, selectPrecedenceCitation } from "@/lib/jurisdiction";
 
 interface ConflictInspectorModalProps {
   conflict: ConflictRecord;
@@ -34,9 +34,25 @@ export function ConflictInspectorModal({
   t,
 }: ConflictInspectorModalProps) {
   const [copied, setCopied] = useState(false);
-  const [selectedCitationIndex, setSelectedCitationIndex] = useState(0);
 
   const targetNode = data.nodes.find((n) => n.id === conflict.target);
+
+  // The inspector opens on the same pair the Conflicts view card named, not on whichever
+  // citation the parser emitted first, otherwise clicking "Inspicer modstrid" on a card
+  // badged as an EU supremacy case lands on an unrelated source.
+  const initialCitationIndex = useMemo(() => {
+    const picked = selectPrecedenceCitation(
+      data.docs,
+      conflict.citations,
+      targetNode,
+      (id) => data.nodes.find((n) => n.id === id)
+    );
+    const index = picked ? conflict.citations.indexOf(picked) : 0;
+    return index < 0 ? 0 : index;
+  }, [data.docs, data.nodes, conflict.citations, targetNode]);
+
+  const [selectedCitationIndex, setSelectedCitationIndex] = useState(initialCitationIndex);
+
   const activeCitation = conflict.citations[selectedCitationIndex] || conflict.citations[0];
   const sourceNode = activeCitation ? data.nodes.find((n) => n.id === activeCitation.source) : null;
 
@@ -130,9 +146,13 @@ export function ConflictInspectorModal({
           </button>
         </div>
 
-        {/* Legal Guidance Precedence Callout. Gated on the same rule as the Conflicts view
-            and the audit memo: EU supremacy is only defensible when a national instrument
-            derogates from an EU one, so an EU-to-EU collision must not claim it. */}
+        {/* Legal Guidance Precedence Callout. Same rule as the Conflicts view and the audit
+            memo: EU supremacy is only defensible when a national instrument derogates from an
+            EU one, so an EU-to-EU collision must not claim it. Here the gate is deliberately
+            per citation rather than per record: the selector pills let the caseworker read one
+            specific citing section, and the callout must describe the pair on screen. The
+            initial selection is the record's representative pair, so the modal opens agreeing
+            with the card it was opened from. */}
         <div className={`px-6 py-3 border-b flex items-center justify-between gap-4 flex-wrap min-w-0 ${
           euSupremacy ? "bg-sky-50/60 border-sky-100" : "bg-amber-50/60 border-amber-100"
         }`}>

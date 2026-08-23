@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { classifyDocLabel, docJurisdiction, euSupremacyApplies, nodeJurisdiction } from "./jurisdiction";
+import {
+  classifyDocLabel,
+  docJurisdiction,
+  euSupremacyApplies,
+  nodeJurisdiction,
+  selectPrecedenceCitation,
+} from "./jurisdiction";
 import type { DocRef } from "./docDisplay";
 import { PRESET_DOCUMENTS } from "./presetCorpus";
 
@@ -179,5 +185,62 @@ describe("euSupremacyApplies", () => {
       { id: "doc1", label: "Fisheries Regulation Act", type: "lov" },
     ];
     expect(euSupremacyApplies(preset, node("doc1", "§ 4"), node("doc0", "Art. 9"))).toBe(true);
+  });
+});
+
+describe("selectPrecedenceCitation", () => {
+  const docs: DocRef[] = [
+    { id: "doc0", label: "EU 1224/2009" },
+    { id: "doc1", label: "BEK 1197/2025" },
+  ];
+  const nodes = {
+    doc0_sec_17: { doc: "doc0", label: "Art. 17" },
+    doc0_sec_19: { doc: "doc0", label: "Art. 19" },
+    doc0_sec_115: { doc: "doc0", label: "Art. 115" },
+    doc1_sec_4: { doc: "doc1", label: "\u00a7 4" },
+  } as const;
+  const resolve = (id: string) => nodes[id as keyof typeof nodes];
+
+  it("prefers the national source over an earlier EU source", () => {
+    // The shape the parser actually emits for doc0_sec_17 in the
+    // EU 1224/2009 + BEK 1197/2025 corpus: the derogation is the third citation.
+    const citations = [
+      { source: "doc0_sec_19", modality: "Exception" },
+      { source: "doc0_sec_115", modality: "Obligation" },
+      { source: "doc1_sec_4", modality: "Obligation" },
+    ];
+    const picked = selectPrecedenceCitation(docs, citations, nodes.doc0_sec_17, resolve);
+    expect(picked?.source).toBe("doc1_sec_4");
+  });
+
+  it("falls back to the first citation when no source makes the supremacy claim", () => {
+    const citations = [{ source: "doc0_sec_19" }, { source: "doc0_sec_115" }];
+    expect(selectPrecedenceCitation(docs, citations, nodes.doc0_sec_17, resolve)?.source).toBe(
+      "doc0_sec_19"
+    );
+  });
+
+  it("falls back to the first citation for a national target", () => {
+    // An EU section citing a Danish order is not a precedence question in either direction.
+    const citations = [{ source: "doc0_sec_19" }, { source: "doc0_sec_115" }];
+    expect(selectPrecedenceCitation(docs, citations, nodes.doc1_sec_4, resolve)?.source).toBe(
+      "doc0_sec_19"
+    );
+  });
+
+  it("ignores citations whose source is missing from the graph", () => {
+    const citations = [{ source: "doc9_sec_1" }, { source: "doc1_sec_4" }];
+    expect(selectPrecedenceCitation(docs, citations, nodes.doc0_sec_17, resolve)?.source).toBe(
+      "doc1_sec_4"
+    );
+  });
+
+  it("returns undefined for a record with no citations", () => {
+    expect(selectPrecedenceCitation(docs, [], nodes.doc0_sec_17, resolve)).toBeUndefined();
+  });
+
+  it("falls back to the first citation when the target is missing", () => {
+    const citations = [{ source: "doc1_sec_4" }, { source: "doc0_sec_19" }];
+    expect(selectPrecedenceCitation(docs, citations, undefined, resolve)?.source).toBe("doc1_sec_4");
   });
 });

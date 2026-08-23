@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { TranslateFn } from "@/lib/i18n";
 import { docLabel, docBadgeStyle } from "@/lib/docDisplay";
-import { euSupremacyApplies } from "@/lib/jurisdiction";
+import { euSupremacyApplies, selectPrecedenceCitation } from "@/lib/jurisdiction";
 import { GraphNode, ConflictRecord, GraphData } from "@/lib/types";
 import type { TabType } from "@/app/page";
 
@@ -114,10 +114,22 @@ export function ConflictsView({
             const targetNode = nodeById.get(record.target);
             if (!targetNode) return null;
 
-            const primaryCitation = record.citations[0];
+            // A record can hold citations from several documents, and the parser emits them in
+            // scan order, so citations[0] is not a legal choice. selectPrecedenceCitation picks
+            // the source that makes the record's strongest claim. Every part of this card, the
+            // badge, the pair heading, the doc chip and the snippet, reads that one citation,
+            // so the card always describes a single pair.
+            const primaryCitation = selectPrecedenceCitation(
+              data.docs,
+              record.citations,
+              targetNode,
+              id => nodeById.get(id)
+            );
             const sourceNode = primaryCitation ? nodeById.get(primaryCitation.source) : undefined;
             // Precedence is derived from the document labels, never from docId ordering.
-            // Same gate as the audit memo, so the screen and the memo cannot diverge.
+            // The memo applies the same gate per citing section and reports every pair, so the
+            // memo can name pairs this card does not show; what it must never do is reach a
+            // different verdict for the pair the card names.
             const euSupremacy = euSupremacyApplies(data.docs, sourceNode, targetNode);
 
             const precedenceBadgeText = euSupremacy

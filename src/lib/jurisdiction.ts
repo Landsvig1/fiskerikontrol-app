@@ -82,3 +82,33 @@ export function euSupremacyApplies(
   if (!source) return false;
   return nodeJurisdiction(docs, target) === "eu" && nodeJurisdiction(docs, source) === "national";
 }
+
+/**
+ * Picks the one citation that stands for a whole conflict record.
+ *
+ * A ConflictRecord is a target section that collected citations from several documents, and
+ * the parser emits them in scan order. Reading citations[0] therefore lets the parser decide
+ * the legal verdict: for a target that is cited by two EU sections and one Danish order, the
+ * first citation is EU, the record reads as an EU-to-EU collision, and the actual national
+ * derogation never reaches the badge.
+ *
+ * The rule is to prefer the citation whose source makes the record's strongest legal claim,
+ * a national source against an EU target, and to fall back to the first citation when no
+ * citation makes that claim (the record then genuinely is not a precedence question).
+ *
+ * Every surface that summarises a record down to a single pair (badge, heading, doc chip,
+ * snippet) must use this citation, so screen and memo cannot describe different pairs.
+ */
+export function selectPrecedenceCitation<C extends { source: string }>(
+  docs: DocRef[],
+  citations: readonly C[],
+  target: { doc: string; label: string } | null | undefined,
+  resolveSource: (sourceId: string) => { doc: string; label: string } | undefined
+): C | undefined {
+  if (citations.length === 0) return undefined;
+  if (target) {
+    const supreme = citations.find(c => euSupremacyApplies(docs, resolveSource(c.source), target));
+    if (supreme) return supreme;
+  }
+  return citations[0];
+}

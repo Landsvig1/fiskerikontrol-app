@@ -102,7 +102,10 @@ export function generateAuditMemoMarkdown(options: AuditMemoOptions): string {
       lines.push(`\n**${c.target.label} lovtekst:**`);
       lines.push(`> "${c.target.body.slice(0, 300)}..."`);
       lines.push(`\n**Juridisk vurdering & forrang:**`);
-      // Same gate as the Conflicts view in page.tsx, so the memo and the screen cannot diverge.
+      // Same gate as the Conflicts view, applied per citing section. The view summarises a
+      // record down to one representative pair (see selectPrecedenceCitation), so the memo
+      // lists pairs the view does not show; the shared gate is what keeps the two from
+      // reaching different verdicts about the same pair.
       const euSupremacy = euSupremacyApplies(data.docs, c.source, c.target);
       lines.push(
         euSupremacy
