@@ -17,6 +17,7 @@ import { OverlapsView } from "@/components/views/OverlapsView";
 import { ConflictsView } from "@/components/views/ConflictsView";
 import { BrowseView } from "@/components/views/BrowseView";
 import { AuditMemoModal } from "@/components/AuditMemoModal";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FleetFilterCriteria, DEFAULT_FLEET_CRITERIA } from "@/lib/fleetFilter";
 import { getT } from "@/lib/i18n";
 import { DocRef } from "@/lib/docDisplay";
@@ -162,81 +163,98 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Application Container */}
+      {/* Main Application Container. Each view is wrapped in its own boundary: the whole
+          app is one client tree over sections parsed from arbitrary user PDFs, and without
+          a boundary a single throw in any view blanks the page rather than one panel.
+          Route-level error.tsx cannot do this, the views are tab state, not routes. */}
       <main className="flex-1 flex overflow-hidden">
         {activeTab === "dashboard" && (
-          <DashboardView 
-            data={data} 
-            setActiveTab={setActiveTab} 
-            fleetCriteria={fleetCriteria}
-            setFleetCriteria={setFleetCriteria}
-            t={t}
-          />
+          <ErrorBoundary t={t} onReset={() => setSelectedNode(null)}>
+            <DashboardView 
+              data={data} 
+              setActiveTab={setActiveTab} 
+              fleetCriteria={fleetCriteria}
+              setFleetCriteria={setFleetCriteria}
+              t={t}
+            />
+          </ErrorBoundary>
         )}
         {activeTab === "timeline" && (
-          <EnforcementTimelineView 
-            data={data}
-            t={t}
-            onInspectNode={(nodeLabel) => {
-              const found = data.nodes.find(n => n.label.toLowerCase().includes(nodeLabel.toLowerCase()));
-              if (found) {
-                setSelectedNode(found);
-                setActiveTab("citation");
-              }
-            }}
-          />
+          <ErrorBoundary t={t} onReset={() => setSelectedNode(null)}>
+            <EnforcementTimelineView 
+              data={data}
+              t={t}
+              onInspectNode={(nodeLabel) => {
+                const found = data.nodes.find(n => n.label.toLowerCase().includes(nodeLabel.toLowerCase()));
+                if (found) {
+                  setSelectedNode(found);
+                  setActiveTab("citation");
+                }
+              }}
+            />
+          </ErrorBoundary>
         )}
         {activeTab === "citation" && (
-          <CitationGraphView 
-            data={data} 
-            selectedNode={selectedNode}
-            activeDocFilter={activeDocFilter}
-            activeCategoryFilter={activeCategoryFilter}
-            searchQuery={searchQuery}
-            fleetCriteria={fleetCriteria}
-            setSelectedNode={setSelectedNode}
-            t={t}
-          />
+          <ErrorBoundary t={t} onReset={() => setSelectedNode(null)}>
+            <CitationGraphView 
+              data={data} 
+              selectedNode={selectedNode}
+              activeDocFilter={activeDocFilter}
+              activeCategoryFilter={activeCategoryFilter}
+              searchQuery={searchQuery}
+              fleetCriteria={fleetCriteria}
+              setSelectedNode={setSelectedNode}
+              t={t}
+            />
+          </ErrorBoundary>
         )}
         {activeTab === "graph" && (
-          <InteractiveGraphView 
-            data={data} 
-            selectedNode={selectedNode} 
-            setSelectedNode={setSelectedNode} 
-            activeDocFilter={activeDocFilter}
-            setActiveDocFilter={setActiveDocFilter}
-            activeCategoryFilter={activeCategoryFilter}
-            setActiveCategoryFilter={setActiveCategoryFilter}
-            fleetCriteria={fleetCriteria}
-            t={t}
-          />
+          <ErrorBoundary t={t} onReset={() => setSelectedNode(null)}>
+            <InteractiveGraphView 
+              data={data} 
+              selectedNode={selectedNode} 
+              setSelectedNode={setSelectedNode} 
+              activeDocFilter={activeDocFilter}
+              setActiveDocFilter={setActiveDocFilter}
+              activeCategoryFilter={activeCategoryFilter}
+              setActiveCategoryFilter={setActiveCategoryFilter}
+              fleetCriteria={fleetCriteria}
+              t={t}
+            />
+          </ErrorBoundary>
         )}
         {activeTab === "overlaps" && (
-          <OverlapsView 
-            data={data} 
-            setSelectedNode={setSelectedNode} 
-            setActiveTab={setActiveTab} 
-            t={t}
-          />
+          <ErrorBoundary t={t} onReset={() => setSelectedNode(null)}>
+            <OverlapsView 
+              data={data} 
+              setSelectedNode={setSelectedNode} 
+              setActiveTab={setActiveTab} 
+              t={t}
+            />
+          </ErrorBoundary>
         )}
         {activeTab === "conflicts" && (
-          <ConflictsView 
-            data={data} 
-            setSelectedNode={setSelectedNode} 
-            setActiveTab={setActiveTab} 
-            onInspectConflict={setInspectingConflict}
-            t={t}
-          />
+          <ErrorBoundary t={t} onReset={() => setSelectedNode(null)}>
+            <ConflictsView 
+              data={data} 
+              setSelectedNode={setSelectedNode} 
+              setActiveTab={setActiveTab} 
+              onInspectConflict={setInspectingConflict}
+              t={t}
+            />
+          </ErrorBoundary>
         )}
         {activeTab === "browse" && (
-          <BrowseView 
-            data={data} 
-            searchQuery={searchQuery} 
-            setSearchQuery={setSearchQuery} 
-            setSelectedNode={setSelectedNode} 
-            setActiveTab={setActiveTab} 
-            t={t}
-          />
+          <ErrorBoundary t={t} onReset={() => setSelectedNode(null)}>
+            <BrowseView 
+              data={data} 
+              searchQuery={searchQuery} 
+              setSearchQuery={setSearchQuery} 
+              setSelectedNode={setSelectedNode} 
+              setActiveTab={setActiveTab} 
+              t={t}
+            />
+          </ErrorBoundary>
         )}
       </main>
 

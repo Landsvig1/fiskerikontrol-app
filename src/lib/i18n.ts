@@ -41,7 +41,8 @@ export type TranslationKey =
   | "connectedProvisions" | "jumpToProvision"
   | "explainConnectionTitle" | "citationContext" | "connectedTextSnippet"
   | "switchFocusToProvision" | "legalRelation" | "hierarchyRule"
-  | "clickForExplanation" | "conflictWarning";
+  | "clickForExplanation" | "conflictWarning"
+  | "viewErrorTitle" | "viewErrorBody" | "viewErrorDetails" | "viewErrorRetry";
 
 export type Translations = Record<TranslationKey, string>;
 
@@ -140,6 +141,10 @@ const da: Translations = {
   hierarchyRule: "Hierarki & Retsorden",
   clickForExplanation: "Klik for forklaring af sammenhæng",
   conflictWarning: "Konstateret retskonflikt / overlap",
+  viewErrorTitle: "Denne visning kunne ikke indlæses",
+  viewErrorBody: "Der opstod en fejl under visning af de indlæste dokumenter. De øvrige faner virker fortsat, og analysen er ikke gået tabt.",
+  viewErrorDetails: "Teknisk fejlbesked",
+  viewErrorRetry: "Prøv visningen igen",
 };
 
 
