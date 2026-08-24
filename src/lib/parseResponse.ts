@@ -1,4 +1,5 @@
 import type { GraphData } from "./types";
+import type { TranslateFn } from "./i18n";
 
 /**
  * Runtime shape check for the /api/parse response.
@@ -48,4 +49,50 @@ export function isGraphData(value: unknown): value is GraphData {
   const docsOk = everyItem(value.docs, (d) => hasStrings(d, ["id", "label"]));
 
   return nodesOk && linksOk && overlapsOk && conflictsOk && docsOk;
+}
+
+/**
+ * Turns a failed /api/parse response into a message a Danish caseworker can act on.
+ *
+ * The route answers every failure with a JSON `error`, but it is not always the route that
+ * answers: a platform in front of it rejects an oversized request body, an auth gate
+ * redirects, a gateway times out, and all three reply in HTML or plain text. The old code
+ * parsed that body as JSON, swallowed the failure, and left the message at its default, so
+ * the user saw "Ukendt fejl. Prøv igen." with nothing to act on. A 413 in particular has a
+ * concrete remedy, so it gets its own message.
+ *
+ * The raw body is returned alongside, unparsed if it was not JSON, so the copyable error
+ * report still carries what the server actually said.
+ */
+export async function readErrorResponse(
+  response: Response,
+  t: TranslateFn
+): Promise<{ message: string; parsedBody: unknown }> {
+  const rawBody = await response.text();
+
+  let parsedBody: unknown = rawBody;
+  try {
+    parsedBody = JSON.parse(rawBody);
+  } catch {
+    // Not JSON. The status is then the only thing that carries meaning.
+    return {
+      message:
+        response.status === 413
+          ? t("uploadTooLargeError")
+          : t("httpErrorFallback").replace("{status}", String(response.status)),
+      parsedBody: rawBody,
+    };
+  }
+
+  const error = (parsedBody as { error?: unknown })?.error;
+  if (typeof error === "string" && error) {
+    return { message: error, parsedBody };
+  }
+  return {
+    message:
+      response.status === 413
+        ? t("uploadTooLargeError")
+        : t("httpErrorFallback").replace("{status}", String(response.status)),
+    parsedBody,
+  };
 }

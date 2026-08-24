@@ -13,7 +13,13 @@ const nextConfig: NextConfig = {
   // file tracing can't follow that, so the file gets pruned from the deployed
   // function unless explicitly included here.
   outputFileTracingIncludes: {
-    "/api/parse": ["./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"],
+    // The preset corpus is read from disk by the parse route. Files under public/ are
+    // served statically but are not part of a function's bundle unless traced in, so
+    // without this the deployed route cannot open them even though the browser can.
+    "/api/parse": [
+      "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+      "./public/corpus/**",
+    ],
   },
 };
 

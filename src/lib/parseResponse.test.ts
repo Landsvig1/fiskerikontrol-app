@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { isGraphData } from "./parseResponse";
+import { isGraphData, readErrorResponse } from "./parseResponse";
+import { getT } from "./i18n";
 
 function validResponse() {
   return {
@@ -87,5 +88,40 @@ describe("isGraphData", () => {
     const body = validResponse() as { links: Array<Record<string, unknown>> };
     body.links[0].modality = "Recommendation";
     expect(isGraphData(body)).toBe(true);
+  });
+});
+
+describe("readErrorResponse", () => {
+  const t = getT();
+
+  function res(body: string, status: number, contentType = "text/html"): Response {
+    return new Response(body, { status, headers: { "Content-Type": contentType } });
+  }
+
+  it("uses the route's own Danish error when the body is JSON", async () => {
+    const { message } = await readErrorResponse(
+      res(JSON.stringify({ error: "Der kræves mindst 2 PDF-dokumenter." }), 400, "application/json"),
+      t
+    );
+    expect(message).toBe("Der kræves mindst 2 PDF-dokumenter.");
+  });
+
+  it("explains a 413 whose body is not JSON", async () => {
+    // What the platform returns when a request body exceeds its own limit, before the
+    // route ever runs. This used to surface as "Ukendt fejl. Prøv igen."
+    const { message, parsedBody } = await readErrorResponse(res("<html>Payload Too Large</html>", 413), t);
+    expect(message).toBe(t("uploadTooLargeError"));
+    expect(message).not.toBe(t("unknownError"));
+    expect(parsedBody).toContain("Payload Too Large");
+  });
+
+  it("names the status for any other non-JSON failure", async () => {
+    const { message } = await readErrorResponse(res("<html>Bad Gateway</html>", 502), t);
+    expect(message).toContain("502");
+  });
+
+  it("falls back on a JSON body that carries no error string", async () => {
+    const { message } = await readErrorResponse(res(JSON.stringify({ ok: false }), 500, "application/json"), t);
+    expect(message).toContain("500");
   });
 });

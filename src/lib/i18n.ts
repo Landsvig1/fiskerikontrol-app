@@ -42,7 +42,13 @@ export type TranslationKey =
   | "explainConnectionTitle" | "citationContext" | "connectedTextSnippet"
   | "switchFocusToProvision" | "legalRelation" | "hierarchyRule"
   | "clickForExplanation" | "conflictWarning"
-  | "viewErrorTitle" | "viewErrorBody" | "viewErrorDetails" | "viewErrorRetry";
+  | "viewErrorTitle" | "viewErrorBody" | "viewErrorDetails" | "viewErrorRetry"
+  | "uploadTooLargeError" | "httpErrorFallback"
+  | "apiErrContentType" | "apiErrBadJson" | "apiErrPresetIds" | "apiErrUnknownPreset"
+  | "apiErrPresetUnreadable" | "apiErrNotAFile" | "apiErrLabelNotText" | "apiErrLabelTooLong"
+  | "apiErrBadType" | "apiErrMinDocs" | "apiErrMaxDocs" | "apiErrEmptyLabel"
+  | "apiErrSizeLimit" | "apiErrPdfRead" | "apiErrTooMuchText"
+  | "apiErrNoStructure" | "apiErrUnexpected";
 
 export type Translations = Record<TranslationKey, string>;
 
@@ -63,7 +69,7 @@ const da: Translations = {
   analyseButton: "Analysér",
   analysing: "Analyserer...",
   invalidPdfError: "Kun PDF-filer accepteres.",
-  sizeLimitError: "Samlet filstørrelse overstiger 10 MB.",
+  sizeLimitError: "Samlet filstørrelse overstiger {max} MB.",
   unknownError: "Ukendt fejl. Prøv igen.",
   malformedResponseError: "Serveren returnerede et uventet svar. Prøv igen.",
   multiDropNonPdfIgnored: "Ikke-PDF-filer blev ignoreret.",
@@ -145,6 +151,32 @@ const da: Translations = {
   viewErrorBody: "Der opstod en fejl under visning af de indlæste dokumenter. De øvrige faner virker fortsat, og analysen er ikke gået tabt.",
   viewErrorDetails: "Teknisk fejlbesked",
   viewErrorRetry: "Prøv visningen igen",
+
+  // Client-side fallbacks for an error response the app could not read as JSON. A platform
+  // in front of the route (a proxy, an auth gate, a body-size guard) answers in HTML or
+  // plain text, and without these the user only ever saw "Ukendt fejl. Prøv igen."
+  uploadTooLargeError: "Dokumenterne er for store til at blive sendt til serveren. Vælg færre eller mindre PDF-filer.",
+  httpErrorFallback: "Serveren afviste anmodningen (HTTP {status}). Prøv igen, eller vælg færre dokumenter.",
+
+  // Messages returned by /api/parse. The route is the last place a user-facing string could
+  // still be English, so they live in the same table as the rest of the UI.
+  apiErrContentType: "Anmodningen skal sendes som multipart/form-data eller JSON.",
+  apiErrBadJson: "Anmodningens JSON kunne ikke læses.",
+  apiErrPresetIds: "Feltet presetIds skal være en liste af dokument-id'er.",
+  apiErrUnknownPreset: "Ukendt dokument i reguleringsarkivet: {id}.",
+  apiErrPresetUnreadable: "Dokumentet {id} kunne ikke læses fra reguleringsarkivet på serveren.",
+  apiErrNotAFile: "Feltet {field} skal være en uploadet fil.",
+  apiErrLabelNotText: "Feltet {field} skal være en tekstværdi.",
+  apiErrLabelTooLong: "Dokumentnavne må højst fylde {max} tegn.",
+  apiErrBadType: "Feltet {field} skal være en af: {types}.",
+  apiErrMinDocs: "Der kræves mindst 2 PDF-dokumenter.",
+  apiErrMaxDocs: "Der understøttes højst {max} PDF-dokumenter pr. analyse.",
+  apiErrEmptyLabel: "Alle dokumenter skal have et navn.",
+  apiErrSizeLimit: "Samlet filstørrelse overstiger grænsen på {max} MB.",
+  apiErrPdfRead: "En af PDF-filerne kunne ikke læses. Den kan være beskadiget, adgangskodebeskyttet eller ikke en gyldig PDF.",
+  apiErrTooMuchText: "Dokument {index} indeholder for meget tekst til at kunne analyseres.",
+  apiErrNoStructure: "Der blev ikke fundet nogen paragraf- eller artikelstruktur i {doc}. Dokumentet kan være scannet uden tekstlag.",
+  apiErrUnexpected: "Uventet serverfejl under analysen.",
 };
 
 

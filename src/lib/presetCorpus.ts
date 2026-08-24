@@ -149,31 +149,3 @@ export const PRESET_DOCUMENTS: PresetDoc[] = [
     path: "/corpus/lbk-205-2023-fiskeriloven.pdf",
   },
 ];
-
-/**
- * Fetches the binary PDF files for the given preset document IDs and converts them into File objects.
- */
-export async function fetchPresetFiles(
-  presetIds: string[],
-  fetchFn: typeof fetch = fetch
-): Promise<Array<{ file: File; label: string; type: DocType }>> {
-  const selectedPresets = PRESET_DOCUMENTS.filter((doc) => presetIds.includes(doc.id));
-  
-  const results = await Promise.all(
-    selectedPresets.map(async (doc) => {
-      const response = await fetchFn(doc.path);
-      if (!response.ok) {
-        throw new Error(`Failed to load preset document: ${doc.filename} (HTTP ${response.status})`);
-      }
-      const blob = await response.blob();
-      const file = new File([blob], doc.filename, { type: "application/pdf" });
-      return {
-        file,
-        label: doc.code,
-        type: doc.type,
-      };
-    })
-  );
-
-  return results;
-}

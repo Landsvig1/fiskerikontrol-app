@@ -4,10 +4,11 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Database, Upload, FileText, AlertTriangle, RefreshCw, Info, Plus, X, BookOpen, Check } from "lucide-react";
 import type { GraphData } from "@/lib/types";
-import { isGraphData } from "@/lib/parseResponse";
+import { isGraphData, readErrorResponse } from "@/lib/parseResponse";
+import { MAX_UPLOAD_MB, MAX_UPLOAD_BYTES } from "@/lib/uploadLimits";
 import { TranslateFn } from "@/lib/i18n";
 import { deriveLabelFromFilename } from "@/lib/labels";
-import { PRESET_DOCUMENTS, fetchPresetFiles } from "@/lib/presetCorpus";
+import { PRESET_DOCUMENTS } from "@/lib/presetCorpus";
 
 const MIN_SLOTS = 2;
 const MAX_SLOTS = 12;
@@ -188,29 +189,30 @@ export function UploadScreen({
     setLoading(true);
 
     try {
-      const presetFiles = await fetchPresetFiles(selectedPresetIds);
-      const fd = new FormData();
-      presetFiles.forEach((p, i) => {
-        fd.append(`pdf${i}`, p.file);
-        fd.append(`label${i}`, p.label);
-        // Authoritative EU/national classification, so the audit memo does not have to
-        // guess it back out of the label text.
-        fd.append(`type${i}`, p.type);
+      // Only the ids go over the wire. The corpus PDFs ship with the deployment, so
+      // downloading them into the browser and posting the bytes back cost a multi-megabyte
+      // request that the platform's body limit rejected before the route ever saw it.
+      // The route reads them from disk and knows their authoritative EU/national type.
+      const res = await fetch("/api/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ presetIds: selectedPresetIds }),
       });
-
-      const res = await fetch("/api/parse", { method: "POST", body: fd });
       if (!res.ok) {
-        const rawBody = await res.text();
-        let errorMsg = t("unknownError");
-        let parsedBody: unknown = null;
-        try {
-          parsedBody = JSON.parse(rawBody);
-          const body = parsedBody as { error?: string };
-          if (body?.error) errorMsg = body.error;
-        } catch {
-          // ignore
-        }
-        setSubmitError(errorMsg);
+        const { message, parsedBody } = await readErrorResponse(res, t);
+        setSubmitError(message);
+        setErrorReport(
+          JSON.stringify(
+            {
+              timestamp: new Date().toISOString(),
+              presetIds: selectedPresetIds,
+              httpStatus: res.status,
+              responseBody: parsedBody,
+            },
+            null,
+            2
+          )
+        );
         setLoading(false);
         return;
       }
@@ -261,7 +263,10 @@ export function UploadScreen({
   // Derived (not effect-driven) so it's always in sync with slots in the same
   // render, the auto-trigger effect below reads it in that same render.
   const combinedSize = slots.reduce((sum, s) => sum + (s.file?.size ?? 0), 0);
-  const sizeError = combinedSize > 10 * 1024 * 1024 ? t("sizeLimitError") : null;
+  const sizeError =
+    combinedSize > MAX_UPLOAD_BYTES
+      ? t("sizeLimitError").replace("{max}", String(MAX_UPLOAD_MB))
+      : null;
 
   const isSameFile = (a: File | null, b: File) =>
     a !== null && a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
@@ -461,23 +466,14 @@ export function UploadScreen({
       const res = await fetch("/api/parse", { method: "POST", body: fd });
 
       if (!res.ok) {
-        const rawBody = await res.text();
-        let errorMsg = t("unknownError");
-        let parsedBody: unknown = null;
-        try {
-          parsedBody = JSON.parse(rawBody);
-          const body = parsedBody as { error?: string };
-          if (body?.error) errorMsg = body.error;
-        } catch {
-          // ignore parse failure; use default message
-        }
-        console.error("Upload failed:", res.status, rawBody);
-        setSubmitError(errorMsg);
+        const { message, parsedBody } = await readErrorResponse(res, t);
+        console.error("Upload failed:", res.status, parsedBody);
+        setSubmitError(message);
         setErrorReport(
           buildReport({
             httpStatus: res.status,
             httpStatusText: res.statusText,
-            responseBody: parsedBody ?? rawBody,
+            responseBody: parsedBody,
           })
         );
         setLoading(false);
