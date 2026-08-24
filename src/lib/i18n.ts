@@ -1,28 +1,54 @@
 // src/lib/i18n.ts
 
-export type Lang = "da" | "en";
 
 // All UI string keys (compile-time exhaustiveness enforced by TypeScript)
 export type TranslationKey =
   | "appTitle" | "appTagline"
   | "newAnalysis" | "dashboard" | "citationGraph" | "nodeGraph"
-  | "overlaps" | "conflicts" | "browse"
+  | "overlaps" | "conflicts" | "browse" | "timeline"
   | "uploadTitle" | "uploadSubtitle"
   | "dropZoneSlot" | "dropZoneBulk"
   | "analyseButton" | "analysing"
-  | "invalidPdfError" | "sizeLimitError" | "unknownError"
+  | "invalidPdfError" | "sizeLimitError" | "unknownError" | "malformedResponseError"
   | "multiDropNonPdfIgnored" | "multiDropCapReached"
   | "uploadModeBulk" | "uploadModeIndividual" | "addDocument" | "removeDocument"
   | "loadingGraph"
   | "allDocuments" | "allCategories"
   | "sectionCount" | "citationsCount" | "overlapsCount" | "conflictsCount"
-  | "category" | "documentText" | "connections"
+  | "category" | "connections"
   | "obligation" | "exception" | "prohibition" | "permission"
   | "noTitle" | "noHeading"
   | "showInGraph" | "viewAnalysis" | "viewConflicts"
   | "docFallback"            // generic per-index fallback, used as "${docFallback} ${i+1}"
   | "aboutButton" | "backToApp"
-  | "copyErrorDetails" | "copiedErrorDetails";
+  | "copyErrorDetails" | "copiedErrorDetails"
+  | "presetLibraryTitle" | "presetLibrarySubtitle" | "analyzePresets"
+  | "inspectConflict" | "conflictSummaryBanner"
+  | "provisionText" | "groupConflict" | "groupOutgoing" | "groupIncoming"
+  | "euPrecedenceLabel" | "euPrecedenceBody"
+  | "clarificationLabel" | "clarificationBody"
+  | "baseProvision" | "derogatingProvision"
+  | "copyConflictBrief" | "copiedToClipboard" | "closeModal"
+  | "selectedPresetCount"
+  | "exportAuditMemo" | "fleetScenarios"
+  | "conflictsHeaderTitle" | "conflictsHeaderSubtitle"
+  | "euPrecedenceBadge" | "inspectionVerdictTitle"
+  | "euRuleLabel" | "nationalDeviationLabel"
+  | "noConnections"
+  | "outgoingCitation" | "incomingCitation"
+  | "toggleFilters" | "showDetailsPanel" | "hideDetailsPanel"
+  | "clearSelection" | "selectedProvision"
+  | "connectedProvisions" | "jumpToProvision"
+  | "explainConnectionTitle" | "citationContext" | "connectedTextSnippet"
+  | "switchFocusToProvision" | "legalRelation" | "hierarchyRule"
+  | "clickForExplanation" | "conflictWarning"
+  | "viewErrorTitle" | "viewErrorBody" | "viewErrorDetails" | "viewErrorRetry"
+  | "uploadTooLargeError" | "httpErrorFallback"
+  | "apiErrContentType" | "apiErrBadJson" | "apiErrPresetIds" | "apiErrUnknownPreset"
+  | "apiErrPresetUnreadable" | "apiErrNotAFile" | "apiErrLabelNotText" | "apiErrLabelTooLong"
+  | "apiErrBadType" | "apiErrMinDocs" | "apiErrMaxDocs" | "apiErrEmptyLabel"
+  | "apiErrSizeLimit" | "apiErrPdfRead" | "apiErrTooMuchText"
+  | "apiErrNoStructure" | "apiErrUnexpected";
 
 export type Translations = Record<TranslationKey, string>;
 
@@ -43,8 +69,9 @@ const da: Translations = {
   analyseButton: "Analysér",
   analysing: "Analyserer...",
   invalidPdfError: "Kun PDF-filer accepteres.",
-  sizeLimitError: "Samlet filstørrelse overstiger 10 MB.",
+  sizeLimitError: "Samlet filstørrelse overstiger {max} MB.",
   unknownError: "Ukendt fejl. Prøv igen.",
+  malformedResponseError: "Serveren returnerede et uventet svar. Prøv igen.",
   multiDropNonPdfIgnored: "Ikke-PDF-filer blev ignoreret.",
   multiDropCapReached: "Kun de første {max} PDF-filer blev brugt; øvrige filer blev ignoreret.",
   uploadModeBulk: "Slip alle på én gang",
@@ -59,7 +86,6 @@ const da: Translations = {
   overlapsCount: "Overlap",
   conflictsCount: "Konflikter",
   category: "Kategori",
-  documentText: "Dokumenttekst",
   connections: "Forbindelser i grafen",
   obligation: "Forpligtelse",
   exception: "Undtagelse",
@@ -75,68 +101,94 @@ const da: Translations = {
   backToApp: "Tilbage til appen",
   copyErrorDetails: "Kopiér fejldetaljer",
   copiedErrorDetails: "Kopieret!",
+  presetLibraryTitle: "Vælg fra reguleringsarkivet",
+  presetLibrarySubtitle: "Vælg 2 eller flere officielle fiskeriretsakter til øjeblikkelig analyse:",
+  analyzePresets: "Analysér valgte",
+  inspectConflict: "Inspicer modstrid",
+  conflictSummaryBanner: "Juridisk modstridsanalyse",
+  provisionText: "Bestemmelsens tekst",
+  groupConflict: "Modstrid",
+  groupOutgoing: "Udgående henvisninger",
+  groupIncoming: "Indgående henvisninger",
+  euPrecedenceLabel: "EU-retlig forrang:",
+  euPrecedenceBody: "EU-forordninger har direkte retsvirkning og overtrumfer nationale bekendtgørelser. Nationale undtagelser kan ikke lovligt fravige bindende EU-krav.",
+  clarificationLabel: "Retslig afklaring påkrævet:",
+  clarificationBody: "Der foreligger modstridende modaliteter mellem bestemmelserne, men forholdet er ikke et EU/national forrangsspørgsmål ud fra dokumentbetegnelserne.",
+  baseProvision: "Hovedbestemmelse / Krav",
+  derogatingProvision: "Undtagelse / Modstridende bestemmelse",
+  copyConflictBrief: "Kopiér notat",
+  copiedToClipboard: "Kopieret til udklipsholder!",
+  closeModal: "Luk",
+  timeline: "Tidslinje & Frister",
+  selectedPresetCount: "{count} valgt",
+  exportAuditMemo: "Eksportér Tilsynsnotat",
+  fleetScenarios: "Flådescenarier",
+  conflictsHeaderTitle: "Regulatoriske Modstrid & Retsrisici",
+  conflictsHeaderSubtitle: "Automatisk identifikation af modsigelser mellem bindende EU-forordninger og nationale bekendtgørelser. EU-forordninger har direkte retsvirkning og forrang frem for national ret.",
+  euPrecedenceBadge: "EU-forordning har forrang",
+  inspectionVerdictTitle: "Konklusion for Tilsynet",
+  euRuleLabel: "EU Hovedregel (Krav)",
+  nationalDeviationLabel: "National Undtagelse (Afvigelse)",
+  noConnections: "Ingen direkte forbindelser fundet i grafen for denne bestemmelse.",
+  outgoingCitation: "Refererer til",
+  incomingCitation: "Citeret af",
+  toggleFilters: "Filtre & Søgning",
+  showDetailsPanel: "Vis forbindelser & detaljer",
+  hideDetailsPanel: "Skjul detaljer",
+  clearSelection: "Ryd valg",
+  selectedProvision: "Valgt bestemmelse",
+  connectedProvisions: "Forbundne bestemmelser",
+  jumpToProvision: "Fokusér bestemmelse",
+  explainConnectionTitle: "Juridisk sammenhæng & retsvirkning",
+  citationContext: "Citatkontekst & passus",
+  connectedTextSnippet: "Lovtekst for forbundet bestemmelse",
+  switchFocusToProvision: "Skift graf-fokus til denne bestemmelse",
+  legalRelation: "Retlig relation",
+  hierarchyRule: "Hierarki & Retsorden",
+  clickForExplanation: "Klik for forklaring af sammenhæng",
+  conflictWarning: "Konstateret retskonflikt / overlap",
+  viewErrorTitle: "Denne visning kunne ikke indlæses",
+  viewErrorBody: "Der opstod en fejl under visning af de indlæste dokumenter. De øvrige faner virker fortsat, og analysen er ikke gået tabt.",
+  viewErrorDetails: "Teknisk fejlbesked",
+  viewErrorRetry: "Prøv visningen igen",
+
+  // Client-side fallbacks for an error response the app could not read as JSON. A platform
+  // in front of the route (a proxy, an auth gate, a body-size guard) answers in HTML or
+  // plain text, and without these the user only ever saw "Ukendt fejl. Prøv igen."
+  uploadTooLargeError: "Dokumenterne er for store til at blive sendt til serveren. Vælg færre eller mindre PDF-filer.",
+  httpErrorFallback: "Serveren afviste anmodningen (HTTP {status}). Prøv igen, eller vælg færre dokumenter.",
+
+  // Messages returned by /api/parse. The route is the last place a user-facing string could
+  // still be English, so they live in the same table as the rest of the UI.
+  apiErrContentType: "Anmodningen skal sendes som multipart/form-data eller JSON.",
+  apiErrBadJson: "Anmodningens JSON kunne ikke læses.",
+  apiErrPresetIds: "Feltet presetIds skal være en liste af dokument-id'er.",
+  apiErrUnknownPreset: "Ukendt dokument i reguleringsarkivet: {id}.",
+  apiErrPresetUnreadable: "Dokumentet {id} kunne ikke læses fra reguleringsarkivet på serveren.",
+  apiErrNotAFile: "Feltet {field} skal være en uploadet fil.",
+  apiErrLabelNotText: "Feltet {field} skal være en tekstværdi.",
+  apiErrLabelTooLong: "Dokumentnavne må højst fylde {max} tegn.",
+  apiErrBadType: "Feltet {field} skal være en af: {types}.",
+  apiErrMinDocs: "Der kræves mindst 2 PDF-dokumenter.",
+  apiErrMaxDocs: "Der understøttes højst {max} PDF-dokumenter pr. analyse.",
+  apiErrEmptyLabel: "Alle dokumenter skal have et navn.",
+  apiErrSizeLimit: "Samlet filstørrelse overstiger grænsen på {max} MB.",
+  apiErrPdfRead: "En af PDF-filerne kunne ikke læses. Den kan være beskadiget, adgangskodebeskyttet eller ikke en gyldig PDF.",
+  apiErrTooMuchText: "Dokument {index} indeholder for meget tekst til at kunne analyseres.",
+  apiErrNoStructure: "Der blev ikke fundet nogen paragraf- eller artikelstruktur i {doc}. Dokumentet kan være scannet uden tekstlag.",
+  apiErrUnexpected: "Uventet serverfejl under analysen.",
 };
 
-const en: Translations = {
-  appTitle: "LexGraph",
-  appTagline: "Document Citation & Conflict Analysis",
-  newAnalysis: "New Analysis",
-  dashboard: "Dashboard",
-  citationGraph: "Citation Graph",
-  nodeGraph: "Node Graph (Physics)",
-  overlaps: "Overlaps",
-  conflicts: "Conflicts",
-  browse: "Search & Browse",
-  uploadTitle: "Start a new analysis",
-  uploadSubtitle: "Upload your PDF documents and provide names to map citations and conflicts.",
-  dropZoneSlot: "Drag and drop a PDF here, or click to select",
-  dropZoneBulk: "Drag and drop your PDF documents here, or click to select multiple",
-  analyseButton: "Analyse",
-  analysing: "Analysing...",
-  invalidPdfError: "Only PDF files are accepted.",
-  sizeLimitError: "Combined file size exceeds 10 MB.",
-  unknownError: "Unknown error. Please try again.",
-  multiDropNonPdfIgnored: "Non-PDF files were ignored.",
-  multiDropCapReached: "Only the first {max} PDF files were used; the rest were ignored.",
-  uploadModeBulk: "Drop all at once",
-  uploadModeIndividual: "Add one at a time",
-  addDocument: "Add document",
-  removeDocument: "Remove document",
-  loadingGraph: "Analysing documents...",
-  allDocuments: "All documents",
-  allCategories: "All categories",
-  sectionCount: "Sections",
-  citationsCount: "Citations",
-  overlapsCount: "Overlaps",
-  conflictsCount: "Conflicts",
-  category: "Category",
-  documentText: "Document text",
-  connections: "Graph connections",
-  obligation: "Obligation",
-  exception: "Exception",
-  prohibition: "Prohibition",
-  permission: "Permission",
-  noTitle: "(No heading)",
-  noHeading: "(No title)",
-  showInGraph: "Show in graph",
-  viewAnalysis: "View analysis",
-  viewConflicts: "View conflicts",
-  docFallback: "Document",
-  aboutButton: "What is LexGraph?",
-  backToApp: "Back to the app",
-  copyErrorDetails: "Copy error details",
-  copiedErrorDetails: "Copied!",
-};
 
-export const translations: Record<Lang, Translations> = { da, en };
+export const translations: Translations = da;
 
 export type TranslateFn = (key: TranslationKey) => string;
 
 /**
- * Returns a translation function for the given language.
- * Falls back to English for any key missing from the Danish dictionary.
+ * Returns the translation function. The app is Danish only: it is a tool for Danish
+ * fisheries-control caseworkers reading Danish and EU law in Danish, and an unreviewed
+ * English rendering of legal text is a liability rather than a feature.
  */
-export function getT(lang: Lang): TranslateFn {
-  return (key: TranslationKey) =>
-    translations[lang][key] ?? translations["en"][key];
+export function getT(): TranslateFn {
+  return (key: TranslationKey) => translations[key];
 }

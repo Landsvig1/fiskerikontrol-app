@@ -1,0 +1,151 @@
+import type { DocType } from "./parser";
+
+export interface PresetDoc {
+  id: string;
+  filename: string;
+  code: string;
+  titleDa: string;
+  titleEn: string;
+  type: DocType;
+  typeLabelDa: string;
+  typeLabelEn: string;
+  descriptionDa: string;
+  descriptionEn: string;
+  path: string;
+  defaultSelected?: boolean;
+}
+
+export const PRESET_DOCUMENTS: PresetDoc[] = [
+  {
+    id: "eu-1224-2009",
+    filename: "eu-1224-2009-kontrolforordning.pdf",
+    code: "EU 1224/2009",
+    titleDa: "Kontrolforordningen (Konsolideret)",
+    titleEn: "Fisheries Control Regulation (Consolidated)",
+    type: "eu",
+    typeLabelDa: "EU Forordning (Primær)",
+    typeLabelEn: "EU Regulation (Primary)",
+    descriptionDa: "EU's grundlæggende kontrolforordning for fiskeri, logbogskrav, landingskontrol og sanktionssystem.",
+    descriptionEn: "Core EU fisheries control regulation governing logbooks, landing declarations, and enforcement.",
+    path: "/corpus/eu-1224-2009-kontrolforordning.pdf",
+    defaultSelected: true,
+  },
+  {
+    id: "eu-2023-2842",
+    filename: "eu-2023-2842-kontrolrevision.pdf",
+    code: "EU 2023/2842",
+    titleDa: "Kontrolforordningen (Revision)",
+    titleEn: "Fisheries Control Regulation (Revision)",
+    type: "eu",
+    typeLabelDa: "EU Forordning (Primær)",
+    typeLabelEn: "EU Regulation (Primary)",
+    descriptionDa: "EU-revisionsforordning om skærpet digital fiskerikontrol, e-logbog, VMS og sporbarhed.",
+    descriptionEn: "EU revision regulation on strengthened digital control, e-logbooks, VMS, and traceability.",
+    path: "/corpus/eu-2023-2842-kontrolrevision.pdf",
+    defaultSelected: true,
+  },
+  {
+    id: "eu-1380-2013",
+    filename: "eu-1380-2013-grundforordning.pdf",
+    code: "EU 1380/2013",
+    titleDa: "CFP Grundforordningen",
+    titleEn: "Common Fisheries Policy (CFP)",
+    type: "eu",
+    typeLabelDa: "EU Forordning (Primær)",
+    typeLabelEn: "EU Regulation (Primary)",
+    descriptionDa: "Grundforordningen for den fælles fiskeripolitik, landingsforpligtelsen og kvoteforvaltning.",
+    descriptionEn: "Basic CFP regulation establishing the landing obligation and sustainable quota principles.",
+    path: "/corpus/eu-1380-2013-grundforordning.pdf",
+  },
+  {
+    id: "eu-2025-2196",
+    filename: "eu-2025-2196-gennemfoerelse.pdf",
+    code: "EU 2025/2196",
+    titleDa: "Gennemførelsesforordning (Kontrol)",
+    titleEn: "Implementing Regulation (Control)",
+    type: "eu",
+    typeLabelDa: "EU Forordning (Gennemførelse)",
+    typeLabelEn: "EU Implementing Act",
+    descriptionDa: "Tekniske gennemførelsesbestemmelser for kontrol, monitoreringssystemer og dataformater.",
+    descriptionEn: "Technical implementing rules on fisheries monitoring, inspection systems, and formats.",
+    path: "/corpus/eu-2025-2196-gennemfoerelse.pdf",
+  },
+  {
+    id: "eu-2025-1766",
+    filename: "eu-2025-1766-delegeret.pdf",
+    code: "EU 2025/1766",
+    titleDa: "Delegeret Forordning (Kontrol)",
+    titleEn: "Delegated Regulation (Control)",
+    type: "eu",
+    typeLabelDa: "EU Forordning (Delegeret)",
+    typeLabelEn: "EU Delegated Act",
+    descriptionDa: "Delegerede retsakter vedrørende kontrolstandarder, tolerancegrænser og vejesystemer.",
+    descriptionEn: "Delegated acts covering control standards, margin of tolerance, and weighing systems.",
+    path: "/corpus/eu-2025-1766-delegeret.pdf",
+  },
+  {
+    id: "bek-1197-2025",
+    filename: "bek-1197-2025-logbog.pdf",
+    code: "BEK 1197/2025",
+    titleDa: "Logbogbekendtgørelsen",
+    titleEn: "Logbook Executive Order",
+    type: "bek",
+    typeLabelDa: "National bekendtgørelse",
+    typeLabelEn: "National Order",
+    descriptionDa: "Nationale regler om føring og aflevering af logbøger, kystfiskeri og undtagelser.",
+    descriptionEn: "National rules on logging, submission of fishing trip logbooks, and coastal exemptions.",
+    path: "/corpus/bek-1197-2025-logbog.pdf",
+  },
+  {
+    id: "bek-1144-2025",
+    filename: "bek-1144-2025-landingskontrol.pdf",
+    code: "BEK 1144/2025",
+    titleDa: "Registrering & Landingskontrol",
+    titleEn: "Registration & Landing Control",
+    type: "bek",
+    typeLabelDa: "National bekendtgørelse",
+    typeLabelEn: "National Order",
+    descriptionDa: "Regler for førsteomsætning, kontrol med landet fisk, vejepligt og salgsnotater.",
+    descriptionEn: "Rules on first-hand sales, landing inspections, weighing duties, and sales notes.",
+    path: "/corpus/bek-1144-2025-landingskontrol.pdf",
+  },
+  {
+    id: "bek-1571-2025",
+    filename: "bek-1571-2025-regulering.pdf",
+    code: "BEK 1571/2025",
+    titleDa: "Reguleringsbekendtgørelsen",
+    titleEn: "Fisheries Regulation Order",
+    type: "bek",
+    typeLabelDa: "National bekendtgørelse",
+    typeLabelEn: "National Order",
+    descriptionDa: "Betingelser for erhvervsmæssigt fiskeri i saltvand, rationer og redskabsbegrænsninger.",
+    descriptionEn: "Commercial saltwater fishing conditions, ration quotas, and gear restrictions.",
+    path: "/corpus/bek-1571-2025-regulering.pdf",
+  },
+  {
+    id: "bek-1495-2021",
+    filename: "bek-1495-2021-pingere.pdf",
+    code: "BEK 1495/2021",
+    titleDa: "Akustiske Alarmer (Pingere)",
+    titleEn: "Acoustic Alarms (Pingers)",
+    type: "bek",
+    typeLabelDa: "National bekendtgørelse",
+    typeLabelEn: "National Order",
+    descriptionDa: "Krav om anvendelse af akustiske afskrækningsmidler (pingere) ved garnfiskeri.",
+    descriptionEn: "Requirements on acoustic deterrent devices (pingers) in gillnet fisheries.",
+    path: "/corpus/bek-1495-2021-pingere.pdf",
+  },
+  {
+    id: "lbk-205-2023",
+    filename: "lbk-205-2023-fiskeriloven.pdf",
+    code: "LBK 205/2023",
+    titleDa: "Fiskeriloven",
+    titleEn: "Fisheries Act",
+    type: "lov",
+    typeLabelDa: "National rammelov",
+    typeLabelEn: "National Act",
+    descriptionDa: "Hovedloven om erhvervs- og lystfiskeri i Danmark samt bemyndigelser til kontrol.",
+    descriptionEn: "Primary Danish statute governing commercial and recreational fisheries control.",
+    path: "/corpus/lbk-205-2023-fiskeriloven.pdf",
+  },
+];

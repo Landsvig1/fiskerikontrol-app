@@ -3,9 +3,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { UploadScreen } from "./UploadScreen";
 import { getT } from "@/lib/i18n";
-import type { GraphData } from "@/app/page";
+import type { GraphData } from "@/lib/types";
 
-const t = getT("en");
+const t = getT();
 
 function pdf(name: string): File {
   return new File(["%PDF-1.4 content"], name, { type: "application/pdf" });
@@ -24,7 +24,7 @@ function slotName(index: number): string {
 }
 
 function renderUploadScreen(onSuccess = vi.fn()) {
-  render(<UploadScreen onSuccess={onSuccess} t={t} lang="en" setLang={() => {}} />);
+  render(<UploadScreen onSuccess={onSuccess} t={t} />);
   return { onSuccess };
 }
 
@@ -231,12 +231,12 @@ describe("UploadScreen bulk mode (default)", () => {
     const dropZone = screen.getByTestId("upload-drop-zone");
 
     fireEvent.dragOver(dropZone, { dataTransfer: { files: [] } });
-    expect(dropZone.className).toMatch(/border-\[#38bdf8\]/);
+    expect(dropZone.className).toMatch(/border-sky-500/);
 
     fireEvent.drop(dropZone, { dataTransfer: { files: [pdf("one.pdf")] } });
 
     expect(await screen.findByText("one.pdf")).toBeInTheDocument();
-    expect(dropZone.className).not.toMatch(/border-\[#38bdf8\]/);
+    expect(dropZone.className).not.toMatch(/border-sky-500/);
   });
 
   it("does not auto-fire when an unrelated label edit happens to satisfy canSubmit after a prior file drop", async () => {
@@ -354,7 +354,7 @@ describe("UploadScreen mode toggle and individual mode", () => {
     expect(screen.getByText("second.pdf")).toBeInTheDocument();
     expect(screen.getByText("third.pdf")).toBeInTheDocument();
     // The remaining 2 slots (second, third) are now fully filled+labeled and would satisfy
-    // canSubmit — proves the removal itself disarmed auto-fire rather than triggering a new call.
+    // canSubmit, proves the removal itself disarmed auto-fire rather than triggering a new call.
     expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.length).toBe(fetchCallsBeforeRemove);
   });
 
@@ -387,7 +387,7 @@ describe("UploadScreen mode toggle and individual mode", () => {
     renderUploadScreen();
     const dropZone = screen.getByTestId("upload-drop-zone");
 
-    // The drop itself already satisfies canSubmit and auto-fires once — that's expected,
+    // The drop itself already satisfies canSubmit and auto-fires once, that's expected,
     // existing behavior. This test isolates whether a *subsequent* mode toggle fires again.
     fireEvent.drop(dropZone, { dataTransfer: { files: [pdf("a.pdf"), pdf("b.pdf")] } });
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
@@ -422,4 +422,50 @@ describe("UploadScreen mode toggle and individual mode", () => {
 
     resolveFetch({ ok: true, json: async () => makeGraphData() });
   });
+
+  it("renders preset document catalog cards and allows toggling selection", () => {
+    renderUploadScreen();
+    
+    expect(screen.getByText(t("presetLibraryTitle"))).toBeInTheDocument();
+    expect(screen.getByText("EU 2023/2842")).toBeInTheDocument();
+    expect(screen.getByText("BEK 1197/2025")).toBeInTheDocument();
+    expect(screen.getByText("BEK 1144/2025")).toBeInTheDocument();
+    expect(screen.getByText("LBK 205/2023")).toBeInTheDocument();
+
+    const euCard = screen.getByTestId("preset-card-eu-2023-2842");
+    fireEvent.click(euCard); // Deselect
+    const bek1144Card = screen.getByTestId("preset-card-bek-1144-2025");
+    fireEvent.click(bek1144Card); // Select
+  });
+
+  it("fetches preset files and calls parse API when preset launch button is clicked", async () => {
+    const mockBlob = new Blob(["mock pdf"], { type: "application/pdf" });
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation(async (url: string) => {
+      if (url.startsWith("/corpus/")) {
+        return {
+          ok: true,
+          status: 200,
+          blob: async () => mockBlob,
+        };
+      }
+      if (url === "/api/parse") {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => makeGraphData(),
+        };
+      }
+      return { ok: false, status: 404 };
+    });
+
+    renderUploadScreen();
+
+    const launchButton = screen.getByRole("button", { name: new RegExp(t("analyzePresets"), "i") });
+    fireEvent.click(launchButton);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith("/api/parse", expect.objectContaining({ method: "POST" }));
+    });
+  });
 });
+

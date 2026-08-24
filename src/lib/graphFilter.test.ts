@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { filterGraph, computeDegree } from "./graphFilter";
-import type { GraphNode, GraphLink } from "@/app/page";
+import type { GraphNode, GraphLink } from "./types";
 
 function node(id: string, doc: string): GraphNode {
   return { id, number: 1, label: id, title: "", doc, theme: "General", body: "" };
@@ -23,6 +23,23 @@ describe("filterGraph with 3+ documents", () => {
   it("keeps all nodes when activeDocFilter is 'all'", () => {
     const { filteredNodes } = filterGraph(nodes, links, "all", "all", "");
     expect(filteredNodes).toHaveLength(3);
+  });
+
+  it("filters nodes based on fleetCriteria", () => {
+    const fleetNodes: GraphNode[] = [
+      { id: "n1", number: 1, label: "Art 1", title: "12 meter krav", doc: "doc0", theme: "General", body: "Fartøjer med en længde overalt på 12 meter eller derover skal føre logbog" },
+      { id: "n2", number: 2, label: "Art 2", title: "Kystfiskeri", doc: "doc1", theme: "General", body: "Gælder for kystnære fartøjer under 8 meter i Nordsøen med garn" }
+    ];
+    const fleetLinks: GraphLink[] = [link("n1", "n2")];
+
+    const result = filterGraph(fleetNodes, fleetLinks, "all", "all", "", {
+      vesselLength: "12_18m",
+      gearType: "all",
+      seaArea: "all"
+    });
+
+    expect(result.filteredNodes.map(n => n.id)).toEqual(["n1"]);
+    expect(result.filteredLinks).toHaveLength(0);
   });
 });
 

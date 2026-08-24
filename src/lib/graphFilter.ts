@@ -1,4 +1,5 @@
-import type { GraphNode, GraphLink } from "@/app/page";
+import type { GraphNode, GraphLink } from "./types";
+import { FleetFilterCriteria, matchesFleetCriteria } from "./fleetFilter";
 
 // D3 mutates link.source/link.target from a plain string id into the resolved node object
 // in place once a simulation runs, so any code reading a link's endpoint id must handle both
@@ -12,11 +13,13 @@ export function filterGraph(
   links: GraphLink[],
   activeDocFilter: "all" | string,
   activeCategoryFilter: string,
-  searchQuery: string
+  searchQuery: string,
+  fleetCriteria?: FleetFilterCriteria
 ): { filteredNodes: GraphNode[]; filteredLinks: GraphLink[] } {
   const filteredNodes = nodes.filter(n => {
     if (activeDocFilter !== "all" && n.doc !== activeDocFilter) return false;
     if (activeCategoryFilter !== "all" && n.theme !== activeCategoryFilter) return false;
+    if (fleetCriteria && !matchesFleetCriteria(n, fleetCriteria)) return false;
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       return n.label.toLowerCase().includes(query) ||

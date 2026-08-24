@@ -1,5 +1,5 @@
 /**
- * Smoke test — verifies the Vitest + fast-check setup is working correctly.
+ * Smoke test, verifies the Vitest + fast-check setup is working correctly.
  * This file can be removed once real tests exist.
  */
 import fc from "fast-check";
