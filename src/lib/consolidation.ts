@@ -95,20 +95,6 @@ export function buildConsolidation(data: GraphData): ProvisionRollup[] {
   });
 }
 
-/**
- * The rollup for one provision, or undefined when nothing in the corpus cites it.
- *
- * Callers that need a single provision should use this rather than filtering the full list:
- * an uncited provision has no rollup at all, and silently rendering an empty one would read
- * as "nothing bears on this article" when the honest answer is "no citation to it was found".
- */
-export function getProvisionRollup(
-  data: GraphData,
-  targetId: string
-): ProvisionRollup | undefined {
-  return buildConsolidation(data).find(r => r.target.id === targetId);
-}
-
 export interface AmendmentEntry {
   /**
    * The citing provision. Its *document* is reliable; its article number often is not.

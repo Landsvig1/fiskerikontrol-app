@@ -55,6 +55,10 @@ export type {
 // thing now: a tab that cannot be named in a URL is not an addressable screen.
 export type { TabType };
 
+// Upper bound on the URL-driven corpus restore. Sized well above a cold parse of the full
+// preset corpus while staying far below the platform's function timeout.
+const RESTORE_TIMEOUT_MS = 60_000;
+
 export default function Home() {
   // useSearchParams suspends during prerender, and without a boundary that would take the
   // whole route out of static generation.
@@ -101,15 +105,35 @@ function LexGraphApp() {
   const [inspectingConflict, setInspectingConflict] = useState<ConflictRecord | null>(null);
   const [isAuditMemoOpen, setIsAuditMemoOpen] = useState(false);
 
+  // The URL-state setters are passed to the two d3 canvases, whose teardown-and-rebuild
+  // effects list them as dependencies. A setter whose identity changes on every navigation
+  // therefore re-fires that effect on the very click that selected a node: the SVG is torn
+  // down, the simulation rebuilt, and d3.zoom() recreated, which throws away the user's pan
+  // and zoom mid-interaction. Before this file moved to URL state these were raw useState
+  // setters, which React keeps referentially stable forever.
+  //
+  // So the setter closes over refs rather than over the values themselves and depends only
+  // on `router` (stable in the App Router), keeping one identity for the component's life.
+  // The refs are assigned during render so a setter called before effects flush still reads
+  // the current state rather than the previous one.
+  const urlStateRef = useRef(urlState);
+  urlStateRef.current = urlState;
+  const corpusDocIdsRef = useRef(corpusDocIds);
+  corpusDocIdsRef.current = corpusDocIds;
+
   const setUrlState = useCallback(
     (patch: Partial<AppUrlState>) => {
-      const next: AppUrlState = { ...urlState, ...patch, docs: patch.docs ?? corpusDocIds };
+      const next: AppUrlState = {
+        ...urlStateRef.current,
+        ...patch,
+        docs: patch.docs ?? corpusDocIdsRef.current,
+      };
       // replace, not push: changing a tab or a filter is not a navigation a user wants to
       // undo one step at a time, and pushing would bury the previous page under a filter
       // history several dozen entries deep.
       router.replace(`/${toQueryString(next)}`, { scroll: false });
     },
-    [router, urlState, corpusDocIds]
+    [router]
   );
 
   const activeTab = urlState.view;
@@ -160,12 +184,17 @@ function LexGraphApp() {
 
     let cancelled = false;
     setRestoreState("loading");
+    // The restore screen has no controls, so a hung request would strand the user on a
+    // spinner with no way forward. Bound it and let the failure banner take over instead.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), RESTORE_TIMEOUT_MS);
     (async () => {
       try {
         const res = await fetch("/api/parse", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ presetIds: docIds }),
+          signal: controller.signal,
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const graphData = (await res.json()) as GraphData;
@@ -176,11 +205,15 @@ function LexGraphApp() {
       } catch (e) {
         console.error("Kunne ikke genskabe korpus fra URL:", e);
         if (!cancelled) setRestoreState("failed");
+      } finally {
+        clearTimeout(timeout);
       }
     })();
 
     return () => {
       cancelled = true;
+      clearTimeout(timeout);
+      controller.abort();
     };
   }, [docsKey, data]);
 
@@ -214,9 +247,24 @@ function LexGraphApp() {
         {restoreState === "failed" && (
           <div
             role="alert"
-            className="px-6 py-3 bg-amber-50 border-b border-amber-200 text-xs text-amber-900 font-medium"
+            className="px-6 py-3 bg-amber-50 border-b border-amber-200 text-xs text-amber-900 font-medium flex items-center justify-between gap-4 flex-wrap"
           >
-            {"Korpusset i linket kunne ikke indlæses. Vælg dokumenterne herunder i stedet."}
+            <span>
+              {"Korpusset i linket kunne ikke indlæses. Prøv igen, eller vælg dokumenterne herunder."}
+            </span>
+            {/* Without this the failure is terminal for the session: the attempt guard is
+                keyed on the document set and is otherwise only cleared by "Ny analyse",
+                which discards the very corpus the link named. */}
+            <button
+              type="button"
+              onClick={() => {
+                restoreAttemptedRef.current = null;
+                setRestoreState("idle");
+              }}
+              className="px-3 py-1.5 rounded-lg bg-white hover:bg-amber-100 border border-amber-300 text-xs font-medium text-amber-900 transition-all cursor-pointer shrink-0"
+            >
+              {"Prøv igen"}
+            </button>
           </div>
         )}
         <UploadScreen

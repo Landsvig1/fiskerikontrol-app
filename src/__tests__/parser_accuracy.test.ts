@@ -758,3 +758,67 @@ Kravet gaelder, jf. artikel 99.
     });
   });
 });
+
+describe("Amendment detection", () => {
+  // These fixtures use real Danish characters rather than the transliterated forms used
+  // elsewhere in this file: AMENDMENT_RE matches "ændres således" / "udgår" literally, so a
+  // transliterated fixture would pass through the amendment branch without exercising it.
+  const amendedAct = {
+    text: `Artikel 4
+Definitioner
+I denne forordning forstås ved fartøj et fiskerfartøj.
+
+Artikel 5
+Almindelige principper
+Medlemsstaterne kontrollerer aktiviteterne.
+`,
+    label: "EU 1224/2009",
+  };
+
+  it("flags a citation whose text changes the cited provision, and leaves a plain reference unflagged", () => {
+    const amendingAct = {
+      text: `Artikel 1
+Ændringer
+I forordning (EF) nr. 1224/2009 foretages følgende ændringer: 1) Artikel 4 ændres således.
+
+Artikel 2
+Henvisning
+Kravene i artikel 5 i forordning (EF) nr. 1224/2009 finder anvendelse.
+`,
+      label: "EU 2023/2842",
+    };
+
+    const graph = analyzeCitationsAndBuildGraph([amendingAct, amendedAct]);
+
+    const amend = graph.links.find(l => l.target === "doc1_sec_4");
+    expect(amend?.amends).toBe(true);
+
+    // A reference that merely points at a provision is not a consolidation edge.
+    const plain = graph.links.find(l => l.target === "doc1_sec_5");
+    expect(plain).toBeDefined();
+    expect(plain?.amends).toBeFalsy();
+  });
+
+  it("promotes an already-recorded link when a later duplicate citation carries the amendment verb", () => {
+    // Dedup keeps the first citation of each source/target/modality triple, but `amends` is a
+    // property of the relation rather than of whichever sentence happened to be scanned
+    // first, so a later amending duplicate has to promote the link already in the list.
+    const amendingAct = {
+      text: `Artikel 1
+Bestemmelser
+Kravene i artikel 4 i forordning (EF) nr. 1224/2009 finder anvendelse. Artikel 4 i forordning (EF) nr. 1224/2009 ændres således.
+
+Artikel 2
+Andet
+Supplerende bestemmelser.
+`,
+      label: "EU 2023/2842",
+    };
+
+    const graph = analyzeCitationsAndBuildGraph([amendingAct, amendedAct]);
+
+    const toFour = graph.links.filter(l => l.target === "doc1_sec_4");
+    expect(toFour.length).toBeGreaterThan(0);
+    expect(toFour.some(l => l.amends === true)).toBe(true);
+  });
+});

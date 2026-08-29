@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildConsolidation, getProvisionRollup, buildAmendmentLedger } from "./consolidation";
+import { buildConsolidation, buildAmendmentLedger } from "./consolidation";
 import type { GraphData, GraphNode, GraphLink } from "./types";
 
 function node(id: string, doc: string, label: string, extra: Partial<GraphNode> = {}): GraphNode {
@@ -142,20 +142,6 @@ describe("buildConsolidation", () => {
 
     expect(rollup.target.id).toBe("doc0_sec_5");
     expect(rollup.incoming[0].source.id).toBe("doc1_a");
-  });
-});
-
-describe("getProvisionRollup", () => {
-  it("returns undefined for a provision nothing cites, rather than an empty rollup", () => {
-    const nodes = [
-      node("doc0_sec_5", "doc0", "EU 1224/2009 Art. 5"),
-      node("doc0_uncited", "doc0", "EU 1224/2009 Art. 200"),
-      node("doc1_a", "doc1", "EU 2023/2842 Art. 1"),
-    ];
-    const data = graph(nodes, [link("doc1_a", "doc0_sec_5")]);
-
-    expect(getProvisionRollup(data, "doc0_sec_5")?.incoming).toHaveLength(1);
-    expect(getProvisionRollup(data, "doc0_uncited")).toBeUndefined();
   });
 });
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { PRESET_DOCUMENTS } from "@/lib/presetCorpus";
-import { buildGraphFromInputs, readPresetInput, type ParseInput } from "@/lib/presetGraph";
+import { buildGraphFromInputs, readPresetInput, MAX_DOCS, type ParseInput } from "@/lib/presetGraph";
 import { buildConsolidation, buildAmendmentLedger } from "@/lib/consolidation";
 import { toQueryString, DEFAULT_URL_STATE } from "@/lib/urlState";
 import type { GraphData } from "@/lib/types";
@@ -31,16 +31,16 @@ import type { GraphData } from "@/lib/types";
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 500;
 
-// Matches the upload route's cap on documents per analysis.
-const MAX_DOCS = 12;
-
 function appUrl(docs: string[], extra: { provision?: string | null; view?: "consolidation" } = {}) {
-  return toQueryString({
+  // Root-relative. A bare query string ("?docs=...") is a relative reference that resolves
+  // against THIS route's path, so a caller following it would land back on
+  // /api/consolidation instead of the screen the field promises.
+  return `/${toQueryString({
     ...DEFAULT_URL_STATE,
     docs,
     view: extra.view ?? "consolidation",
     provision: extra.provision ?? null,
-  });
+  })}`;
 }
 
 function serialiseNode(data: GraphData, id: string) {
@@ -57,10 +57,17 @@ function serialiseNode(data: GraphData, id: string) {
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
 
-  const docIds = (params.get("docs") ?? "")
-    .split(",")
-    .map(s => s.trim())
-    .filter(Boolean);
+  // Deduplicated: the same id twice would be loaded as two separate documents ("doc0" and
+  // "doc1" carrying identical text), and every self-reference inside that act would then be
+  // reported as a cross-document citation between two acts that are really one.
+  const docIds = Array.from(
+    new Set(
+      (params.get("docs") ?? "")
+        .split(",")
+        .map(s => s.trim())
+        .filter(Boolean)
+    )
+  );
 
   if (docIds.length < 2) {
     return NextResponse.json(

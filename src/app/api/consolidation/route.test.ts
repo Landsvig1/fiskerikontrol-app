@@ -73,6 +73,9 @@ describe("/api/consolidation", () => {
     expect(top).toHaveProperty("amendCount");
     // The link reproduces the same corpus and selects the same provision, so a caller can
     // hand a person the screen it just read.
+    // Root-relative, not a bare query string: a bare "?docs=..." is a relative reference
+    // that resolves against this route's own path, sending a caller back to the API.
+    expect(top.url.startsWith("/?")).toBe(true);
     expect(top.url).toContain("docs=eu-1224-2009%2Ceu-2023-2842");
     expect(top.url).toContain("view=consolidation");
     expect(top.url).toContain(`p=${top.id}`);
@@ -118,6 +121,20 @@ describe("/api/consolidation", () => {
       expect(entry.source.doc).not.toBe(entry.target.doc);
       expect(entry.amendingAct).toBe(entry.source.doc);
     }
+  });
+
+  it("collapses a repeated document id instead of analysing the act twice", async () => {
+    // Loaded twice, one act becomes two documents carrying identical text, and every
+    // self-reference inside it is then reported as a citation between two separate acts.
+    const res = await GET(get("?docs=eu-1224-2009,eu-1224-2009,eu-2023-2842"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    expect(body.corpus.docs).toHaveLength(2);
+    expect(body.corpus.docs.map((d: { id: string }) => d.id)).toEqual([
+      "eu-1224-2009",
+      "eu-2023-2842",
+    ]);
   });
 
   it("clamps the listing limit instead of trusting it", async () => {

@@ -27,6 +27,10 @@ if (!("DOMMatrix" in globalThis)) {
 // to the expensive work and needs its own bound.
 export const MAX_CHARS_PER_DOC = 4_000_000;
 
+// Documents per analysis. Shared so the upload route and the read-only consolidation route
+// cannot drift into accepting different corpus sizes for the same underlying parse.
+export const MAX_DOCS = 12;
+
 export interface ParseInput {
   buffer: Buffer;
   label: string;
