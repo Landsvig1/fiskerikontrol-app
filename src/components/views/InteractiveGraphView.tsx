@@ -45,6 +45,24 @@ interface D3GraphCanvasProps {
 // Matches the drawer's sm:w-96 so the camera can frame around it.
 const DRAWER_WIDTH_PX = 384;
 
+// Ticks to settle a layout from scratch, and to relax one seeded from a cached layout.
+// A cold run at full corpus (~1200 nodes) blocks the main thread for about a second, so
+// the seeded path is what keeps filter changes and tab switches responsive.
+const COLD_TICKS = 280;
+const SEEDED_TICKS = 90;
+// Distinct filter combinations to remember before dropping the older ones. Search text is
+// part of the key, so this is bounded rather than unbounded.
+const MAX_CACHED_LAYOUTS = 24;
+
+type NodePositions = Map<string, { x: number; y: number }>;
+
+interface LayoutCache {
+  data: GraphData;
+  bySignature: Map<string, NodePositions>;
+  /** Most recently settled layout, used to seed a filter combination not seen before. */
+  last: NodePositions | null;
+}
+
 const D3GraphCanvas = React.memo(function D3GraphCanvas({
   data,
   selectedNode,
@@ -61,6 +79,9 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const zoomBehaviorRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const selectedNodeRef = useRef<GraphNode | null>(null);
+  // Settled force-layout positions, keyed on the filter combination that produced them.
+  // See the tick loop below for why this exists.
+  const layoutCacheRef = useRef<LayoutCache | null>(null);
 
   const isFleetFiltered = fleetCriteria && (
     fleetCriteria.vesselLength !== "all" ||
@@ -186,6 +207,37 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
     // Degree calculations for node sizing
     const degree = computeDegree(filteredLinks);
 
+    // Reuse a settled layout wherever possible.
+    //
+    // This effect tears down and rebuilds the whole canvas on every filter, fleet, search
+    // and selection-plumbing change, and a cold settle is ~1.1s of blocked main thread at
+    // full corpus. It also re-ran on every mount, so tabbing away and back both froze the
+    // tab and scrambled the graph into a different random arrangement. Seeding node
+    // positions from the previous run fixes both: an exact filter match replays the same
+    // layout with no ticks at all, and a new filter combination relaxes from the old
+    // positions instead of from d3's phyllotaxis spiral.
+    //
+    // Positions must be assigned before forceSimulation() is constructed: it only spirals
+    // out nodes whose x/y are still NaN.
+    const layoutSignature = JSON.stringify([activeDocFilter, activeCategoryFilter, searchQuery]);
+    let cache = layoutCacheRef.current;
+    if (!cache || cache.data !== data) {
+      cache = { data, bySignature: new Map(), last: null };
+      layoutCacheRef.current = cache;
+    }
+    const exactLayout = cache.bySignature.get(layoutSignature);
+    const seedLayout = exactLayout ?? cache.last;
+    if (seedLayout) {
+      for (const node of filteredNodes) {
+        const position = seedLayout.get(node.id);
+        if (position) {
+          node.x = position.x;
+          node.y = position.y;
+        }
+      }
+    }
+    const tickCount = exactLayout ? 0 : seedLayout ? SEEDED_TICKS : COLD_TICKS;
+
     // Force simulation centered cleanly at origin (0, 0)
     const simulation = d3.forceSimulation<GraphNode>(filteredNodes)
       .force("link", d3.forceLink<GraphNode, GraphLink>(filteredLinks).id((d) => d.id).distance((d) => {
@@ -204,8 +256,19 @@ const D3GraphCanvas = React.memo(function D3GraphCanvas({
       .velocityDecay(0.35);
 
     // Settle simulation synchronously around origin (0, 0)
-    for (let i = 0; i < 280; ++i) simulation.tick();
+    for (let i = 0; i < tickCount; ++i) simulation.tick();
     simulation.stop();
+
+    if (!exactLayout) {
+      const settled: NodePositions = new Map();
+      for (const node of filteredNodes) {
+        if (node.x === undefined || node.y === undefined) continue;
+        settled.set(node.id, { x: node.x, y: node.y });
+      }
+      if (cache.bySignature.size >= MAX_CACHED_LAYOUTS) cache.bySignature.clear();
+      cache.bySignature.set(layoutSignature, settled);
+      cache.last = settled;
+    }
 
     // Zoom-to-fit calculation to ensure entire graph is visible with middle node centered
     const zoomToFit = (animate = false) => {
