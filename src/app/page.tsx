@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import {
   Database,
   RefreshCw,
   FileText,
   Calendar,
+  Info,
 } from "lucide-react";
 import { CitationGraphView } from "@/components/CitationGraphView";
 import { UploadScreen } from "@/components/UploadScreen";
@@ -139,8 +141,21 @@ export default function Home() {
           ))}
         </nav>
 
-        {/* Right side controls: Audit Memo, Language, and Reset */}
+        {/* Right side controls: About, Audit Memo, and Reset */}
         <div className="flex items-center gap-2.5">
+          {/* Explainer link. The loaded corpus lives in component state and is lost on a
+              navigation away from "/", so this opens in a new tab: an in-page link would
+              silently drop the analysis and return the user to the upload screen. */}
+          <Link
+            href="/about"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+          >
+            <Info className="w-3.5 h-3.5 text-sky-700" />
+            {t("aboutButton")}
+          </Link>
+
           {/* Export Legal Audit Memo button */}
           <button
             type="button"

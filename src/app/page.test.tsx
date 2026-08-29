@@ -54,6 +54,12 @@ describe("Home view error boundaries", () => {
     expect(screen.getByText("LexGraph")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Eksportér Tilsynsnotat/i })).toBeInTheDocument();
 
+    // The explainer is reachable from the header once a corpus is loaded, and opens in a
+    // new tab so the in-memory analysis survives the trip.
+    const about = screen.getByRole("link", { name: /Hvad er LexGraph\?/i });
+    expect(about).toHaveAttribute("href", "/about");
+    expect(about).toHaveAttribute("target", "_blank");
+
     // And a different tab still renders its own view.
     fireEvent.click(screen.getByRole("button", { name: /Søg & Slå Op/i }));
     expect(screen.getByText("Browse-visningen virker")).toBeInTheDocument();
