@@ -83,13 +83,15 @@ export default function Home() {
 
   if (!data) {
     return (
-      <UploadScreen
-        onSuccess={(parsedData) => {
-          setData(parsedData);
-          setActiveTab("dashboard");
-        }}
-        t={t}
-      />
+      <ErrorBoundary t={t}>
+        <UploadScreen
+          onSuccess={(parsedData) => {
+            setData(parsedData);
+            setActiveTab("dashboard");
+          }}
+          t={t}
+        />
+      </ErrorBoundary>
     );
   }
 
@@ -166,7 +168,9 @@ export default function Home() {
       {/* Main Application Container. Each view is wrapped in its own boundary: the whole
           app is one client tree over sections parsed from arbitrary user PDFs, and without
           a boundary a single throw in any view blanks the page rather than one panel.
-          Route-level error.tsx cannot do this, the views are tab state, not routes. */}
+          Route-level error.tsx cannot do this, the views are tab state, not routes.
+          The modals below and the upload screen are wrapped for the same reason: they are
+          siblings of <main>, so the boundaries in here do not cover them. */}
       <main className="flex-1 flex overflow-hidden">
         {activeTab === "dashboard" && (
           <ErrorBoundary t={t} onReset={() => setSelectedNode(null)}>
@@ -260,27 +264,31 @@ export default function Home() {
 
       {/* Side-by-Side Legal Conflict Inspector Modal */}
       {inspectingConflict && (
-        <ConflictInspectorModal
-          conflict={inspectingConflict}
-          data={data}
-          onClose={() => setInspectingConflict(null)}
-          onSelectNode={(node) => {
-            setSelectedNode(node);
-            setActiveTab("citation");
-          }}
-          t={t}
-        />
+        <ErrorBoundary t={t} onReset={() => setInspectingConflict(null)}>
+          <ConflictInspectorModal
+            conflict={inspectingConflict}
+            data={data}
+            onClose={() => setInspectingConflict(null)}
+            onSelectNode={(node) => {
+              setSelectedNode(node);
+              setActiveTab("citation");
+            }}
+            t={t}
+          />
+        </ErrorBoundary>
       )}
 
       {/* 1-Click Exportable Legal Audit Memo Modal */}
       {isAuditMemoOpen && (
-        <AuditMemoModal
-          isOpen={isAuditMemoOpen}
-          onClose={() => setIsAuditMemoOpen(false)}
-          data={data}
-          criteria={fleetCriteria}
-          t={t}
-        />
+        <ErrorBoundary t={t} onReset={() => setIsAuditMemoOpen(false)}>
+          <AuditMemoModal
+            isOpen={isAuditMemoOpen}
+            onClose={() => setIsAuditMemoOpen(false)}
+            data={data}
+            criteria={fleetCriteria}
+            t={t}
+          />
+        </ErrorBoundary>
       )}
     </div>
   );

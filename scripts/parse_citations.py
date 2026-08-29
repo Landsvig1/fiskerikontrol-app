@@ -288,7 +288,7 @@ def main():
                 })
                 
     # Save output files
-    app_data_dir = "/Users/kasperlandsvig/Documents/Claude Cowork/projects/fiskerikontrol-app/public/data"
+    app_data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "public", "data"))
     os.makedirs(app_data_dir, exist_ok=True)
     
     output_path = os.path.join(app_data_dir, "graph_data.json")

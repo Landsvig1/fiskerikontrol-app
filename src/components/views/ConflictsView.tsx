@@ -215,7 +215,7 @@ export function ConflictsView({
                       {highlightConflictKeywords(
                         (() => {
                           const parentNode = targetNode.parent_id ? nodeById.get(targetNode.parent_id) : undefined;
-                          const rawBody = targetNode.body && !targetNode.body.startsWith("See parent section") 
+                          const rawBody = targetNode.body && !targetNode.body.startsWith("Se overordnet sektion") 
                             ? targetNode.body 
                             : (parentNode?.body || targetNode.body || record.description || "");
                           const cleanBody = cleanAndNormalizeText(rawBody);

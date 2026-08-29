@@ -127,6 +127,21 @@ function actNumbers(code: string): string[] {
 }
 
 /**
+ * Resolves in_force vs upcoming from the milestone date rather than from the stored field.
+ *
+ * The stored status is written by hand when a milestone is added and silently goes stale:
+ * a deadline that has since passed keeps announcing itself as "Kommende frister" and skews
+ * the header counts. "transitional" is a legal characterisation, not a date comparison, so
+ * it is left alone.
+ */
+function withDerivedStatus(m: EnforcementMilestone, now: Date): EnforcementMilestone {
+  if (m.status === "transitional") return m;
+  const derived: MilestoneStatus =
+    new Date(`${m.date}T00:00:00Z`).getTime() <= now.getTime() ? "in_force" : "upcoming";
+  return derived === m.status ? m : { ...m, status: derived };
+}
+
+/**
  * Extracts and contextualizes timeline milestones for the currently loaded GraphData.
  *
  * A milestone is kept only when the act it stems from is actually part of the loaded corpus.
@@ -135,14 +150,15 @@ function actNumbers(code: string): string[] {
  */
 export function getTimelineForCorpus(
   data: GraphData,
-  milestones: EnforcementMilestone[] = STATUTORY_MILESTONES
+  milestones: EnforcementMilestone[] = STATUTORY_MILESTONES,
+  now: Date = new Date()
 ): EnforcementMilestone[] {
   const loadedLabels = data.docs.map((d) => (d.label || d.id).toLowerCase());
 
   // Nothing loaded yet: show the full statutory calendar rather than an empty timeline.
-  if (loadedLabels.length === 0) return milestones;
+  if (loadedLabels.length === 0) return milestones.map((m) => withDerivedStatus(m, now));
 
-  return milestones.filter((m) => {
+  const inCorpus = milestones.filter((m) => {
     const code = m.docCode.toLowerCase();
     const numbers = actNumbers(code);
 
@@ -151,4 +167,6 @@ export function getTimelineForCorpus(
       return numbers.some((n) => actNumbers(label).includes(n));
     });
   });
+
+  return inCorpus.map((m) => withDerivedStatus(m, now));
 }

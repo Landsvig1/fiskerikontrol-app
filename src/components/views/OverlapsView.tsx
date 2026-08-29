@@ -24,10 +24,16 @@ export function OverlapsView({
   setActiveTab: (tab: TabType) => void;
   t: TranslateFn;
 }) {
-  // Copy before sorting, sort() mutates in place, and data.overlaps is owned by the parent.
-  const overlapsList = [...data.overlaps].sort((a, b) => b.count - a.count);
   // One index instead of an O(n) scan per overlap, per citation, per render.
   const nodeById = useMemo(() => new Map(data.nodes.map(n => [n.id, n])), [data.nodes]);
+
+  // Copy before sorting, sort() mutates in place, and data.overlaps is owned by the parent.
+  // External placeholders are already excluded upstream, in the parser, so the count in the
+  // tab label and on the dashboard matches this list.
+  const overlapsList = useMemo(
+    () => [...data.overlaps].sort((a, b) => b.count - a.count),
+    [data.overlaps]
+  );
 
   return (
     <div className="flex-1 overflow-y-auto p-8 bg-[#fafaf9] text-slate-900">

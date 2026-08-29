@@ -236,6 +236,39 @@ describe("/api/parse preset ids", () => {
     expect(body.error).toMatch(/presetIds/);
   });
 
+  // UploadScreen renders the details block verbatim for the user to copy, so a stack trace
+  // there ships absolute build-machine paths to the browser.
+  describe("error detail exposure", () => {
+    function brokenMultipart(): Request {
+      return new Request("http://localhost/api/parse", {
+        method: "POST",
+        headers: { "Content-Type": "multipart/form-data; boundary=----nope" },
+        body: "not a real multipart body",
+      });
+    }
+
+    it("includes the stack outside production so a bad PDF stays debuggable", async () => {
+      const res = await POST(brokenMultipart());
+      expect(res.status).toBe(500);
+      const body = await res.json();
+      expect(body.details.message).toBeTruthy();
+      expect(body.details.stack).toBeTruthy();
+    });
+
+    it("withholds the stack in production", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      try {
+        const res = await POST(brokenMultipart());
+        expect(res.status).toBe(500);
+        const body = await res.json();
+        expect(body.details.message).toBeTruthy();
+        expect(body.details.stack).toBeUndefined();
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
+  });
+
   it("rejects a malformed JSON body", async () => {
     const res = await POST(
       new Request("http://localhost/api/parse", {

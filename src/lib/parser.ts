@@ -729,11 +729,11 @@ export function analyzeCitationsAndBuildGraph(docs: { text: string; label: strin
           nodes.push({
             id: externalId,
             number: targetSecNum,
-            label: `External ref. ${targetSecNum}`,
-            title: "Unresolved external reference",
+            label: `Ekstern henvisning ${targetSecNum}`,
+            title: "Uopklaret ekstern henvisning",
             doc: cit.target_doc,
             theme: "General",
-            body: "Referenced section not found in any document.",
+            body: "Den henviste sektion findes ikke i noget af de indlæste dokumenter.",
             is_subnode: true,
             parent_id: undefined,
             external: true,
@@ -745,7 +745,7 @@ export function analyzeCitationsAndBuildGraph(docs: { text: string; label: strin
         cit.target_art = externalId;
       } else {
         // Regular subnode (stk./litra reference)
-        let label = parentNode ? parentNode.label : `${docLabelById[cit.target_doc] ?? cit.target_doc} sec. ${targetSecNum}`;
+        let label = parentNode ? parentNode.label : `${docLabelById[cit.target_doc] ?? cit.target_doc} sektion ${targetSecNum}`;
         if (cit.target_stk) {
           label += `, stk. ${cit.target_stk}`;
           if (cit.target_litra) {
@@ -757,10 +757,10 @@ export function analyzeCitationsAndBuildGraph(docs: { text: string; label: strin
           id: cit.target,
           number: cit.target_art_num,
           label,
-          title: parentNode ? `Subsection of ${parentNode.label}` : `Section ${targetSecNum}`,
+          title: parentNode ? `Stykke i ${parentNode.label}` : `Sektion ${targetSecNum}`,
           doc: cit.target_doc,
           theme: parentNode ? parentNode.theme : "General",
-          body: parentNode ? `See parent section: ${parentNode.label} (${parentNode.title})` : "External reference",
+          body: parentNode ? `Se overordnet sektion: ${parentNode.label} (${parentNode.title})` : "Ekstern henvisning",
           is_subnode: true,
           // A section-level placeholder resolves to itself, and a node that is its own parent
           // breaks parent lookups and the graph's hierarchy rendering.
@@ -810,6 +810,14 @@ export function analyzeCitationsAndBuildGraph(docs: { text: string; label: strin
 
   for (const [targetId, cits] of Object.entries(targetCitations)) {
     if (cits.length > 1) {
+      const targetNode = nodes.find(n => n.id === targetId);
+
+      // Overlaps and conflicts are only reported on real substantive sections in the corpus.
+      // An unresolved external placeholder is a citation pointing outside the loaded
+      // documents, so two of them landing on the same missing section number is an artefact
+      // of what was not uploaded rather than a relation between two loaded provisions.
+      if (!targetNode || targetNode.external || targetId.startsWith("external_")) continue;
+
       const sources = Array.from(new Set(cits.map(c => c.source)));
       overlaps.push({
         target: targetId,
@@ -823,23 +831,19 @@ export function analyzeCitationsAndBuildGraph(docs: { text: string; label: strin
       });
 
       const modalities = new Set(cits.map(c => c.modality));
-      const targetNode = nodes.find(n => n.id === targetId);
 
-      // Only generate conflicts on real substantive sections in the corpus (exclude external unresolved placeholders)
-      if (targetNode && !targetNode.external && !targetId.startsWith("external_")) {
-        if (modalities.has("Exception") && (modalities.has("Obligation") || modalities.has("Prohibition"))) {
-          conflicts.push({
-            target: targetId,
-            modalities: Array.from(modalities),
-            description: `Potentiel regulatorisk modstrid: Én bestemmelse fastsætter en undtagelse/lempelse, mens en anden bestemmelse pålægger en bindende forpligtelse eller et forbud vedrørende ${targetNode.label || targetId}.`,
-            citations: cits.map(c => ({
-              source: c.source,
-              modality: c.modality,
-              snippet: c.snippet,
-              context: c.context
-            }))
-          });
-        }
+      if (modalities.has("Exception") && (modalities.has("Obligation") || modalities.has("Prohibition"))) {
+        conflicts.push({
+          target: targetId,
+          modalities: Array.from(modalities),
+          description: `Potentiel regulatorisk modstrid: Én bestemmelse fastsætter en undtagelse/lempelse, mens en anden bestemmelse pålægger en bindende forpligtelse eller et forbud vedrørende ${targetNode.label || targetId}.`,
+          citations: cits.map(c => ({
+            source: c.source,
+            modality: c.modality,
+            snippet: c.snippet,
+            context: c.context
+          }))
+        });
       }
     }
   }
