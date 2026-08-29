@@ -43,3 +43,6 @@ next-env.d.ts
 # editor
 .vscode/
 .kiro/
+
+# claude code local session files
+.claude/
