@@ -24,9 +24,15 @@ function msg(key: keyof typeof da, vars: Record<string, string | number> = {}): 
   );
 }
 
+/**
+ * Error shape returned to the browser. The stack is withheld in production: UploadScreen
+ * renders this report verbatim for the user to copy, and a stack trace carries absolute
+ * filesystem paths from the build machine.
+ */
 function errorDetails(e: unknown) {
+  const includeStack = process.env.NODE_ENV !== "production";
   if (e instanceof Error) {
-    return { name: e.name, message: e.message, stack: e.stack };
+    return { name: e.name, message: e.message, stack: includeStack ? e.stack : undefined };
   }
   return { name: "UnknownError", message: String(e), stack: undefined };
 }
