@@ -1,18 +1,13 @@
 import { NextResponse } from "next/server";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { analyzeCitationsAndBuildGraph, type DocType } from "@/lib/parser";
+import { type DocType } from "@/lib/parser";
 import { PRESET_DOCUMENTS } from "@/lib/presetCorpus";
 import { translations as da } from "@/lib/i18n";
 import { MAX_UPLOAD_MB, MAX_UPLOAD_BYTES } from "@/lib/uploadLimits";
-import DOMMatrixPolyfill from "dommatrix";
-
-// pdfjs-dist (bundled in pdf-parse) constructs a DOMMatrix at module load time
-// for its canvas module. Node has no DOMMatrix global, so importing pdf-parse
-// crashes for any PDF that pulls in that code path unless we polyfill it first.
-if (!("DOMMatrix" in globalThis)) {
-  (globalThis as unknown as { DOMMatrix: typeof DOMMatrixPolyfill }).DOMMatrix = DOMMatrixPolyfill;
-}
+import {
+  buildGraphFromInputs,
+  readPresetInput,
+  type ParseInput,
+} from "@/lib/presetGraph";
 
 // User-facing strings are Danish and come from the same table as the rest of the UI, with
 // the diagnostic detail kept in `details` for the copyable error report rather than in the
@@ -59,21 +54,10 @@ const MAX_DOCS = 12;
 // Labels are user-supplied text, not file bytes, so they are bounded separately.
 const MAX_LABEL_CHARS = 200;
 
-// A 10 MB PDF can decompress to far more text than 10 MB. The parser runs several global
-// regex sweeps over the full extracted string, so the decompressed size is the real input
-// to the expensive work and needs its own bound.
-const MAX_CHARS_PER_DOC = 4_000_000;
-
 // Only the bundled preset corpus sends type${i}. It is the authoritative EU/national
 // classification and drives the supremacy verdict in the audit memo, so an unrecognised
 // value is rejected rather than coerced, and an absent one falls back to label matching.
 const DOC_TYPES: readonly DocType[] = ["eu", "bek", "lov"];
-
-interface ParseInput {
-  buffer: Buffer;
-  label: string;
-  type?: DocType;
-}
 
 async function handleParse(request: Request) {
   const contentType = request.headers.get("content-type") || "";
@@ -123,10 +107,7 @@ async function handlePresetParse(request: Request) {
       );
     }
     try {
-      // The corpus lives under public/, which is served statically but is not part of the
-      // function bundle by default. next.config.ts traces it in explicitly.
-      const buffer = await readFile(path.join(process.cwd(), "public", "corpus", doc.filename));
-      inputs.push({ buffer, label: doc.code, type: doc.type });
+      inputs.push((await readPresetInput(doc.id))!);
     } catch (e: unknown) {
       console.error(`Preset document ${doc.filename} could not be read:`, e);
       return NextResponse.json(
@@ -216,72 +197,59 @@ async function handleUploadParse(request: Request) {
 }
 
 /**
- * Text extraction and graph construction, shared by both entry points so an upload and a
- * preset run cannot drift into producing different graphs from the same bytes.
+ * Maps a corpus build onto this route's response shapes. The extraction and the analysis
+ * themselves live in @/lib/presetGraph, shared with the read-only consolidation route.
  */
 async function buildGraphResponse(inputs: ParseInput[]) {
-  // Extract text, pdf-parse v2: PDFParse is a class, getText().text holds the content
-  const { PDFParse } = await import("pdf-parse");
-  const parsers = inputs.map(input => new PDFParse({ data: input.buffer }));
-  let extracted;
-  try {
-    extracted = await Promise.all(parsers.map(p => p.getText()));
-  } catch (e: unknown) {
-    console.error("Error extracting text from PDFs:", e);
-    return NextResponse.json(
-      { error: msg("apiErrPdfRead"), details: errorDetails(e) },
-      { status: 422 }
-    );
-  } finally {
-    await Promise.all(parsers.map(p => p.destroy()));
-  }
+  const result = await buildGraphFromInputs(inputs);
+  if (result.ok) return NextResponse.json(result.data);
 
-  const oversized = extracted.findIndex(e => e.text.length > MAX_CHARS_PER_DOC);
-  if (oversized !== -1) {
-    return NextResponse.json(
-      { error: msg("apiErrTooMuchText", { index: oversized + 1 }) },
-      { status: 413 }
-    );
-  }
+  const failure = result.failure;
+  switch (failure.kind) {
+    case "pdf_read":
+      console.error("Error extracting text from PDFs:", failure.cause);
+      return NextResponse.json(
+        { error: msg("apiErrPdfRead"), details: errorDetails(failure.cause) },
+        { status: 422 }
+      );
 
-  let graphData;
-  try {
-    graphData = analyzeCitationsAndBuildGraph(
-      inputs.map((input, i) => ({
-        text: extracted[i].text,
-        label: input.label,
-        ...(input.type ? { type: input.type } : {}),
-      }))
-    );
-  } catch (e: unknown) {
-    if (e && typeof e === "object" && "code" in e) {
+    case "too_much_text":
+      return NextResponse.json(
+        { error: msg("apiErrTooMuchText", { index: failure.index + 1 }) },
+        { status: 413 }
+      );
+
+    case "insufficient_structure": {
       // The parser's own messages are diagnostic and English by design; it is a pure
       // library with no notion of the UI language. They are translated here, at the
       // boundary, and the raw message and pattern counts ride along in the payload so the
       // copyable error report still carries everything needed to debug a bad PDF.
-      const err = e as { code: string; message: string; patternCounts?: Record<string, number>; docKey?: string };
-      const label = err.docKey
-        ? inputs[Number(err.docKey.replace("doc", ""))]?.label ?? err.docKey
+      const label = failure.docKey
+        ? inputs[Number(failure.docKey.replace("doc", ""))]?.label ?? failure.docKey
         : "";
       return NextResponse.json(
         {
-          error: err.code === "INSUFFICIENT_STRUCTURE"
-            ? msg("apiErrNoStructure", { doc: label })
-            : msg("apiErrMinDocs"),
-          code: err.code,
-          details: { message: err.message },
-          ...(err.patternCounts ? { patternCounts: err.patternCounts } : {}),
-          ...(err.docKey ? { docKey: err.docKey } : {}),
+          error: msg("apiErrNoStructure", { doc: label }),
+          code: failure.code,
+          details: { message: failure.message },
+          ...(failure.patternCounts ? { patternCounts: failure.patternCounts } : {}),
+          ...(failure.docKey ? { docKey: failure.docKey } : {}),
         },
         { status: 422 }
       );
     }
-    console.error("Unexpected error building citation graph:", e);
-    return NextResponse.json(
-      { error: msg("apiErrUnexpected"), details: errorDetails(e) },
-      { status: 500 }
-    );
-  }
 
-  return NextResponse.json(graphData);
+    case "too_few_documents":
+      return NextResponse.json(
+        { error: msg("apiErrMinDocs"), code: failure.code, details: { message: failure.message } },
+        { status: 422 }
+      );
+
+    case "unexpected":
+      console.error("Unexpected error building citation graph:", failure.cause);
+      return NextResponse.json(
+        { error: msg("apiErrUnexpected"), details: errorDetails(failure.cause) },
+        { status: 500 }
+      );
+  }
 }

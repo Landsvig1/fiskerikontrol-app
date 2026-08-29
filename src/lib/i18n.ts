@@ -5,7 +5,7 @@
 export type TranslationKey =
   | "appTitle" | "appTagline"
   | "newAnalysis" | "dashboard" | "citationGraph" | "nodeGraph"
-  | "overlaps" | "conflicts" | "browse" | "timeline"
+  | "overlaps" | "conflicts" | "browse" | "timeline" | "consolidation"
   | "uploadTitle" | "uploadSubtitle"
   | "dropZoneSlot" | "dropZoneBulk"
   | "analyseButton" | "analysing"
@@ -59,6 +59,7 @@ const da: Translations = {
   dashboard: "Oversigt",
   citationGraph: "Citation Graf",
   nodeGraph: "Node Graf (Fysik)",
+  consolidation: "Konsolidering",
   overlaps: "Overlap",
   conflicts: "Konflikter",
   browse: "Søg & Slå Op",

@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import type { GraphData } from "@/lib/types";
 
 const emptyData: GraphData = {
@@ -11,6 +11,19 @@ const emptyData: GraphData = {
   overlaps: [],
   conflicts: [],
 };
+
+// A working stand-in for the App Router. It holds the query string in a variable that
+// router.replace writes and useSearchParams reads, so a test can assert what the app put in
+// the URL and, just as importantly, that the app reads its own screen back out of it.
+let currentQuery = "";
+const replace = vi.fn((href: string) => {
+  currentQuery = href.includes("?") ? href.slice(href.indexOf("?") + 1) : "";
+});
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace, push: vi.fn(), refresh: vi.fn(), back: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(currentQuery),
+}));
 
 // The dashboard is the tab the app opens on, so a throw here is the worst case: without a
 // boundary it takes the header and the tab bar down with it.
@@ -24,10 +37,23 @@ vi.mock("@/components/views/BrowseView", () => ({
   BrowseView: () => <p>Browse-visningen virker</p>,
 }));
 
+vi.mock("@/components/views/ConsolidationView", () => ({
+  ConsolidationView: () => <p>Konsolideringsvisningen virker</p>,
+}));
+
 // The real upload screen posts a PDF to the parse route; this stands in for a finished parse.
 vi.mock("@/components/UploadScreen", () => ({
-  UploadScreen: ({ onSuccess }: { onSuccess: (data: GraphData) => void }) => (
-    <button onClick={() => onSuccess(emptyData)}>Indlæs testkorpus</button>
+  UploadScreen: ({
+    onSuccess,
+  }: {
+    onSuccess: (data: GraphData, presetIds?: string[]) => void;
+  }) => (
+    <>
+      <button onClick={() => onSuccess(emptyData, ["eu-1224-2009", "eu-2023-2842"])}>
+        Indlæs testkorpus
+      </button>
+      <button onClick={() => onSuccess(emptyData)}>Indlæs uploadet korpus</button>
+    </>
   ),
 }));
 
@@ -35,6 +61,8 @@ import Home from "./page";
 
 describe("Home view error boundaries", () => {
   beforeEach(() => {
+    currentQuery = "";
+    replace.mockClear();
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
@@ -42,12 +70,12 @@ describe("Home view error boundaries", () => {
     vi.restoreAllMocks();
   });
 
-  it("keeps the header and tab bar usable when a view throws", () => {
-    render(<Home />);
+  it("keeps the header and tab bar usable when a view throws", async () => {
+    const { rerender } = render(<Home />);
     fireEvent.click(screen.getByRole("button", { name: /Indlæs testkorpus/i }));
 
     // The failing view is contained.
-    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.getByText("Denne visning kunne ikke indlæses")).toBeInTheDocument();
 
     // The rest of the page survived.
@@ -62,7 +90,85 @@ describe("Home view error boundaries", () => {
 
     // And a different tab still renders its own view.
     fireEvent.click(screen.getByRole("button", { name: /Søg & Slå Op/i }));
+    rerender(<Home />);
     expect(screen.getByText("Browse-visningen virker")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
+describe("URL-addressable screens", () => {
+  beforeEach(() => {
+    currentQuery = "";
+    replace.mockClear();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("puts the preset corpus in the URL so the analysis has a shareable link", () => {
+    render(<Home />);
+    fireEvent.click(screen.getByRole("button", { name: /Indlæs testkorpus/i }));
+
+    expect(replace).toHaveBeenCalledWith("/?docs=eu-1224-2009%2Ceu-2023-2842", { scroll: false });
+  });
+
+  it("leaves the URL empty for a hand-uploaded corpus, which nothing can address", () => {
+    // There is nowhere to persist an uploaded PDF, so a link naming it would resolve to a
+    // different corpus for whoever opened it. No link is the honest outcome.
+    render(<Home />);
+    fireEvent.click(screen.getByRole("button", { name: /Indlæs uploadet korpus/i }));
+
+    expect(replace).toHaveBeenCalledWith("/", { scroll: false });
+  });
+
+  it("writes the selected tab into the URL and keeps the corpus with it", () => {
+    const { rerender } = render(<Home />);
+    fireEvent.click(screen.getByRole("button", { name: /Indlæs testkorpus/i }));
+    rerender(<Home />);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Konsolidering$/ }));
+
+    const [href] = replace.mock.calls[replace.mock.calls.length - 1];
+    expect(href).toContain("view=consolidation");
+    expect(href).toContain("docs=eu-1224-2009%2Ceu-2023-2842");
+  });
+
+  it("opens straight into the view named by the URL, restoring the corpus first", async () => {
+    // This is the whole point of the schema: a link built by an agent, or pasted by a
+    // colleague, lands on the screen it names rather than on the upload form.
+    currentQuery = "docs=eu-1224-2009,eu-2023-2842&view=consolidation";
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => emptyData });
+
+    render(<Home />);
+
+    expect(await screen.findByText("Konsolideringsvisningen virker")).toBeInTheDocument();
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/parse",
+      expect.objectContaining({ method: "POST" })
+    );
+  });
+
+  it("falls back to the upload screen when the corpus in the URL cannot be restored", async () => {
+    currentQuery = "docs=eu-1224-2009,eu-2023-2842&view=consolidation";
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 });
+
+    render(<Home />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/Korpusset i linket kunne ikke indlæses/i)).toBeInTheDocument()
+    );
+    expect(screen.getByRole("button", { name: /Indlæs testkorpus/i })).toBeInTheDocument();
+  });
+
+  it("ignores a provision id that does not resolve instead of failing to render", async () => {
+    // A link built against a different document order, or a stale one, selects nothing.
+    currentQuery = "docs=eu-1224-2009,eu-2023-2842&view=browse&p=doc0_sec_9999";
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => emptyData });
+
+    render(<Home />);
+
+    expect(await screen.findByText("Browse-visningen virker")).toBeInTheDocument();
   });
 });

@@ -55,6 +55,9 @@ export interface GraphLink {
   snippet: string;
   context: string;
   isCrossDoc?: boolean;   // true when the citing and cited sections live in different documents
+  // true when the citing text does not merely refer to the cited provision but changes it
+  // ("Artikel 4 aendres saaledes", "Artikel 12 udgaar"). See AMENDMENT_RE.
+  amends?: boolean;
 }
 
 export interface OverlapRecord {
@@ -444,6 +447,24 @@ const CITATION_RE = new RegExp(
   "gi"
 );
 
+/**
+ * Amendment verbs used in Danish and EU-Danish drafting to introduce a change to another
+ * provision: "Artikel 4 ændres således", "Artikel 12 udgår", "Artikel 13 affattes således".
+ * A citation carrying one of these in its immediate context is a consolidation edge: the
+ * citing act changes the cited provision rather than merely referring to it.
+ *
+ * This is deliberately a separate axis from `modality`. Modality classifies the obligation a
+ * reference carries and is consumed by conflict detection, the colour legend and the audit
+ * memo; whether one act amends another is orthogonal to whether the sentence reads as an
+ * obligation or an exception, and folding it into that union would change the meaning of
+ * every existing consumer.
+ *
+ * Matched against the +-60 character window rather than the wider +-100 modality window: an
+ * amendment verb binds tightly to the article it governs, and the wider window reaches into
+ * the neighbouring item of an amendment list and borrows its verb.
+ */
+const AMENDMENT_RE = /(?:ændres\s+således|affattes\s+således|udgår|ophæves|indsættes|erstattes\s+af|tilføjes|foretages\s+følgende\s+ændringer)/i;
+
 // Bilingual modality signal regexes, evaluated in priority order: Exception → Prohibition → Permission → Obligation
 const EXCEPTION_RE = /\b(?:undtagen|fritaget|fritages|uanset|afvige|undtagelse|dispensation|notwithstanding|except(?:ed)?|by\s+way\s+of\s+derogation|derogation|waiver)\b/i;
 const PROHIBITION_RE = /\b(?:forbudt|må\s+ikke|ikke\s+tilladt|prohibited|shall\s+not|must\s+not|not\s+permitted)\b/i;
@@ -460,6 +481,7 @@ interface CitationRecord {
   modality: "Obligation" | "Exception" | "Prohibition" | "Permission";
   snippet: string;
   context: string;
+  amends: boolean;
 }
 
 function parseCitations(
@@ -624,6 +646,10 @@ function parseCitations(
       }
     }
 
+    const narrowContext = body
+      .substring(Math.max(0, matchIndex - 60), Math.min(body.length, matchIndex + matchLength + 60))
+      .trim();
+
     citations.push({
       source: sourceSection.id,
       target: targetNodeId,
@@ -634,7 +660,8 @@ function parseCitations(
       target_litra: litraVal,
       modality,
       snippet,
-      context: body.substring(Math.max(0, matchIndex - 60), Math.min(body.length, matchIndex + matchLength + 60)).trim()
+      context: narrowContext,
+      amends: AMENDMENT_RE.test(narrowContext),
     });
   }
 
@@ -777,22 +804,37 @@ export function analyzeCitationsAndBuildGraph(docs: { text: string; label: strin
     docByNodeId[n.id] = n.doc;
   }
 
-  const seen = new Set<string>();
+  // Deduplication keeps the first citation of each source/target/modality triple, but
+  // `amends` is a property of the relation rather than of the one sentence that happened to
+  // be scanned first: an act that both refers to and amends the same provision must still
+  // show up in the consolidation ledger. So a later duplicate carrying the amendment verb
+  // promotes the link that is already there.
+  const linkByKey = new Map<string, GraphLink>();
   for (const cit of citationRecords) {
     const key = `${cit.source}|${cit.target}|${cit.modality}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const existing = linkByKey.get(key);
+    if (existing) {
+      if (cit.amends && !existing.amends) {
+        existing.amends = true;
+        existing.snippet = cit.snippet;
+        existing.context = cit.context;
+      }
+      continue;
+    }
     const sourceDoc = docByNodeId[cit.source];
     const targetDoc = docByNodeId[cit.target] ?? cit.target_doc;
-    links.push({
+    const link: GraphLink = {
       source: cit.source,
       target: cit.target,
       type: "citation",
       modality: cit.modality,
       snippet: cit.snippet,
       context: cit.context,
-      isCrossDoc: !!sourceDoc && !!targetDoc && sourceDoc !== targetDoc
-    });
+      isCrossDoc: !!sourceDoc && !!targetDoc && sourceDoc !== targetDoc,
+      ...(cit.amends ? { amends: true } : {}),
+    };
+    linkByKey.set(key, link);
+    links.push(link);
   }
 
   // Detect overlaps and conflicts, already N-agnostic: groups by target, sources/citations

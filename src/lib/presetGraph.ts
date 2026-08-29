@@ -1,0 +1,115 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { analyzeCitationsAndBuildGraph, type DocType, type ParseResult } from "./parser";
+import { PRESET_DOCUMENTS } from "./presetCorpus";
+import DOMMatrixPolyfill from "dommatrix";
+
+/**
+ * Server-side corpus loading and graph construction, shared by every route that needs a
+ * parsed corpus.
+ *
+ * It lives outside the route handlers because there is now more than one way in: the upload
+ * POST that the browser uses, and the read-only GET that makes a corpus addressable by
+ * document ids alone. Two routes producing two subtly different graphs from the same bytes
+ * would be a silent correctness failure, so the extraction and the analysis happen in one
+ * place and the routes only differ in how they shape errors for their own caller.
+ */
+
+// pdfjs-dist (bundled in pdf-parse) constructs a DOMMatrix at module load time for its
+// canvas module. Node has no DOMMatrix global, so importing pdf-parse crashes for any PDF
+// that pulls in that code path unless we polyfill it first.
+if (!("DOMMatrix" in globalThis)) {
+  (globalThis as unknown as { DOMMatrix: typeof DOMMatrixPolyfill }).DOMMatrix = DOMMatrixPolyfill;
+}
+
+// A 10 MB PDF can decompress to far more text than 10 MB. The parser runs several global
+// regex sweeps over the full extracted string, so the decompressed size is the real input
+// to the expensive work and needs its own bound.
+export const MAX_CHARS_PER_DOC = 4_000_000;
+
+export interface ParseInput {
+  buffer: Buffer;
+  label: string;
+  type?: DocType;
+}
+
+/** Everything that can go wrong between a set of inputs and a finished graph. */
+export type GraphBuildFailure =
+  | { kind: "pdf_read"; cause: unknown }
+  | { kind: "too_much_text"; index: number }
+  | { kind: "insufficient_structure"; code: string; message: string; patternCounts?: Record<string, number>; docKey?: string }
+  | { kind: "too_few_documents"; code: string; message: string }
+  | { kind: "unexpected"; cause: unknown };
+
+export type GraphBuildResult =
+  | { ok: true; data: ParseResult }
+  | { ok: false; failure: GraphBuildFailure };
+
+/**
+ * Reads one bundled preset document off disk.
+ *
+ * The corpus lives under public/, which is served statically but is not part of the function
+ * bundle by default; next.config.ts traces it in explicitly.
+ */
+export async function readPresetInput(presetId: string): Promise<ParseInput | null> {
+  const doc = PRESET_DOCUMENTS.find(d => d.id === presetId);
+  if (!doc) return null;
+  const buffer = await readFile(path.join(process.cwd(), "public", "corpus", doc.filename));
+  return { buffer, label: doc.code, type: doc.type };
+}
+
+/** Text extraction plus graph construction. Never throws; failures come back as data. */
+export async function buildGraphFromInputs(inputs: ParseInput[]): Promise<GraphBuildResult> {
+  const { PDFParse } = await import("pdf-parse");
+  const parsers = inputs.map(input => new PDFParse({ data: input.buffer }));
+  let extracted;
+  try {
+    extracted = await Promise.all(parsers.map(p => p.getText()));
+  } catch (cause: unknown) {
+    return { ok: false, failure: { kind: "pdf_read", cause } };
+  } finally {
+    await Promise.all(parsers.map(p => p.destroy()));
+  }
+
+  const oversized = extracted.findIndex(e => e.text.length > MAX_CHARS_PER_DOC);
+  if (oversized !== -1) {
+    return { ok: false, failure: { kind: "too_much_text", index: oversized } };
+  }
+
+  try {
+    const data = analyzeCitationsAndBuildGraph(
+      inputs.map((input, i) => ({
+        text: extracted[i].text,
+        label: input.label,
+        ...(input.type ? { type: input.type } : {}),
+      }))
+    );
+    return { ok: true, data };
+  } catch (e: unknown) {
+    if (e && typeof e === "object" && "code" in e) {
+      const err = e as {
+        code: string;
+        message: string;
+        patternCounts?: Record<string, number>;
+        docKey?: string;
+      };
+      if (err.code === "INSUFFICIENT_STRUCTURE") {
+        return {
+          ok: false,
+          failure: {
+            kind: "insufficient_structure",
+            code: err.code,
+            message: err.message,
+            patternCounts: err.patternCounts,
+            docKey: err.docKey,
+          },
+        };
+      }
+      return {
+        ok: false,
+        failure: { kind: "too_few_documents", code: err.code, message: err.message },
+      };
+    }
+    return { ok: false, failure: { kind: "unexpected", cause: e } };
+  }
+}

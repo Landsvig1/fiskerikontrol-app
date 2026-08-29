@@ -25,7 +25,13 @@ function emptySlot(): SlotState {
 }
 
 interface UploadScreenProps {
-  onSuccess: (data: GraphData) => void;
+  /**
+   * `presetIds` is present only for a preset run, and it is what makes the resulting
+   * analysis addressable: the bundled PDFs ship with the deployment, so a URL naming their
+   * ids can rebuild the same corpus. A hand-uploaded corpus has nowhere to persist to and
+   * passes none, which the caller reads as "this analysis has no shareable link".
+   */
+  onSuccess: (data: GraphData, presetIds?: string[]) => void;
   t: TranslateFn;
 }
 
@@ -226,7 +232,7 @@ export function UploadScreen({
         setLoading(false);
         return;
       }
-      onSuccess(graphData);
+      onSuccess(graphData, selectedPresetIds);
     } catch (err: unknown) {
       console.error("Preset analysis failed:", err);
       // Surface the actual failure. A preset run can fail because a bundled corpus PDF is
