@@ -615,6 +615,33 @@ Kravet gaelder, jf. artikel 99.
       expect(doc1External?.doc).toBe("doc1");
     });
 
+    it("should not report an overlap on an unresolved external placeholder", () => {
+      // Two provisions in the same document both citing a section that is not in the corpus
+      // is a statement about what was not uploaded, not an overlap between two provisions
+      // the caseworker can open. Conflicts were already excluded here; overlaps follow, so
+      // the tab label, the dashboard card and the list cannot disagree.
+      const docText = `
+        Article 1
+        Pursuant to Article 99, operators shall report.
+
+        Article 2
+        By way of derogation from Article 99, small vessels are exempt.
+      `;
+      const other = `
+        Article 1
+        Unrelated provision.
+      `;
+
+      const result = analyzeCitationsAndBuildGraph([
+        { text: docText, label: "Document A" },
+        { text: other, label: "Document B" },
+      ]);
+
+      expect(result.nodes.some(n => n.id === "external_doc0_sec_99")).toBe(true);
+      expect(result.overlaps.some(o => o.target === "external_doc0_sec_99")).toBe(false);
+      expect(result.conflicts.some(c => c.target === "external_doc0_sec_99")).toBe(false);
+    });
+
     it("should not misresolve the target document when one label is a substring of the other", () => {
       const docAText = `
         Article 5
