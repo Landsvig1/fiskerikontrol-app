@@ -102,6 +102,9 @@ function LexGraphApp() {
   // the URL so that clearing filters cannot accidentally drop the corpus out of the link.
   const [corpusDocIds, setCorpusDocIds] = useState<string[]>([]);
   const [restoreState, setRestoreState] = useState<"idle" | "loading" | "failed">("idle");
+  // Bumped by the retry button. The restore effect keys on the document set, so without a
+  // value that actually changes, clearing the attempt guard re-runs nothing.
+  const [restoreAttempt, setRestoreAttempt] = useState(0);
   const [inspectingConflict, setInspectingConflict] = useState<ConflictRecord | null>(null);
   const [isAuditMemoOpen, setIsAuditMemoOpen] = useState(false);
 
@@ -121,13 +124,28 @@ function LexGraphApp() {
   const corpusDocIdsRef = useRef(corpusDocIds);
   corpusDocIdsRef.current = corpusDocIds;
 
+  // Carries one setter's result forward to the next call in the same event handler. The
+  // refs above only refresh on the next render, so two setters fired from one handler would
+  // both rebase on the pre-click state and the second would silently drop the first's patch.
+  // The "Vis i graf" buttons in the overlaps, conflicts and browse views do exactly that
+  // (setSelectedNode then setActiveTab), and the selection was being lost on the way.
+  const pendingUrlStateRef = useRef<AppUrlState | null>(null);
+  const lastSearchRef = useRef(searchString);
+  if (lastSearchRef.current !== searchString) {
+    // A render observing a new query string means that navigation landed, so anything queued
+    // against the previous one is already folded in and must not rebase later calls.
+    lastSearchRef.current = searchString;
+    pendingUrlStateRef.current = null;
+  }
+
   const setUrlState = useCallback(
     (patch: Partial<AppUrlState>) => {
       const next: AppUrlState = {
-        ...urlStateRef.current,
+        ...(pendingUrlStateRef.current ?? urlStateRef.current),
         ...patch,
         docs: patch.docs ?? corpusDocIdsRef.current,
       };
+      pendingUrlStateRef.current = next;
       // replace, not push: changing a tab or a filter is not a navigation a user wants to
       // undo one step at a time, and pushing would bury the previous page under a filter
       // history several dozen entries deep.
@@ -140,7 +158,17 @@ function LexGraphApp() {
   const searchQuery = urlState.search;
   const activeDocFilter = urlState.activeDocFilter;
   const activeCategoryFilter = urlState.activeCategoryFilter;
-  const fleetCriteria = urlState.fleet;
+  // Rebuilt by parseAppUrlState on every navigation, so passing urlState.fleet straight
+  // through hands the two graph canvases a new object identity on every node click. It sits
+  // in the dependency array of their teardown-and-rebuild effect (CitationGraphView and
+  // InteractiveGraphView, twice each), so that alone re-runs the 280-tick simulation and
+  // recreates d3.zoom(), which is the pan-and-zoom reset the stable setters were meant to
+  // stop. Identity now changes only when a fleet filter actually changes.
+  const { vesselLength, gearType, seaArea } = urlState.fleet;
+  const fleetCriteria = useMemo<FleetFilterCriteria>(
+    () => ({ vesselLength, gearType, seaArea }),
+    [vesselLength, gearType, seaArea]
+  );
 
   // The URL carries a provision id; the views need the node. An id that no longer resolves
   // (a link built against a different corpus, or a stale one) selects nothing rather than
@@ -215,7 +243,7 @@ function LexGraphApp() {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [docsKey, data]);
+  }, [docsKey, data, restoreAttempt]);
 
   // Listen for Escape key to unfocus/close selected node details.
   // Modals register their own Escape handler, so this one stands down while one is open;
@@ -260,6 +288,7 @@ function LexGraphApp() {
               onClick={() => {
                 restoreAttemptedRef.current = null;
                 setRestoreState("idle");
+                setRestoreAttempt(n => n + 1);
               }}
               className="px-3 py-1.5 rounded-lg bg-white hover:bg-amber-100 border border-amber-300 text-xs font-medium text-amber-900 transition-all cursor-pointer shrink-0"
             >

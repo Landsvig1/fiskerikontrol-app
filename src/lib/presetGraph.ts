@@ -43,9 +43,25 @@ export const MAX_DOCS = 12;
  * so the same ids in a different order are a genuinely different graph and must not collide.
  *
  * Only successful builds are stored, so a transient read failure cannot poison an entry.
+ *
+ * The entries live as long as the process does. That is the intended shape for a long-lived
+ * server; on a platform that recycles instances per request the cache is still correct, just
+ * less effective, because a cold instance starts empty.
  */
 const MAX_CACHED_CORPORA = 8;
 const graphCache = new Map<string, ParseResult>();
+
+/**
+ * Collapses repeated ids, preserving first-seen order.
+ *
+ * The same id twice would be loaded as two documents carrying identical text, so every
+ * self-reference inside that act would be reported as a citation between two separate acts.
+ * Both preset entry points run this before validating or building a cache key, so they
+ * cannot disagree about what corpus a request names.
+ */
+export function dedupePresetIds(presetIds: readonly string[]): string[] {
+  return Array.from(new Set(presetIds));
+}
 
 export function presetCacheKey(presetIds: readonly string[]): string {
   return presetIds.join(",");

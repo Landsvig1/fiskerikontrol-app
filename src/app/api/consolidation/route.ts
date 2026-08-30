@@ -3,6 +3,7 @@ import { PRESET_DOCUMENTS } from "@/lib/presetCorpus";
 import {
   buildGraphFromInputs,
   readPresetInput,
+  dedupePresetIds,
   presetCacheKey,
   getCachedPresetGraph,
   cachePresetGraph,
@@ -65,16 +66,11 @@ function serialiseNode(data: GraphData, id: string) {
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
 
-  // Deduplicated: the same id twice would be loaded as two separate documents ("doc0" and
-  // "doc1" carrying identical text), and every self-reference inside that act would then be
-  // reported as a cross-document citation between two acts that are really one.
-  const docIds = Array.from(
-    new Set(
-      (params.get("docs") ?? "")
-        .split(",")
-        .map(s => s.trim())
-        .filter(Boolean)
-    )
+  const docIds = dedupePresetIds(
+    (params.get("docs") ?? "")
+      .split(",")
+      .map(s => s.trim())
+      .filter(Boolean)
   );
 
   if (docIds.length < 2) {

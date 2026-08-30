@@ -6,6 +6,7 @@ import { MAX_UPLOAD_MB, MAX_UPLOAD_BYTES } from "@/lib/uploadLimits";
 import {
   buildGraphFromInputs,
   readPresetInput,
+  dedupePresetIds,
   presetCacheKey,
   getCachedPresetGraph,
   cachePresetGraph,
@@ -100,25 +101,28 @@ async function handlePresetParse(request: Request) {
     );
   }
 
-  for (const id of presetIds as string[]) {
-    if (!PRESET_DOCUMENTS.some(d => d.id === id)) {
-      return NextResponse.json(
-        { error: msg("apiErrUnknownPreset", { id }) },
-        { status: 400 }
-      );
-    }
+  // Deduplicated on the same rule the consolidation route uses, so one act named twice is
+  // one document in both, and both derive the same cache key for the same request.
+  const requestedIds = dedupePresetIds(presetIds as string[]);
+
+  const unknown = requestedIds.find(id => !PRESET_DOCUMENTS.some(d => d.id === id));
+  if (unknown) {
+    return NextResponse.json(
+      { error: msg("apiErrUnknownPreset", { id: unknown }) },
+      { status: 400 }
+    );
   }
 
   // The corpus PDFs are immutable for the life of the deployment, so a given id sequence
   // always parses to the same graph. This is the path a shared link takes when the app
   // restores a corpus from ?docs=, and re-parsing it there is what made opening a link feel
   // broken. Keyed on the requested order, because node ids are positional.
-  const cacheKey = presetCacheKey(presetIds as string[]);
+  const cacheKey = presetCacheKey(requestedIds);
   const cached = getCachedPresetGraph(cacheKey);
   if (cached) return NextResponse.json(cached);
 
   const inputs: ParseInput[] = [];
-  for (const id of presetIds as string[]) {
+  for (const id of requestedIds) {
     const doc = PRESET_DOCUMENTS.find(d => d.id === id)!;
     try {
       inputs.push((await readPresetInput(doc.id))!);

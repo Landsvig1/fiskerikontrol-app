@@ -20,10 +20,22 @@ const replace = vi.fn((href: string) => {
   currentQuery = href.includes("?") ? href.slice(href.indexOf("?") + 1) : "";
 });
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace, push: vi.fn(), refresh: vi.fn(), back: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(currentQuery),
-}));
+// One router object for the life of the file, matching the App Router, which hands out a
+// stable instance from context. The setter-identity guarantee below rests on that:
+// setUrlState depends on [router], so a router rebuilt per render would defeat it.
+vi.mock("next/navigation", () => {
+  // Built on first use, not in the factory body: vi.mock is hoisted above the `replace`
+  // declaration, so touching it eagerly would read a temporal-dead-zone binding. Cached
+  // afterwards so the instance is stable, matching the App Router, which hands out one
+  // router from context. The setter-identity guarantee rests on that: setUrlState depends
+  // on [router], so a router rebuilt per render would defeat it.
+  let router: ReturnType<typeof makeRouter> | null = null;
+  const makeRouter = () => ({ replace, push: vi.fn(), refresh: vi.fn(), back: vi.fn() });
+  return {
+    useRouter: () => (router ??= makeRouter()),
+    useSearchParams: () => new URLSearchParams(currentQuery),
+  };
+});
 
 // The dashboard is the tab the app opens on, so a throw here is the worst case: without a
 // boundary it takes the header and the tab bar down with it.
@@ -33,8 +45,32 @@ vi.mock("@/components/views/DashboardView", () => ({
   },
 }));
 
+const seenSetSelectedNode: unknown[] = [];
+
 vi.mock("@/components/views/BrowseView", () => ({
-  BrowseView: () => <p>Browse-visningen virker</p>,
+  BrowseView: ({
+    setSelectedNode,
+    setActiveTab,
+  }: {
+    setSelectedNode: (n: { id: string } | null) => void;
+    setActiveTab: (t: string) => void;
+  }) => {
+    seenSetSelectedNode.push(setSelectedNode);
+    return (
+      <>
+        <p>Browse-visningen virker</p>
+        <button
+          onClick={() => {
+            // Two URL setters in one handler, exactly as the real "Vis i graf" buttons do.
+            setSelectedNode({ id: "doc0_sec_9" });
+            setActiveTab("graph");
+          }}
+        >
+          Vis i graf
+        </button>
+      </>
+    );
+  },
 }));
 
 vi.mock("@/components/views/ConsolidationView", () => ({
@@ -170,5 +206,91 @@ describe("URL-addressable screens", () => {
     render(<Home />);
 
     expect(await screen.findByText("Browse-visningen virker")).toBeInTheDocument();
+  });
+});
+
+describe("URL setter composition and identity", () => {
+  beforeEach(() => {
+    currentQuery = "";
+    replace.mockClear();
+    seenSetSelectedNode.length = 0;
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("keeps both patches when one handler fires two URL setters", async () => {
+    // Each setter rebases on the last render's state, so without composing them the second
+    // call drops the first's patch and the selection is lost on the way to the graph.
+    currentQuery = "docs=eu-1224-2009,eu-2023-2842&view=browse";
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => emptyData });
+
+    const { rerender } = render(<Home />);
+    expect(await screen.findByText("Browse-visningen virker")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Vis i graf/i }));
+
+    const [href] = replace.mock.calls[replace.mock.calls.length - 1];
+    expect(href).toContain("view=graph");
+    expect(href).toContain("p=doc0_sec_9");
+    rerender(<Home />);
+  });
+
+  it("hands the graph views a setter whose identity survives a navigation", async () => {
+    // The two d3 canvases list setSelectedNode in the dependency array of their
+    // teardown-and-rebuild effect. A setter rebuilt per navigation re-runs that effect on
+    // the very click that selected a node, throwing away the user's pan and zoom.
+    currentQuery = "docs=eu-1224-2009,eu-2023-2842&view=browse";
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => emptyData });
+
+    const { rerender } = render(<Home />);
+    expect(await screen.findByText("Browse-visningen virker")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Vis i graf/i }));
+    currentQuery = "docs=eu-1224-2009,eu-2023-2842&view=browse&p=doc0_sec_9";
+    rerender(<Home />);
+
+    expect(seenSetSelectedNode.length).toBeGreaterThan(1);
+    const first = seenSetSelectedNode[0];
+    for (const seen of seenSetSelectedNode) {
+      expect(Object.is(seen, first)).toBe(true);
+    }
+  });
+});
+
+describe("Restore retry", () => {
+  beforeEach(() => {
+    currentQuery = "";
+    replace.mockClear();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("actually re-issues the request when the retry button is clicked", async () => {
+    // The restore effect keys on the document set, which a retry does not change, so the
+    // button needs a trigger the effect can observe. Without one it hides the banner and
+    // silently abandons the corpus the link named.
+    currentQuery = "docs=eu-1224-2009,eu-2023-2842&view=consolidation";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 500 })
+      .mockResolvedValue({ ok: true, json: async () => emptyData });
+    global.fetch = fetchMock;
+
+    render(<Home />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/Korpusset i linket kunne ikke indlæses/i)).toBeInTheDocument()
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: /Prøv igen/i }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
   });
 });

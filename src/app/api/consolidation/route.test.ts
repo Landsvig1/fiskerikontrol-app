@@ -7,33 +7,43 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Two documents that cite each other, so the corpus produces a real rollup without reading
 // the bundled PDFs. Doc B amends Article 1 of doc A, which is the relation the consolidation
 // ledger exists to surface.
+// Real Danish characters, not transliterations: AMENDMENT_RE matches "ændres således"
+// literally, so a transliterated fixture would parse without ever exercising the amendment
+// branch and leave the ledger assertions below iterating an empty list.
 const DOC_A = `Artikel 1
 Logbogsforpligtelse
-Foereren skal foere logbog.
+Føreren skal føre logbog.
 
 Artikel 2
 Undtagelser
-Uanset artikel 1 kan mindre fartoejer fritages.`;
+Uanset artikel 1 kan mindre fartøjer fritages.`;
 
 const DOC_B = `Artikel 1
-AEndringer
-I forordning (EF) nr. 1224/2009 foretages foelgende aendringer: 1) Artikel 1 aendres saaledes.
+Ændringer
+I forordning (EF) nr. 1224/2009 foretages følgende ændringer: 1) Artikel 1 ændres således.
 
 Artikel 2
 Henvisning
 Kravene i artikel 1 i forordning (EF) nr. 1224/2009 finder anvendelse.`;
 
-// Keyed off the buffer identity rather than an incrementing counter: a shared counter makes
-// which fixture a test receives depend on how many parser instances earlier tests built,
-// which the corpus cache now changes.
+// Fixtures are keyed on WHICH DOCUMENT is being read, never on a property of the real PDF
+// bytes. An earlier version keyed on `buffer.length % 2`, and both bundled PDFs happen to be
+// even-length, so every document resolved to DOC_A and the amendment assertions below
+// iterated an empty list and could not fail.
+vi.mock("node:fs/promises", () => ({
+  readFile: vi.fn(async (filePath: string) =>
+    Buffer.from(String(filePath).includes("eu-2023-2842") ? "DOC_B" : "DOC_A")
+  ),
+}));
+
 const parserFor = vi.fn();
 
 vi.mock("pdf-parse", () => ({
   PDFParse: vi.fn().mockImplementation(function (opts: { data: Buffer }) {
-    parserFor(opts);
-    const text = opts?.data?.length && opts.data.length % 2 === 1 ? DOC_B : DOC_A;
+    const which = opts.data.toString();
+    parserFor(which);
     return {
-      getText: vi.fn().mockResolvedValue({ text }),
+      getText: vi.fn().mockResolvedValue({ text: which === "DOC_B" ? DOC_B : DOC_A }),
       destroy: vi.fn().mockResolvedValue(undefined),
     };
   }),
@@ -122,6 +132,9 @@ describe("/api/consolidation", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
 
+    // Guard against the vacuous-pass failure mode: an empty ledger would satisfy every
+    // assertion in the loop below without executing any of them.
+    expect(body.amendmentCount).toBeGreaterThan(0);
     expect(body.amendmentCount).toBe(body.amendments.length);
     // The attribution that holds is the act, not the article: an amending regulation quotes
     // the replacement text it introduces, headings and all, and the heading splitter reads
