@@ -1,0 +1,18 @@
+# Third-party content
+
+The MIT license in LICENSE covers the source code of this repository. It does
+not cover the legal texts bundled under `public/corpus/`, which are not the
+copyright of this project's author.
+
+Those ten PDFs are official legal instruments reproduced from their public
+sources:
+
+- EU regulations (1224/2009, 1380/2013, 2023/2842, 2025/2196, 2025/1766) are
+  from EUR-Lex. Reuse of EUR-Lex content is permitted under Commission Decision
+  2011/833/EU, with acknowledgement of the source.
+- Danish instruments (BEK 1197/2025, BEK 1144/2025, BEK 1571/2025,
+  BEK 1495/2021, LBK 205/2023) are from retsinformation.dk.
+
+Neither the EU institutions nor any Danish authority endorses this project or
+is responsible for its output. Only the consolidated text published on EUR-Lex
+and retsinformation.dk is authentic; the analysis here is not a legal source.

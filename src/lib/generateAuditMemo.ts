@@ -15,8 +15,11 @@ export function generateAuditMemoMarkdown(options: AuditMemoOptions): string {
   const {
     data,
     criteria = { vesselLength: "all", gearType: "all", seaArea: "all" },
-    caseworkerName = "Fiskeristyrelsen, Sagsbehandler & Kontrolledelse",
-    departmentName = "Enheden for Fiskerikontrol & Retsgrundlag",
+    // Placeholders, not a real authority. The memo carries a "Myndighed" heading, so a
+    // default naming an actual agency would make every generated document read as issued
+    // by it. Whoever runs this fills in their own.
+    caseworkerName = "[Sagsbehandler]",
+    departmentName = "[Myndighed]",
     caseReference = `LEX-AUDIT-${new Date().toISOString().slice(0, 10)}-${Math.floor(Math.random() * 9000 + 1000)}`,
     date = new Date().toLocaleDateString("da-DK", {
       year: "numeric",

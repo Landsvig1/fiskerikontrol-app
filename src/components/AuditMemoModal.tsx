@@ -125,12 +125,14 @@ export function AuditMemoModal({
         {/* Modal Body / Paper Document Preview */}
         <div className="flex-1 overflow-y-auto p-8 bg-[#fafaf9]">
           <div className="max-w-3xl mx-auto bg-white border border-slate-200 rounded-2xl p-10 shadow-xs space-y-6 text-slate-800 font-sans print:border-none print:shadow-none print:p-0">
-            {/* Official Authority Header */}
+            {/* Authority header. Deliberately a placeholder: this block is styled as a
+                printable letterhead, so naming a real agency here would make every printed
+                memo look like a document issued by it. */}
             <div className="border-b-2 border-slate-900 pb-4 flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky-800 mb-1">
                   <Building2 className="w-4 h-4 text-sky-700" />
-                  Fiskeristyrelsen, Enheden for Tilsyn & Retsgrundlag
+                  [Myndighed]
                 </div>
                 <h1 className="text-2xl font-black text-slate-900 tracking-tight">
                   JURIDISK TILSYNSNOTAT & COMPLIANCE-AUDIT
