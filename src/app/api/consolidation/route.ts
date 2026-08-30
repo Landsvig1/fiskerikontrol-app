@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import { PRESET_DOCUMENTS } from "@/lib/presetCorpus";
-import { buildGraphFromInputs, readPresetInput, MAX_DOCS, type ParseInput } from "@/lib/presetGraph";
+import {
+  buildGraphFromInputs,
+  readPresetInput,
+  presetCacheKey,
+  getCachedPresetGraph,
+  cachePresetGraph,
+  MAX_DOCS,
+  type ParseInput,
+} from "@/lib/presetGraph";
 import { buildConsolidation, buildAmendmentLedger } from "@/lib/consolidation";
 import { toQueryString, DEFAULT_URL_STATE } from "@/lib/urlState";
 import type { GraphData } from "@/lib/types";
@@ -85,39 +93,47 @@ export async function GET(request: Request) {
     );
   }
 
-  const inputs: ParseInput[] = [];
-  for (const id of docIds) {
-    let input: ParseInput | null;
-    try {
-      input = await readPresetInput(id);
-    } catch (e) {
-      console.error(`Preset document ${id} could not be read:`, e);
-      return NextResponse.json(
-        { error: `Dokumentet '${id}' kunne ikke indlæses.` },
-        { status: 500 }
-      );
-    }
-    if (!input) {
-      return NextResponse.json(
-        {
-          error: `Ukendt dokument-id: '${id}'.`,
-          availableDocs: PRESET_DOCUMENTS.map(d => ({ id: d.id, code: d.code })),
-        },
-        { status: 400 }
-      );
-    }
-    inputs.push(input);
-  }
-
-  const result = await buildGraphFromInputs(inputs);
-  if (!result.ok) {
-    console.error("Consolidation build failed:", result.failure);
+  // Unknown ids are rejected before any disk or parse work, so a bad request stays cheap
+  // and a cache entry is only ever built from a fully valid id set.
+  const unknown = docIds.find(id => !PRESET_DOCUMENTS.some(d => d.id === id));
+  if (unknown) {
     return NextResponse.json(
-      { error: "Korpusset kunne ikke analyseres.", kind: result.failure.kind },
-      { status: 422 }
+      {
+        error: `Ukendt dokument-id: '${unknown}'.`,
+        availableDocs: PRESET_DOCUMENTS.map(d => ({ id: d.id, code: d.code })),
+      },
+      { status: 400 }
     );
   }
-  const data = result.data as GraphData;
+
+  const cacheKey = presetCacheKey(docIds);
+  let data = getCachedPresetGraph(cacheKey) as GraphData | undefined;
+
+  if (!data) {
+    const inputs: ParseInput[] = [];
+    for (const id of docIds) {
+      try {
+        inputs.push((await readPresetInput(id))!);
+      } catch (e) {
+        console.error(`Preset document ${id} could not be read:`, e);
+        return NextResponse.json(
+          { error: `Dokumentet '${id}' kunne ikke indlæses.` },
+          { status: 500 }
+        );
+      }
+    }
+
+    const result = await buildGraphFromInputs(inputs);
+    if (!result.ok) {
+      console.error("Consolidation build failed:", result.failure);
+      return NextResponse.json(
+        { error: "Korpusset kunne ikke analyseres.", kind: result.failure.kind },
+        { status: 422 }
+      );
+    }
+    cachePresetGraph(cacheKey, result.data);
+    data = result.data as GraphData;
+  }
 
   const corpus = {
     docs: docIds.map((id, i) => ({

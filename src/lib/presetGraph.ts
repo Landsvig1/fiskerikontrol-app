@@ -31,6 +31,51 @@ export const MAX_CHARS_PER_DOC = 4_000_000;
 // cannot drift into accepting different corpus sizes for the same underlying parse.
 export const MAX_DOCS = 12;
 
+/**
+ * Parsed corpora, keyed on the preset ids in the order they were requested.
+ *
+ * The bundled PDFs are immutable for the life of a deployment, so a given id sequence always
+ * yields the same graph. Re-parsing it per request is pure repeated work, and at roughly
+ * eight seconds for two documents it decides whether a shared link opens or looks broken.
+ * There is nothing to invalidate: a new corpus means a new deployment.
+ *
+ * Keyed on the requested ORDER, never a sorted key. Node ids ("doc0_sec_14") are positional,
+ * so the same ids in a different order are a genuinely different graph and must not collide.
+ *
+ * Only successful builds are stored, so a transient read failure cannot poison an entry.
+ */
+const MAX_CACHED_CORPORA = 8;
+const graphCache = new Map<string, ParseResult>();
+
+export function presetCacheKey(presetIds: readonly string[]): string {
+  return presetIds.join(",");
+}
+
+export function getCachedPresetGraph(key: string): ParseResult | undefined {
+  const hit = graphCache.get(key);
+  // Re-insert so Map's insertion order tracks recency of use, not of first build.
+  if (hit) {
+    graphCache.delete(key);
+    graphCache.set(key, hit);
+  }
+  return hit;
+}
+
+export function cachePresetGraph(key: string, data: ParseResult): void {
+  graphCache.delete(key);
+  graphCache.set(key, data);
+  while (graphCache.size > MAX_CACHED_CORPORA) {
+    const oldest = graphCache.keys().next().value;
+    if (oldest === undefined) break;
+    graphCache.delete(oldest);
+  }
+}
+
+/** Test seam: the cache is process-wide and would otherwise leak across test files. */
+export function clearPresetGraphCache(): void {
+  graphCache.clear();
+}
+
 export interface ParseInput {
   buffer: Buffer;
   label: string;

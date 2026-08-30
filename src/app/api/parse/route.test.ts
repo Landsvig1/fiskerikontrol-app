@@ -4,7 +4,7 @@
 // classes aren't recognized by Node's undici-based Request parser, which fails a
 // webidl.is.File() check when jsdom-constructed Files are appended to a FormData body ,
 // running this file under Node's own runtime avoids that jsdom/undici class mismatch.
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("pdf-parse", () => ({
   // A plain `function` (not an arrow) that explicitly returns an object: when invoked via
@@ -21,6 +21,11 @@ vi.mock("pdf-parse", () => ({
 }));
 
 import { POST } from "./route";
+import { clearPresetGraphCache } from "@/lib/presetGraph";
+
+// The corpus cache is process-wide; clearing it keeps preset assertions independent of the
+// order tests run in.
+beforeEach(() => clearPresetGraphCache());
 import { MAX_UPLOAD_MB } from "@/lib/uploadLimits";
 import { PRESET_DOCUMENTS } from "@/lib/presetCorpus";
 

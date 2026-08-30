@@ -6,6 +6,9 @@ import { MAX_UPLOAD_MB, MAX_UPLOAD_BYTES } from "@/lib/uploadLimits";
 import {
   buildGraphFromInputs,
   readPresetInput,
+  presetCacheKey,
+  getCachedPresetGraph,
+  cachePresetGraph,
   type ParseInput,
 } from "@/lib/presetGraph";
 
@@ -97,15 +100,26 @@ async function handlePresetParse(request: Request) {
     );
   }
 
-  const inputs: ParseInput[] = [];
   for (const id of presetIds as string[]) {
-    const doc = PRESET_DOCUMENTS.find(d => d.id === id);
-    if (!doc) {
+    if (!PRESET_DOCUMENTS.some(d => d.id === id)) {
       return NextResponse.json(
         { error: msg("apiErrUnknownPreset", { id }) },
         { status: 400 }
       );
     }
+  }
+
+  // The corpus PDFs are immutable for the life of the deployment, so a given id sequence
+  // always parses to the same graph. This is the path a shared link takes when the app
+  // restores a corpus from ?docs=, and re-parsing it there is what made opening a link feel
+  // broken. Keyed on the requested order, because node ids are positional.
+  const cacheKey = presetCacheKey(presetIds as string[]);
+  const cached = getCachedPresetGraph(cacheKey);
+  if (cached) return NextResponse.json(cached);
+
+  const inputs: ParseInput[] = [];
+  for (const id of presetIds as string[]) {
+    const doc = PRESET_DOCUMENTS.find(d => d.id === id)!;
     try {
       inputs.push((await readPresetInput(doc.id))!);
     } catch (e: unknown) {
@@ -117,7 +131,7 @@ async function handlePresetParse(request: Request) {
     }
   }
 
-  return buildGraphResponse(inputs);
+  return buildGraphResponse(inputs, cacheKey);
 }
 
 async function handleUploadParse(request: Request) {
@@ -200,9 +214,13 @@ async function handleUploadParse(request: Request) {
  * Maps a corpus build onto this route's response shapes. The extraction and the analysis
  * themselves live in @/lib/presetGraph, shared with the read-only consolidation route.
  */
-async function buildGraphResponse(inputs: ParseInput[]) {
+async function buildGraphResponse(inputs: ParseInput[], cacheKey?: string) {
   const result = await buildGraphFromInputs(inputs);
-  if (result.ok) return NextResponse.json(result.data);
+  if (result.ok) {
+    // Only preset runs pass a key. An upload's bytes have no stable identity to cache on.
+    if (cacheKey) cachePresetGraph(cacheKey, result.data);
+    return NextResponse.json(result.data);
+  }
 
   const failure = result.failure;
   switch (failure.kind) {
