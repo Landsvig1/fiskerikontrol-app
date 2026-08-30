@@ -31,7 +31,7 @@ export type TranslationKey =
   | "copyConflictBrief" | "copiedToClipboard" | "closeModal"
   | "selectedPresetCount"
   | "exportAuditMemo" | "fleetScenarios"
-  | "conflictsHeaderTitle" | "conflictsHeaderSubtitle"
+  | "conflictsHeaderTitle" | "conflictsHeaderSubtitle" | "conflictsHeuristicNotice"
   | "euPrecedenceBadge" | "inspectionVerdictTitle"
   | "euRuleLabel" | "nationalDeviationLabel"
   | "noConnections"
@@ -126,6 +126,7 @@ const da: Translations = {
   fleetScenarios: "Flådescenarier",
   conflictsHeaderTitle: "Regulatoriske Modstrid & Retsrisici",
   conflictsHeaderSubtitle: "Automatisk identifikation af modsigelser mellem bindende EU-forordninger og nationale bekendtgørelser. EU-forordninger har direkte retsvirkning og forrang frem for national ret.",
+  conflictsHeuristicNotice: "Modaliteterne (forpligtelse, undtagelse, forbud, tilladelse) udledes af nøgleord i teksten omkring hver henvisning, ikke af en juridisk analyse. Almindelige ord som »kan« og »må« indgår i vurderingen, så en henvisning kan blive klassificeret forkert. Listen er et udgangspunkt for manuel gennemgang, ikke en konstateret modstrid.",
   euPrecedenceBadge: "EU-forordning har forrang",
   inspectionVerdictTitle: "Konklusion for Tilsynet",
   euRuleLabel: "EU Hovedregel (Krav)",

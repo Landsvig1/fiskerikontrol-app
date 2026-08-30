@@ -8,6 +8,7 @@ import {
   ShieldAlert,
   Lightbulb,
   Scale,
+  Info,
 } from "lucide-react";
 import { TranslateFn } from "@/lib/i18n";
 import { docLabel, docBadgeStyle } from "@/lib/docDisplay";
@@ -102,6 +103,17 @@ export function ConflictsView({
         <p className="text-sm text-slate-600 leading-relaxed max-w-3xl pt-1 break-words">
           {t("conflictsHeaderSubtitle")}
         </p>
+
+        {/* The subtitle above promises automatic identification of contradictions. What the
+            parser actually produces is a keyword classification over a window around each
+            citation, so the promise needs qualifying where the list is read, not in a
+            README nobody opens mid-case. */}
+        <div className="max-w-3xl flex gap-2.5 p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 text-amber-900">
+          <Info className="w-4 h-4 shrink-0 mt-0.5" />
+          <p className="text-xs leading-relaxed break-words">
+            {t("conflictsHeuristicNotice")}
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 max-w-4xl w-full min-w-0">
