@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="da-DK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Fiskerikontrolkaeden: ti operationelle faser fra licens til krydskontrol, hver dekonstrueret i jura, forvaltning, data og it-snitflader.">
+<meta name="color-scheme" content="light dark">
+<title>Fiskerikontrolkæden</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+:root{
+  --bg:#fbfcfb; --fg:#ffffff; --line:#e8ebe9;
+  --ink:#161a18; --dim:#6f7a74; --faint:#9aa39e;
+  --accent:#1f6b45;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --sans:"Familjen Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1211; --fg:#161a18; --line:#262c29;
+  --ink:#e8ebe9; --dim:#98a39d; --faint:#6d7772;
+  --accent:#7cc39c;
+}}
+:root[data-theme="dark"]{
+  --bg:#0f1211; --fg:#161a18; --line:#262c29;
+  --ink:#e8ebe9; --dim:#98a39d; --faint:#6d7772;
+  --accent:#7cc39c;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14.5px;line-height:1.6;-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;text-align:left}
+:focus-visible{outline:1.5px solid var(--accent);outline-offset:2px}
+h1,h2{margin:0;font-weight:600;letter-spacing:-.015em}
+p,ul{margin:0}
+
+.app{height:100dvh;display:grid;grid-template-columns:250px minmax(0,1fr)}
+
+/* Navigation */
+nav{border-right:1px solid var(--line);padding:34px 0 24px;overflow-y:auto}
+nav h1{font-size:14px;padding:0 28px;margin-bottom:2px}
+nav .sub{font-size:12.5px;color:var(--faint);padding:0 28px;margin-bottom:26px}
+nav button{display:grid;grid-template-columns:22px 1fr;gap:10px;width:100%;padding:7px 28px;color:var(--dim);line-height:1.4}
+nav button .n{font-family:var(--mono);font-size:11px;color:var(--faint)}
+nav button:hover{color:var(--ink)}
+nav button[aria-current="true"]{color:var(--accent)}
+nav button[aria-current="true"] .n{color:var(--accent)}
+nav .gap{height:14px}
+
+/* Indhold */
+main{overflow-y:auto;padding:64px 0 90px}
+.col{max-width:660px;margin:0 auto;padding:0 40px}
+.eyebrow{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.04em}
+h2{font-size:27px;margin:8px 0 14px}
+.lede{color:var(--dim);font-size:15.5px}
+
+.layer{margin-top:44px}
+.layer > .t{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.04em;padding-bottom:9px;border-bottom:1px solid var(--line);margin-bottom:16px}
+ul{list-style:none;display:flex;flex-direction:column;gap:12px}
+li{color:var(--ink)}
+li b{font-weight:500}
+.ref{font-family:var(--mono);font-size:12.5px;color:var(--accent)}
+.fld{font-family:var(--mono);font-size:12.5px;color:var(--dim)}
+.flow{font-family:var(--mono);font-size:12.5px;color:var(--dim);margin-bottom:16px;line-height:1.9}
+.note{margin-top:16px;color:var(--dim);font-size:13.5px;padding-left:14px;border-left:1px solid var(--line)}
+
+.links{margin-top:52px;padding-top:22px;border-top:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr;gap:30px}
+.links .t{font-family:var(--mono);font-size:11px;color:var(--faint);margin-bottom:11px}
+.links button{display:block;color:var(--dim);font-size:13.5px;line-height:1.45;padding:4px 0}
+.links button:hover{color:var(--accent)}
+.links button span{font-family:var(--mono);font-size:11px;color:var(--faint);display:block}
+.links p{color:var(--faint);font-size:13.5px}
+
+@media (max-width:760px){
+  body{overflow:auto}
+  .app{height:auto;grid-template-columns:1fr}
+  nav{border-right:0;border-bottom:1px solid var(--line);padding:26px 0 18px}
+  main{padding:36px 0 60px}
+  .col{padding:0 28px}
+  .links{grid-template-columns:1fr;gap:24px}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <nav>
+    <h1>Fiskerikontrolkæden</h1>
+    <p class="sub">Miljøstyrelsen</p>
+    <div id="nav"></div>
+  </nav>
+  <main><div class="col" id="main"></div></main>
+</div>
+
+<script>
+const P=[
+{n:1,t:"Adgang og licens",
+ ev:"Fartøjet optages i flåderegistret, kvoteandele tildeles, og licens samt redskabstilladelser udstedes. Uden dette led har ingen af de ni følgende et gyldigt subjekt.",
+ jura:["<b>Fiskerilicens</b> <span class='ref'>1224/2009 art. 6</span> — fartøjet må ikke fiske uden gyldig licens fra flagstaten.","<b>Fiskeritilladelse</b> <span class='ref'>art. 7</span> — særskilt tilladelse pr. fiskeri, område, art og redskab.","<b>Minimumsindhold</b> <span class='ref'>2025/2196 bilag II og III</span> — otte licensoplysninger, fire tilladelsesdimensioner."],
+ forv:["Licenshaver og fartøjsfører er adskilte ansvarssubjekter. Begge kan tildeles point, og begge skal fremgå af sagen ved partshøring.","Tilladelsens fire dimensioner er de facto valideringsregler. Enhver senere fangstregistrering skal ligge inden for dem.","Licensen er kædens eneste led, der kan suspenderes administrativt. Det gør punkt 1 til sanktionens reelle virkningssted."],
+ data:["<span class='fld'>CFR-nummer</span> er kædens rodnøgle. Den går igen i bilag XV felt (1) og bilag XIX felt (17).","Bilag III: <span class='fld'>område</span>, <span class='fld'>art</span>, <span class='fld'>redskab</span>, <span class='fld'>øvrige betingelser</span>."],
+ flow:"Flåderegister → licensregister → FOS stamdata → eLog-validering",
+ it:["Stamdata er kædens rod. Er CFR eller redskabskode forkert her, fejler krydskontrollen i punkt 10, uden at fejlen kan henføres til fartøjsføreren."],
+ note:"Snitfladen mellem kvoteregnskab og kontrolsystem er et typisk sted, hvor to sandheder om samme fartøj kan leve side om side.",
+ ind:[],ud:[[2,"Gyldig licens er forudsætning for udsejling"],[3,"Tilladelsen bliver valideringsregel for eLog"]]},
+
+{n:2,t:"Udsejling og sporing",
+ ev:"Fartøjet forlader havn. Transponderen sender positionsrapporter til fiskerimoniteringscentret, som fra dette øjeblik har et kontinuerligt spor at holde alle senere indberetninger op imod.",
+ jura:["<b>Fartøjsovervågning</b> <span class='ref'>1224/2009 art. 9</span> — pligt til velfungerende sporingssystem om bord.","<b>Positionsdata</b> <span class='ref'>2025/2196 art. 19</span> fastlægger transmission og indhold.","<b>Sanktion</b> <span class='ref'>art. 90, stk. 3, litra b)</span> gør indgreb i systemet til alvorlig overtrædelse."],
+ forv:["Fartøjsføreren skal aktivt melde driftsforstyrrelse. Passivitet ved udfald er selvstændigt sanktioneret, ikke blot en teknisk mangel.","Slukket transponder i et lukket område er den klassiske targeting-udløser for søkontrol."],
+ data:["<span class='fld'>Position</span>, <span class='fld'>kurs</span>, <span class='fld'>fart</span>, <span class='fld'>tidsstempel</span> hvert 10.–30. minut.","Sporet leverer den geografiske sandhed, som bilag XV felt (20) og (44) holdes op imod."],
+ flow:"Transponder → satellit → FMC → FOS → FLUX",
+ it:["Positionsstrømmen er kædens eneste datakilde, fartøjsføreren ikke selv indtaster. Den er derfor referencesporet i enhver krydskontrol."],
+ note:"Hulperioder i sporet skal kunne skelnes fra bevidst afbrydelse, ellers bliver sanktionsvurderingen i punkt 10 usikker.",
+ ind:[[1,"Licens og stamdata fastlægger identiteten"]],
+ ud:[[4,"Afvigende adfærd udløser targeting"],[10,"Sporet er referencedata i krydskontrollen"]]},
+
+{n:3,t:"Fangst og e-logbog",
+ ev:"Redskaber sættes og trækkes. Fartøjsføreren registrerer dækskønnet i den elektroniske logbog. Her opstår kædens største datamængde og dens største usikkerhed.",
+ jura:["<b>Logbogspligt</b> <span class='ref'>1224/2009 art. 14</span> — nøjagtig registrering pr. art, træk og område.","<b>Tolerancemargen</b> <span class='ref'>art. 14, stk. 3</span> — 10 % afvigelse mellem skøn og vejet vægt pr. art.","<b>Feltkrav</b> <span class='ref'>2025/2196 bilag XV</span> — 51 felter, anvendelse fra 10. januar 2026."],
+ forv:["Fartøjsføreren skønner vægten på dæk. Skønnet er en forvaltningsretlig erklæring, ikke en måling. Hele tolerancekonstruktionen hviler på den sondring.","Manglende registrering pr. art, træk, område eller fangstrejse er selvstændigt kriterium for alvorlig overtrædelse.","Udsmid og utilsigtet fangst af følsomme arter skal registreres, selv om de ikke landes. Feltet er ofte tomt i praksis."],
+ data:["<span class='fld'>(10) Fangstrejse-ID</span> binder punkt 3, 5, 6, 8, 9 og 10 sammen.","Redskaber: <span class='fld'>(11) type</span>, <span class='fld'>(12) maskestørrelse</span>, <span class='fld'>(17) tabt til søs</span>.","Fangst: <span class='fld'>(22) om bord</span>, <span class='fld'>(23) skøn over udsmid</span>, <span class='fld'>(25) følsomme arter</span>."],
+ flow:"eLog om bord → FMC → FOS → FLUX FA",
+ it:["Felt (12) maskestørrelse er den værdi, søkontrollens måling i punkt 4 direkte bekræfter eller modsiger."],
+ note:"Offline-drift betyder, at indberetning kan komme i puljer. Kan registrerings- og transmissionstidspunkt ikke skelnes, kan «straks efter haling» ikke håndhæves.",
+ ind:[[1,"Tilladelsen afgrænser lovlig registrering"],[2,"Sporet leverer positionen"]],
+ ud:[[4,"Søkontrollen verificerer, om eLog er ajourført"],[5,"Fangst om bord danner grundlag for forhåndsmeddelelsen"],[8,"Skønnet vægt indgår i tolerancetjekket"]]},
+
+{n:4,t:"Søkontrol",ctl:1,
+ ev:"Fysisk bording til søs. Redskaber måles, fangstsammensætning vurderes, og de elektroniske systemer om bord verificeres. Det eneste kontrolled, der ser fangsten, før den forlader fartøjet.",
+ jura:["<b>Inspektionshjemmel</b> <span class='ref'>1224/2009 art. 71–77</span> — overvågning på havet, procedure og rapport.","<b>Tekniske foranstaltninger</b> <span class='ref'>2019/1241</span> — maskestørrelser, selektionsriste, forbud mod blinding.","<b>Fjernovervågning</b> <span class='ref'>art. 13, ændret ved 2023/2842</span> — adgang til rå REM-data om bord."],
+ forv:["<b>Før bording.</b> FMC udpeger targets ud fra afvigende adfærd i sporet: fart under tre knob i beskyttede områder, ophold uden tilsvarende eLog-registrering.","<b>Under bording.</b> Måling af 20 masker, kontrol af riste og mærkning, stikprøve for undermålsfisk. Digitalt: er eLog ajourført, er transponderen plomberet, er REM-optagelser tilgængelige.","<b>Efter bording.</b> Inspektionsrapporten transmitteres straks til FMC. Kan mistanken ikke afklares på havet, sættes hold back-mærke på fartøjet.","Søkontrollen kan ikke veje lasten. Den kan kun konstatere uoverensstemmelser og sende dem videre. Derfor er koblingen til punkt 7 hele ledets forretningsværdi."],
+ data:["<span class='fld'>Elektronisk inspektionsrapport</span> med sted, tidspunkt, inspektørid og konstateringer.","<span class='fld'>Måleserie på 20 masker</span> holdt op mod eLog felt (12) og tilladelsen fra punkt 1.","Konstateringer prissættes i <span class='fld'>pointsystem_overtraedelser.csv</span>: 26 typer, 3 til 7 point."],
+ flow:"Inspektionsrapport → FMC → kontrolsag → hold back-flag",
+ it:["Hold back-flaget er kædens vigtigste tekniske kobling mellem to fysisk adskilte kontrolniveauer. Det skal overleve overgangen fra søkontrolsystemet til havnekontrollens arbejdsliste."],
+ note:"Matches flaget ikke automatisk mod indkommende forhåndsmeddelelser, er koblingen afhængig af, at en kontrollør husker at slå op.",
+ ind:[[2,"Targeting bygger på afvigelser i sporet"],[3,"eLog er det, inspektøren verificerer"]],
+ ud:[[7,"Hold back-flag udløser 100 % kontrolvejning"],[10,"Alvorlig overtrædelse overføres til pointregistret"],[1,"Point belaster den fortsatte licens"]]},
+
+{n:5,t:"Forhåndsmeddelelse",
+ ev:"Fartøjsføreren varsler anløb mindst fire timer før ankomst. Meddelelsen er myndighedens eneste chance for at planlægge kontrol, før fisken rammer kajen.",
+ jura:["<b>Forhåndsmeddelelse</b> <span class='ref'>1224/2009 art. 17</span> — varsel forud for anløb for omfattede fartøjer.","<b>Indhold</b> <span class='ref'>2025/2196 bilag XV, felt (29)</span> — fangster indberettet i forhåndsmeddelelser."],
+ forv:["Fire timer er dimensioneret efter, hvad havnekontrollen skal bruge for at nå frem. Ændres ankomsttidspunktet væsentligt, skal meddelelsen opdateres.","Meddelelsen er samtidig risikoscoringsudløser: den matches mod hold back-flag, fartøjets historik og kvotestatus.","Forskellen mellem meldt og faktisk landet fangst er et selvstændigt kontrolsignal, uafhængigt af tolerancemargenen."],
+ data:["<span class='fld'>(10) Fangstrejse-ID</span> — samme nøgle som i eLog, ellers kan meddelelsen ikke matches.","<span class='fld'>(29) Meldt fangst</span> pr. art, samt forventet ankomsttidspunkt og landingssted."],
+ flow:"eLog → FMC → risikomodul → havnekontrollens arbejdsliste",
+ it:["Modtagelsen skal kvitteres, så fartøjsføreren har dokumentation for rettidig afsendelse. Kvitteringstidsstemplet er bevisdata i en senere sag."],
+ note:"Her sker sammenkoblingen med hold back-flaget. Er koblingen ikke implementeret, er punkt 4's targeting reelt uden virkning.",
+ ind:[[3,"Fangst om bord danner grundlag for skønnet"],[4,"Hold back-flag matches mod meddelelsen"]],
+ ud:[[7,"Udløser kontrolplanlægning i havnen"],[6,"Meldt ankomst sammenholdes med faktisk anløb"]]},
+
+{n:6,t:"Landing",
+ ev:"Fartøjet anløber og påbegynder losning. Landingsopgørelsen fastlægger, hvad der faktisk kom i land, og lukker den fysiske del af fangstrejsen.",
+ jura:["<b>Landingsopgørelse</b> <span class='ref'>1224/2009 art. 23–24</span> — pligt til at opgøre og indsende landede mængder.","<b>Udpegede havne</b> — landing af visse arter og mængder må kun ske i havne udpeget efter kontrolforordningen."],
+ forv:["Landing i ikke-udpeget havn er i sig selv en overtrædelse, uafhængigt af om mængderne er korrekt registreret.","Losningens start- og sluttidspunkt afgrænser det tidsrum, kontrolløren i punkt 7 kan nå at være til stede.","Omladning før landing skal fremgå særskilt af felt (26). Uregistreret omladning er blandt de tungest sanktionerede handlinger."],
+ data:["<span class='fld'>(27) Landede fangster</span> pr. art og præsentationsform.","<span class='fld'>(9) Dato, klokkeslæt og havn</span> for afsejling og hjemkomst.","Præsentationsform afgør omregningen til levende vægt i punkt 8."],
+ flow:"Landingsopgørelse → FMC → FOS",
+ it:["Landingsopgørelsen og salgsnotaen i punkt 9 skal bære samme fangstrejse-ID. Er nøglen brudt her, kan massebalancen ikke opgøres."],
+ note:"Overgangen fra fartøjets data til havnens og køberens er kædens svageste identitetsled: tre aktører indtaster om samme parti.",
+ ind:[[5,"Forhåndsmeddelelsen har varslet anløbet"],[3,"Fangst om bord skal genfindes i det landede"]],
+ ud:[[7,"Losningen er det fysiske kontrolvindue"],[8,"Landede mængder skal vejes før opdeling"]]},
+
+{n:7,t:"Landingskontrol",ctl:1,
+ ev:"Fysisk kontrol ved kajen. Kasser kontrolvejes, og mængderne holdes op mod både logbogsskøn og forhåndsmeddelelse. Det er her, tolerancemargenen faktisk måles.",
+ jura:["<b>Inspektion i havn</b> <span class='ref'>1224/2009 art. 78–88</span> — beføjelser, rapportering og opfølgning.","<b>Tolerancemargen</b> <span class='ref'>art. 14, stk. 3</span> — beregnes pr. art mellem logbogsskøn og vejet mængde.","<b>Alvorlighedskriterium</b> <span class='ref'>art. 90, stk. 3, litra b)</span> — udgør de berørte varer 10 % eller mere af partiets samlede vægt."],
+ forv:["Kontrolløren skal skelne to forskellige 10 %-tal: tolerancemargenen på artsskønnet og alvorlighedskriteriet på partiets samlede vægt. De har hver sin retsvirkning og forveksles ofte.","Er fartøjet hold back-mærket fra punkt 4, gennemføres 100 % kontrolvejning frem for stikprøve.","Ved overskridelse udarbejdes tilsynsnotat med faktum, beregning og hjemmel, og der foretages partshøring før afgørelse."],
+ data:["Kontrolvejet mængde pr. art mod <span class='fld'>(22) om bord</span> og <span class='fld'>(27) landede fangster</span>.","Afvigelsesprocent pr. art og for partiet samlet. De to nøgletal, en afgørelse hviler på.","Omregning til levende vægt via <span class='fld'>omregningskoefficienter fersk, frosset og saltet</span>."],
+ flow:"Kontrolapp på kaj → kontrolsag i FOS → journalisering",
+ it:["Kontrollens værdi afhænger af, at afvigelsen beregnes på samme omregningskoefficienter som valideringen i punkt 10. Ellers opstår to forskellige afvigelsesprocenter på samme parti."],
+ note:"Manuel overgang fra konstatering på kaj til formel afgørelse med partshøring. Det er her sagsbehandlingstiden reelt ligger.",
+ ind:[[4,"Hold back-flag hæver kontrollen til 100 %"],[5,"Forhåndsmeddelelsen udløste planlægningen"],[6,"Losningen giver kontrolvinduet"]],
+ ud:[[8,"Kontrolvejning verificerer den autoriserede vejning"],[10,"Overskridelse går videre til sanktion"]]},
+
+{n:8,t:"Vejning",
+ ev:"Al fangst vejes pr. art på godkendt vægt af en autoriseret vejeoperatør, før partiet opdeles eller sælges. Vejningen er det punkt, hvor skøn bliver til måling.",
+ jura:["<b>Vejepligt</b> <span class='ref'>1224/2009 art. 60</span> — al fangst vejes ved landing på myndighedsgodkendte systemer.","<b>Vejning efter transport</b> <span class='ref'>art. 61</span> kræver særskilt tilladelse og kontrolplan."],
+ forv:["Vejeoperatøren er selvstændigt ansvarssubjekt. Felt (31) er hjemlen til at placere ansvar for en fejlvejning et andet sted end hos fartøjsføreren.","Vejning efter transport flytter kontrolpunktet væk fra kajen og kræver kompenserende kontrol. En typisk kilde til huller i massebalancen.","Vejet vægt er den mængde, tolerancemargenen måles imod, og den mængde, salgsnotaen skal afspejle."],
+ data:["<span class='fld'>(30) Vejningens påbegyndelse og afslutning</span>.","<span class='fld'>(31) Navn eller id på den ansvarlige operatør</span>.","Vejet vægt pr. art, koblet til fangstrejse-ID."],
+ flow:"Godkendt vægt → vejeprotokol → FOS",
+ it:["Automatisk overførsel fra vægt til protokol fjerner det hyppigste fejlled: manuel afskrivning af tal."],
+ note:"Hvor vejeoperatørens system ikke er integreret, indtastes resultatet manuelt. Den overgang er ikke sporbar og bør prioriteres i systemlandskabskortlægningen.",
+ ind:[[6,"Landede mængder skal vejes"],[7,"Kontrolvejning verificerer stikprøvevis"]],
+ ud:[[9,"Vejet vægt er afregningsgrundlaget"],[10,"Vejet vægt indgår i massebalancen"]]},
+
+{n:9,t:"Førstegangssalg",
+ ev:"Auktion eller registreret køber afregner fangsten og indsender elektronisk salgsnota inden 48 timer. Her forlader fisken kædens fysiske del og bliver en handelstransaktion.",
+ jura:["<b>Salgsnotapligt</b> <span class='ref'>1224/2009 art. 62–65</span> — registrerede købere skal indsende salgsnota elektronisk.","<b>Feltkrav</b> <span class='ref'>2025/2196 bilag XIX</span> — 30 felter, anvendelse fra 10. januar 2026."],
+ forv:["Køberen er selvstændigt ansvarssubjekt med egen indberetningspligt. Kæden hviler fra dette punkt på en privat aktørs rettidighed.","Salgsnotaen er den første uafhængige bekræftelse på mængden. Modsiger den logbog og vejeprotokol, er der en reel massebalanceafvigelse.","Pris og salgsparti gør det muligt at opdage kunstigt lave afregninger, der kan dække over uregistrerede mængder."],
+ data:["<span class='fld'>(22) Fangstrejse-ID</span> er koblingen tilbage til punkt 3. Uden den er notaen forældreløs.","<span class='fld'>(4) pris</span>, <span class='fld'>(13) salgsparti</span>, <span class='fld'>(16) produktidentifikation</span>.","<span class='fld'>(24)–(26) landingssted, dato og tidspunkt</span> skal stemme med bilag XV felt (9)."],
+ flow:"Købersystem → salgsnotamodul → valideringsdatabase → FLUX",
+ it:["Bilag XIX gentager fartøjsidentiteten fra bilag XV. Redundansen er bevidst: den afslører, at to aktører beskriver samme parti forskelligt."],
+ note:"Købere med lav volumen og uden systemintegration indberetter manuelt. Det er den mest sandsynlige kilde til manglende eller forsinkede notaer.",
+ ind:[[8,"Vejet vægt er afregningsgrundlaget"],[3,"Fangstrejse-ID bærer koblingen tilbage"]],
+ ud:[[10,"Salgsnotaen er tredje uafhængige mængdeangivelse"]]},
+
+{n:10,t:"Krydskontrol og sanktion",ctl:1,
+ ev:"Alle mængdeangivelser krydstjekkes automatisk mod hinanden. Afvigelser omsættes til sager, sanktioner og point, som rammer licensen i punkt 1.",
+ jura:["<b>Sporbarhed</b> <span class='ref'>1224/2009 art. 58</span> og <b>transportdokument</b> <span class='ref'>art. 68</span>.","<b>Validering</b> <span class='ref'>art. 109</span> — medlemsstaten opretter database og validerer alle data ved krydstjek. Gennemført ved <span class='ref'>2025/2196 art. 49–53</span>.","<b>Sanktion</b> <span class='ref'>art. 92 og bilag III</span> — pointsystem for fartøjsførere og licenshavere."],
+ forv:["Krydskontrollen sammenholder fire uafhængige kilder om samme fangstrejse: positionsspor, logbogsskøn, vejeprotokol og salgsnota. Afvigelse mellem to er et signal, mellem tre er en sag.","Massebalancen skal gå op fra fangst til førstegangssalg. Differencen er enten forklarlig ved omregningskoefficient eller er en uoplyst mængde.","Point tildeles både licenshaver og fartøjsfører. Virkningen indtræder i punkt 1 som suspension. Kæden lukker sig."],
+ data:["Nøglen er <span class='fld'>fangstrejse-ID</span> på tværs af bilag XV og XIX.","Mængdekæde: eLog (22) → landingsopgørelse (27) → vejeprotokol (30) → salgsnota (16).","Geografisk konsistens: eLog (21) mod salgsnota (23) mod det faktiske positionsspor."],
+ flow:"FOS → valideringsdatabase → sagsdannelse → pointregister → licensregister",
+ it:["Valideringsmotoren er 2027-projektets kerne. Det uafklarede spørgsmål er, om der findes en eksisterende regelmotor at bygge videre på, eller om art. 49–53 skal implementeres fra bunden."],
+ note:"Automatiseret krydskontrol er kun så god som nøglekvaliteten i punkt 1, 3 og 9. Brudt fangstrejse-ID gør kæden uvaliderbar uanset motorens kvalitet.",
+ ind:[[2,"Positionsspor som geografisk reference"],[3,"Logbogsskøn som første mængdeangivelse"],[4,"Konstateringer fra søkontrol"],[7,"Konstateringer fra landingskontrol"],[8,"Vejet vægt som måling"],[9,"Salgsnota som tredjepartsangivelse"]],
+ ud:[[1,"Point suspenderer licensen"]]}
+];
+
+const LAG=[["Jura","jura"],["Forvaltning","forv"],["Data","data"],["It-systemer","it"]];
+const $=id=>document.getElementById(id);
+let cur=1;
+
+P.forEach(p=>{
+  const b=document.createElement("button");
+  b.id="n"+p.n;
+  b.innerHTML='<span class="n">'+String(p.n).padStart(2,"0")+'</span><span>'+p.t+'</span>';
+  b.onclick=()=>show(p.n);
+  $("nav").appendChild(b);
+});
+
+function show(n){
+  cur=n; const p=P.find(x=>x.n===n);
+  P.forEach(x=>$("n"+x.n).setAttribute("aria-current",x.n===n?"true":"false"));
+
+  const layers=LAG.map(([name,key])=>{
+    let inner="";
+    if(key==="it") inner='<p class="flow">'+p.flow+'</p>';
+    inner+='<ul>'+p[key].map(x=>'<li>'+x+'</li>').join("")+'</ul>';
+    if(key==="it") inner+='<p class="note">'+p.note+'</p>';
+    return '<section class="layer"><p class="t">'+name+'</p>'+inner+'</section>';
+  }).join("");
+
+  const mk=a=>a.length?a.map(l=>{
+    const t=P.find(q=>q.n===l[0]);
+    return '<button data-go="'+l[0]+'">'+l[1]+'<span>Punkt '+l[0]+' · '+t.t+'</span></button>';
+  }).join(""):'<p>Kædens begyndelse.</p>';
+
+  $("main").innerHTML='<p class="eyebrow">Punkt '+p.n+' af 10'+(p.ctl?" · kontrolled":"")+'</p>'
+    +'<h2>'+p.t+'</h2><p class="lede">'+p.ev+'</p>'+layers
+    +'<div class="links"><div><p class="t">Fodres af</p>'+mk(p.ind)+'</div>'
+    +'<div><p class="t">Udløser</p>'+mk(p.ud)+'</div></div>';
+
+  $("main").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>show(+b.dataset.go));
+  document.querySelector("main").scrollTop=0;
+}
+
+document.addEventListener("keydown",e=>{
+  const d=e.key==="ArrowDown"?1:e.key==="ArrowUp"?-1:0; if(!d||e.target.closest("main"))return;
+  const n=Math.min(10,Math.max(1,cur+d)); show(n); $("n"+n).focus();
+});
+
+show(1);
+</script>
+
+</body>
+</html>

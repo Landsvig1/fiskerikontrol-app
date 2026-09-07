@@ -73,6 +73,17 @@ Each row carries the `url` of the screen showing the same thing. Note that
 provision ids are positional: `doc0` is the first id in `docs`, so an id is only
 meaningful against the document order that produced it.
 
+## Standalone frontends
+
+`standalone/` holds self-contained frontends that ship in this repository but are
+**not part of this Next.js app**. They have no build step and no shared code with
+`src/`; you run them by opening the HTML file.
+
+- [`standalone/kontrolkaede`](standalone/kontrolkaede/) — the ten-phase fisheries
+  control chain, each phase decomposed into law, administration, data fields and
+  IT interfaces. Built on the same corpus and annex extraction as this app, for
+  restricted workstations where Node.js is not available.
+
 ## Development
 
 ```bash
