@@ -31,6 +31,7 @@ export const TAB_TYPES = [
   "overlaps",
   "conflicts",
   "browse",
+  "matrix",
 ] as const;
 
 export type TabType = (typeof TAB_TYPES)[number];
@@ -45,6 +46,8 @@ export interface AppUrlState {
   activeDocFilter: string;
   activeCategoryFilter: string;
   fleet: FleetFilterCriteria;
+  matrixNode: string | null;
+  matrixYear: 2026 | 2028;
 }
 
 export const DEFAULT_URL_STATE: AppUrlState = {
@@ -55,6 +58,8 @@ export const DEFAULT_URL_STATE: AppUrlState = {
   activeDocFilter: "all",
   activeCategoryFilter: "all",
   fleet: DEFAULT_FLEET_CRITERIA,
+  matrixNode: null,
+  matrixYear: 2026,
 };
 
 // Short, stable parameter names. These are a public interface the moment a link is shared,
@@ -69,6 +74,8 @@ export const PARAM = {
   vesselLength: "len",
   gearType: "gear",
   seaArea: "sea",
+  matrixNode: "node",
+  matrixYear: "yr",
 } as const;
 
 const VESSEL_LENGTHS: readonly VesselLengthFilter[] = [
@@ -99,6 +106,9 @@ export function parseAppUrlState(params: URLSearchParams): AppUrlState {
     ? rawDocs.split(",").map(id => id.trim()).filter(Boolean)
     : [];
 
+  const rawYear = params.get(PARAM.matrixYear);
+  const matrixYear: 2026 | 2028 = rawYear === "2028" ? 2028 : 2026;
+
   return {
     docs,
     view: oneOf(TAB_TYPES, params.get(PARAM.view), DEFAULT_URL_STATE.view),
@@ -111,6 +121,8 @@ export function parseAppUrlState(params: URLSearchParams): AppUrlState {
       gearType: oneOf(GEAR_TYPES, params.get(PARAM.gearType), "all"),
       seaArea: oneOf(SEA_AREAS, params.get(PARAM.seaArea), "all"),
     },
+    matrixNode: params.get(PARAM.matrixNode) || null,
+    matrixYear,
   };
 }
 
@@ -133,6 +145,8 @@ export function toSearchParams(state: AppUrlState): URLSearchParams {
   if (state.fleet.vesselLength !== "all") params.set(PARAM.vesselLength, state.fleet.vesselLength);
   if (state.fleet.gearType !== "all") params.set(PARAM.gearType, state.fleet.gearType);
   if (state.fleet.seaArea !== "all") params.set(PARAM.seaArea, state.fleet.seaArea);
+  if (state.matrixNode) params.set(PARAM.matrixNode, state.matrixNode);
+  if (state.matrixYear !== 2026) params.set(PARAM.matrixYear, String(state.matrixYear));
 
   return params;
 }

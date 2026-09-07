@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Database, Upload, FileText, AlertTriangle, RefreshCw, Info, Plus, X, BookOpen, Check } from "lucide-react";
+import { Database, Upload, FileText, AlertTriangle, RefreshCw, Info, Plus, X, BookOpen, Check, Layers } from "lucide-react";
 import type { GraphData } from "@/lib/types";
 import { isGraphData, readErrorResponse } from "@/lib/parseResponse";
 import { MAX_UPLOAD_MB, MAX_UPLOAD_BYTES } from "@/lib/uploadLimits";
@@ -539,6 +539,15 @@ export function UploadScreen({
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Fiskeriets Matrix link */}
+          <Link
+            href="/?view=matrix"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 hover:text-emerald-900 transition-all duration-200 shadow-xs"
+          >
+            <Layers className="w-3.5 h-3.5 text-emerald-700" />
+            {"Fiskeriets Matrix (360°)"}
+          </Link>
+
           {/* About link */}
           <Link
             href="/about"

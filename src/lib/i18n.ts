@@ -5,7 +5,7 @@
 export type TranslationKey =
   | "appTitle" | "appTagline"
   | "newAnalysis" | "dashboard" | "citationGraph" | "nodeGraph"
-  | "overlaps" | "conflicts" | "browse" | "timeline" | "consolidation"
+  | "overlaps" | "conflicts" | "browse" | "timeline" | "consolidation" | "matrix"
   | "uploadTitle" | "uploadSubtitle"
   | "dropZoneSlot" | "dropZoneBulk"
   | "analyseButton" | "analysing"
@@ -63,6 +63,7 @@ const da: Translations = {
   overlaps: "Overlap",
   conflicts: "Konflikter",
   browse: "Søg & Slå Op",
+  matrix: "Fiskeriets Matrix",
   uploadTitle: "Start ny analyse",
   uploadSubtitle: "Upload dine PDF-dokumenter og angiv navne for at kortlægge citationer og konflikter.",
   dropZoneSlot: "Træk og slip en PDF her, eller klik for at vælge",

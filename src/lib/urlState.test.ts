@@ -29,6 +29,8 @@ describe("parseAppUrlState", () => {
       activeDocFilter: "doc1",
       activeCategoryFilter: "Fangst",
       fleet: { vesselLength: "under_8m", gearType: "passive_nets", seaArea: "baltic" },
+      matrixNode: null,
+      matrixYear: 2026,
     });
   });
 
@@ -91,13 +93,19 @@ describe("URL state round trip", () => {
         gearType: fc.constantFrom("all", "passive_nets", "active_trawl", "seine", "traps"),
         seaArea: fc.constantFrom("all", "north_sea", "kattegat", "baltic", "inshore"),
       }),
+      matrixNode: fc.option(fc.stringMatching(/^[a-z0-9_]+$/), { nil: null }),
+      matrixYear: fc.constantFrom(2026 as const, 2028 as const),
     }) as fc.Arbitrary<AppUrlState>;
 
     fc.assert(
       fc.property(arb, state => {
-        // An empty provision id is indistinguishable from no provision in a query string,
+        // An empty provision/node id is indistinguishable from no provision in a query string,
         // and the parser normalises it to null; normalise the input the same way.
-        const normalised: AppUrlState = { ...state, provision: state.provision || null };
+        const normalised: AppUrlState = {
+          ...state,
+          provision: state.provision || null,
+          matrixNode: state.matrixNode || null,
+        };
         expect(parseAppUrlState(toSearchParams(normalised))).toEqual(normalised);
       }),
       { numRuns: 300 }
