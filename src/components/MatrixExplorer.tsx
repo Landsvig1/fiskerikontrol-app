@@ -1,36 +1,22 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
-  Anchor,
-  Ship,
-  Camera,
-  Scale,
-  Cpu,
-  Sparkles,
   Search,
-  Share2,
   Copy,
   Check,
-  Moon,
-  Sun,
-  X,
-  FileText,
-  Shield,
   Layers,
-  Info,
-  Compass,
+  Shield,
 } from "lucide-react";
 import {
   MATRIX_NODES,
   MATRIX_EDGES,
-  MATRIX_COLUMNS,
   MatrixNode,
   MatrixColumn,
   TimelineYear,
   getConnectedNodes,
 } from "../lib/matrixData";
-import { MATRIX_SCENARIOS, MatrixScenario } from "../lib/matrixScenarios";
+import { MATRIX_SCENARIOS } from "../lib/matrixScenarios";
 
 interface MatrixExplorerProps {
   selectedNodeId?: string | null;
@@ -39,55 +25,53 @@ interface MatrixExplorerProps {
   onSelectYear?: (year: TimelineYear) => void;
 }
 
-interface SynapseCurve {
-  id: string;
-  sourceId: string;
-  targetId: string;
-  path: string;
-  roleDa: string;
-  isDirect: boolean;
-}
-
 export function MatrixExplorer({
   selectedNodeId: propSelectedNodeId,
   selectedYear: propSelectedYear = 2026,
   onSelectNode,
   onSelectYear,
 }: MatrixExplorerProps) {
-  const [internalSelectedNodeId, setInternalSelectedNodeId] = useState<string | null>(null);
+  // Default to actor_micro so "Forbundne Krydsfelter i Kontrolkæden" is populated immediately
+  const [internalSelectedNodeId, setInternalSelectedNodeId] = useState<string>("actor_micro");
   const [internalYear, setInternalYear] = useState<TimelineYear>(propSelectedYear);
-  const [isDark, setIsDark] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedNotification, setCopiedNotification] = useState(false);
   const [copiedLinkNotification, setCopiedLinkNotification] = useState(false);
-  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const [synapseCurves, setSynapseCurves] = useState<SynapseCurve[]>([]);
+  const [activeTab, setActiveTab] = useState<"chain" | "matrix">("chain");
 
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const gridRef = useRef<HTMLDivElement | null>(null);
+  const activeNodeId =
+    propSelectedNodeId !== undefined && propSelectedNodeId !== null
+      ? propSelectedNodeId
+      : internalSelectedNodeId;
 
-  const activeNodeId = propSelectedNodeId !== undefined ? propSelectedNodeId : internalSelectedNodeId;
   const activeYear = propSelectedYear !== undefined ? propSelectedYear : internalYear;
 
-  const handleSelectNode = useCallback((id: string | null) => {
-    if (onSelectNode) {
-      onSelectNode(id);
-    } else {
-      setInternalSelectedNodeId(id);
-    }
-  }, [onSelectNode]);
+  const handleSelectNode = useCallback(
+    (id: string | null) => {
+      const nextId = id || "actor_micro";
+      if (onSelectNode) {
+        onSelectNode(nextId);
+      } else {
+        setInternalSelectedNodeId(nextId);
+      }
+    },
+    [onSelectNode]
+  );
 
-  const handleSelectYear = useCallback((year: TimelineYear) => {
-    if (onSelectYear) {
-      onSelectYear(year);
-    } else {
-      setInternalYear(year);
-    }
-  }, [onSelectYear]);
+  const handleSelectYear = useCallback(
+    (year: TimelineYear) => {
+      if (onSelectYear) {
+        onSelectYear(year);
+      } else {
+        setInternalYear(year);
+      }
+    },
+    [onSelectYear]
+  );
 
   // Selected node metadata
   const selectedNode = useMemo(
-    () => (activeNodeId ? MATRIX_NODES.find((n) => n.id === activeNodeId) || null : null),
+    () => MATRIX_NODES.find((n) => n.id === activeNodeId) || MATRIX_NODES[0],
     [activeNodeId]
   );
 
@@ -99,10 +83,8 @@ export function MatrixExplorer({
 
   // Connected nodes across all 4 columns for current timeline
   const connectedNodeIds = useMemo(() => {
-    const target = activeNodeId || hoveredNodeId;
-    if (!target) return new Set<string>();
-    return getConnectedNodes(target, activeYear);
-  }, [activeNodeId, hoveredNodeId, activeYear]);
+    return getConnectedNodes(selectedNode.id, activeYear);
+  }, [selectedNode.id, activeYear]);
 
   // Edges active for current year
   const activeEdges = useMemo(
@@ -110,48 +92,9 @@ export function MatrixExplorer({
     [activeYear]
   );
 
-  // Group nodes by column
-  const nodesByColumn = useMemo(() => {
-    const groups: Record<MatrixColumn, MatrixNode[]> = {
-      actors: [],
-      events: [],
-      systems: [],
-      regulations: [],
-    };
-    for (const node of MATRIX_NODES) {
-      groups[node.column].push(node);
-    }
-    return groups;
-  }, []);
-
-  // Filtered nodes per column based on search
-  const filteredNodesByColumn = useMemo(() => {
-    if (!searchQuery.trim()) return nodesByColumn;
-    const q = searchQuery.toLowerCase().trim();
-    const filtered: Record<MatrixColumn, MatrixNode[]> = {
-      actors: [],
-      events: [],
-      systems: [],
-      regulations: [],
-    };
-    for (const col of ['actors', 'events', 'systems', 'regulations'] as MatrixColumn[]) {
-      filtered[col] = nodesByColumn[col].filter(
-        (n) =>
-          n.titleDa.toLowerCase().includes(q) ||
-          (n.subtitleDa && n.subtitleDa.toLowerCase().includes(q)) ||
-          (n.legalReference && n.legalReference.toLowerCase().includes(q)) ||
-          n.category.toLowerCase().includes(q) ||
-          n.descriptionDa.toLowerCase().includes(q) ||
-          (n.feltkatalogRefs && n.feltkatalogRefs.some((r) => r.toLowerCase().includes(q)))
-      );
-    }
-    return filtered;
-  }, [nodesByColumn, searchQuery]);
-
-  // Connected nodes grouped by column for the dossier
+  // Connected nodes grouped strictly by column for the primary view
   const connectedByColumn = useMemo(() => {
-    if (!activeNodeId) return null;
-    const result: Record<MatrixColumn, { node: MatrixNode; roleDa?: string }[]> = {
+    const result: Record<MatrixColumn, { node: MatrixNode; roleDa?: string; isSource: boolean }[]> = {
       actors: [],
       events: [],
       systems: [],
@@ -159,114 +102,58 @@ export function MatrixExplorer({
     };
 
     for (const id of connectedNodeIds) {
-      if (id === activeNodeId) continue;
       const node = MATRIX_NODES.find((n) => n.id === id);
       if (!node) continue;
 
+      const isCurrent = node.id === selectedNode.id;
+
+      // Find edge connecting selectedNode and this node if direct
       const directEdge = activeEdges.find(
         (e) =>
-          (e.sourceId === activeNodeId && e.targetId === id) ||
-          (e.targetId === activeNodeId && e.sourceId === id)
+          (e.sourceId === selectedNode.id && e.targetId === id) ||
+          (e.targetId === selectedNode.id && e.sourceId === id)
       );
 
-      result[node.column].push({ node, roleDa: directEdge?.roleDa });
-    }
-
-    return result;
-  }, [activeNodeId, connectedNodeIds, activeEdges]);
-
-  // Re-calculate SVG synapse paths between active cards
-  const calculateSynapses = useCallback(() => {
-    const focusId = activeNodeId || hoveredNodeId;
-    if (!focusId || !gridRef.current) {
-      setSynapseCurves([]);
-      return;
-    }
-
-    const gridRect = gridRef.current.getBoundingClientRect();
-    const relevantEdges = activeEdges.filter(
-      (e) =>
-        (e.sourceId === focusId || e.targetId === focusId) ||
-        (connectedNodeIds.has(e.sourceId) && connectedNodeIds.has(e.targetId))
-    );
-
-    const curves: SynapseCurve[] = [];
-
-    for (const edge of relevantEdges) {
-      const srcEl = document.getElementById(`matrix-card-${edge.sourceId}`);
-      const tgtEl = document.getElementById(`matrix-card-${edge.targetId}`);
-      if (!srcEl || !tgtEl) continue;
-
-      const srcRect = srcEl.getBoundingClientRect();
-      const tgtRect = tgtEl.getBoundingClientRect();
-
-      // Determine left-to-right flow based on screen X
-      let startX: number;
-      let startY: number;
-      let endX: number;
-      let endY: number;
-
-      if (srcRect.left <= tgtRect.left) {
-        startX = srcRect.right - gridRect.left;
-        startY = srcRect.top + srcRect.height / 2 - gridRect.top;
-        endX = tgtRect.left - gridRect.left;
-        endY = tgtRect.top + tgtRect.height / 2 - gridRect.top;
-      } else {
-        startX = srcRect.left - gridRect.left;
-        startY = srcRect.top + srcRect.height / 2 - gridRect.top;
-        endX = tgtRect.right - gridRect.left;
-        endY = tgtRect.top + tgtRect.height / 2 - gridRect.top;
-      }
-
-      const dx = Math.abs(endX - startX);
-      const curvature = Math.max(30, dx * 0.45);
-      const isDirect = edge.sourceId === focusId || edge.targetId === focusId;
-
-      const path = `M ${startX} ${startY} C ${startX + (endX > startX ? curvature : -curvature)} ${startY}, ${
-        endX + (endX > startX ? -curvature : curvature)
-      } ${endY}, ${endX} ${endY}`;
-
-      curves.push({
-        id: `${edge.sourceId}-${edge.targetId}`,
-        sourceId: edge.sourceId,
-        targetId: edge.targetId,
-        path,
-        roleDa: edge.roleDa,
-        isDirect,
+      result[node.column].push({
+        node,
+        roleDa: directEdge?.roleDa,
+        isSource: isCurrent,
       });
     }
 
-    setSynapseCurves(curves);
-  }, [activeNodeId, hoveredNodeId, activeEdges, connectedNodeIds]);
+    return result;
+  }, [selectedNode.id, connectedNodeIds, activeEdges]);
 
-  useEffect(() => {
-    calculateSynapses();
-    window.addEventListener("resize", calculateSynapses);
-    return () => window.removeEventListener("resize", calculateSynapses);
-  }, [calculateSynapses]);
+  // 2028 Differences for this selected node
+  const year2028Changes = useMemo(() => {
+    const nodes2026 = getConnectedNodes(selectedNode.id, 2026);
+    const nodes2028 = getConnectedNodes(selectedNode.id, 2028);
 
-  // Scenario quick activator
-  const activateScenario = (scenario: MatrixScenario) => {
-    handleSelectYear(scenario.year);
-    handleSelectNode(scenario.focusNodeId);
-  };
+    const addedNodeIds = Array.from(nodes2028).filter((id) => !nodes2026.has(id));
+    return addedNodeIds
+      .map((id) => MATRIX_NODES.find((n) => n.id === id))
+      .filter((n): n is MatrixNode => Boolean(n));
+  }, [selectedNode.id]);
 
   // Copy memo / factual report
   const handleCopyFacts = () => {
-    if (!selectedNode) return;
     const lines = [
       `=============================================================`,
-      `FISKERISTYRELSEN · SAGSNOTAT & KRYDSFELTS-ANALYSE`,
+      `FISKERISTYRELSEN · KONTROLKÆDE & SAGSNOTAT`,
       `=============================================================`,
-      `Fokus: ${selectedNode.titleDa} [${selectedNode.category}]`,
+      `Element: ${selectedNode.titleDa} [${selectedNode.category}]`,
       selectedNode.subtitleDa ? `Underkategori: ${selectedNode.subtitleDa}` : null,
-      selectedNode.legalReference ? `Hjemmel: ${selectedNode.legalReference}` : null,
-      `Tidslinje: ${activeYear} (${activeYear === 2026 ? "Gældende Ret" : "2028 Målarkitektur"})`,
-      `Forvaltningsbetydning:\n${selectedNode.descriptionDa}`,
-      selectedNode.feltkatalogRefs ? `Feltkatalog / Bilag: ${selectedNode.feltkatalogRefs.join(", ")}` : null,
-      activeScenario ? `\nScenarie-kontekst:\n${activeScenario.descriptionDa}` : null,
+      selectedNode.legalReference ? `Lovhjemmel: ${selectedNode.legalReference}` : null,
+      `Tilsynsperiode: ${activeYear} (${activeYear === 2026 ? "Gældende Ret" : "2028 Målarkitektur"})`,
+      `\nForvaltningsbetydning:\n${selectedNode.descriptionDa}`,
+      selectedNode.feltkatalogRefs ? `\nFeltkatalog / Bilagsfelter: ${selectedNode.feltkatalogRefs.join(", ")}` : null,
+      `\n-------------------------------------------------------------`,
+      `Forbundne Krydsfelter i Kontrolkæden (${connectedNodeIds.size} elementer):`,
+      `1. Aktører: ${connectedByColumn.actors.map((a) => a.node.titleDa).join(", ")}`,
+      `2. Hændelser: ${connectedByColumn.events.map((e) => e.node.titleDa).join(", ")}`,
+      `3. IT-Systemer: ${connectedByColumn.systems.map((s) => s.node.titleDa).join(", ")}`,
+      `4. Regelsæt: ${connectedByColumn.regulations.map((r) => r.node.titleDa).join(", ")}`,
       `-------------------------------------------------------------`,
-      `Aktivt forbundne elementer (${connectedNodeIds.size - 1} enheder på tværs af kæden)`,
       `Dato: ${new Date().toLocaleDateString("da-DK")}`,
     ]
       .filter(Boolean)
@@ -280,154 +167,83 @@ export function MatrixExplorer({
   // Copy shareable link
   const handleCopyLink = () => {
     const url = new URL(window.location.href);
-    if (activeNodeId) url.searchParams.set("node", activeNodeId);
+    url.searchParams.set("node", selectedNode.id);
     url.searchParams.set("yr", activeYear.toString());
     navigator.clipboard.writeText(url.toString());
     setCopiedLinkNotification(true);
     setTimeout(() => setCopiedLinkNotification(false), 2400);
   };
 
-  const getScenarioIcon = (iconName: string) => {
-    switch (iconName) {
-      case "Anchor":
-        return <Anchor className="w-3.5 h-3.5" />;
-      case "Ship":
-        return <Ship className="w-3.5 h-3.5" />;
-      case "Camera":
-        return <Camera className="w-3.5 h-3.5" />;
-      case "Scale":
-        return <Scale className="w-3.5 h-3.5" />;
-      case "Cpu":
-        return <Cpu className="w-3.5 h-3.5" />;
-      default:
-        return <Sparkles className="w-3.5 h-3.5" />;
-    }
-  };
+  // Filtered nodes when in matrix view
+  const filteredAllNodes = useMemo(() => {
+    if (!searchQuery.trim()) return MATRIX_NODES;
+    const q = searchQuery.toLowerCase().trim();
+    return MATRIX_NODES.filter(
+      (n) =>
+        n.titleDa.toLowerCase().includes(q) ||
+        (n.subtitleDa && n.subtitleDa.toLowerCase().includes(q)) ||
+        (n.legalReference && n.legalReference.toLowerCase().includes(q)) ||
+        n.category.toLowerCase().includes(q) ||
+        n.descriptionDa.toLowerCase().includes(q)
+    );
+  }, [searchQuery]);
 
   return (
-    <div
-      ref={containerRef}
-      className={`min-h-screen w-full transition-colors duration-300 font-sans ${
-        isDark
-          ? "bg-[#070d0a] text-emerald-50 selection:bg-emerald-500/30 selection:text-emerald-200"
-          : "bg-[#f8faf8] text-slate-900 selection:bg-emerald-200 selection:text-emerald-950"
-      }`}
-    >
-      <style jsx global>{`
-        @keyframes flowPulse {
-          0% {
-            stroke-dashoffset: 28;
-          }
-          100% {
-            stroke-dashoffset: 0;
-          }
-        }
-        .synapse-flowing {
-          animation: flowPulse 1.2s linear infinite;
-        }
-      `}</style>
-
-      {/* Top Executive Header */}
-      <header
-        className={`sticky top-0 z-40 border-b backdrop-blur-md px-6 py-3.5 transition-colors ${
-          isDark
-            ? "bg-[#0a1410]/90 border-emerald-900/40 shadow-[0_4px_20px_rgba(0,0,0,0.4)]"
-            : "bg-white/90 border-slate-200 shadow-xs"
-        }`}
-      >
-        <div className="max-w-[1780px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
-          {/* Logo & Title */}
-          <div className="flex items-center gap-3.5">
-            <div
-              className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold tracking-tighter text-sm transition-all shadow-md ${
-                isDark
-                  ? "bg-gradient-to-br from-emerald-600 to-teal-800 text-white ring-1 ring-emerald-400/30"
-                  : "bg-[#0e472f] text-white"
-              }`}
-            >
+    <div className="min-h-screen bg-[#fafaf9] text-slate-900 font-sans antialiased flex flex-col">
+      {/* Clean, Scandinavian Header */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-30 px-6 py-3.5 shadow-xs">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-[#0e472f] text-white flex items-center justify-center font-bold text-xs">
               FS
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span
-                  className={`text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full border ${
-                    isDark
-                      ? "bg-emerald-950/80 text-emerald-300 border-emerald-800/60"
-                      : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                  }`}
-                >
-                  Miljøministeriet · Fiskeristyrelsen
+                <span className="text-[11px] font-semibold tracking-wider uppercase text-slate-500">
+                  Fiskeristyrelsen
                 </span>
-                <span
-                  className={`text-[11px] font-mono ${
-                    isDark ? "text-emerald-400/80" : "text-slate-500"
-                  }`}
-                >
-                  38 noder • 84 krydsfelter
+                <span className="text-slate-300">•</span>
+                <span className="text-[11px] font-medium text-slate-500">
+                  Kontrol & Tilsyn
                 </span>
               </div>
-              <h1
-                className={`text-lg font-bold tracking-tight mt-0.5 ${
-                  isDark ? "text-white" : "text-slate-900"
-                }`}
-              >
-                Fiskeriets Matrix{" "}
-                <span className="font-normal text-emerald-500 text-sm">
-                  (360° Krydsfelts-Explorer & Tilsynskæde)
-                </span>
+              <h1 className="text-base font-bold text-slate-900 tracking-tight">
+                Fiskeriets Matrix
               </h1>
             </div>
           </div>
 
-          {/* Action Controls */}
+          {/* Simple Timeline Selector & Actions */}
           <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Search Input */}
+            {/* Quick Search */}
             <div className="relative">
-              <Search
-                className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${
-                  isDark ? "text-emerald-500/70" : "text-slate-400"
-                }`}
-              />
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  const found = MATRIX_NODES.find(
+                    (n) =>
+                      n.titleDa.toLowerCase().includes(e.target.value.toLowerCase()) ||
+                      (n.legalReference && n.legalReference.toLowerCase().includes(e.target.value.toLowerCase()))
+                  );
+                  if (found && e.target.value.trim().length >= 2) {
+                    handleSelectNode(found.id);
+                  }
+                }}
                 placeholder="Hurtigsøgning (aktør, art., felt)..."
-                className={`pl-8 pr-7 py-1.5 rounded-lg text-xs font-medium w-48 sm:w-64 transition-all focus:outline-none focus:ring-2 ${
-                  isDark
-                    ? "bg-[#0f1d18] border border-emerald-800/60 text-emerald-100 placeholder-emerald-700 focus:ring-emerald-500/50"
-                    : "bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:ring-emerald-600"
-                }`}
+                className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs w-48 sm:w-60 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0e472f]"
               />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
             </div>
 
-            {/* Timeline Year Toggle */}
-            <div
-              className={`p-0.5 rounded-xl border flex items-center text-xs font-semibold ${
-                isDark
-                  ? "bg-[#0b1612] border-emerald-900/60"
-                  : "bg-slate-100 border-slate-200"
-              }`}
-            >
+            <div className="bg-slate-100 p-1 rounded-lg border border-slate-200 flex items-center text-xs font-medium">
               <button
                 type="button"
                 onClick={() => handleSelectYear(2026)}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-md transition-all cursor-pointer ${
                   activeYear === 2026
-                    ? isDark
-                      ? "bg-emerald-600 text-white shadow-md font-bold"
-                      : "bg-white text-slate-900 shadow-xs font-bold"
-                    : isDark
-                    ? "text-emerald-400 hover:text-white"
+                    ? "bg-white text-slate-900 shadow-xs font-semibold"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
@@ -436,24 +252,16 @@ export function MatrixExplorer({
               <button
                 type="button"
                 onClick={() => handleSelectYear(2028)}
-                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeYear === 2028
-                    ? isDark
-                      ? "bg-gradient-to-r from-purple-700 to-indigo-700 text-white shadow-md font-bold"
-                      : "bg-purple-900 text-purple-50 shadow-xs font-bold"
-                    : isDark
-                    ? "text-purple-400 hover:text-purple-200"
-                    : "text-purple-700 hover:text-purple-950"
+                    ? "bg-[#0e472f] text-white shadow-xs font-semibold"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
               >
                 <span>2028: Målarkitektur</span>
                 <span
-                  className={`text-[9px] uppercase px-1.5 py-0.2 rounded font-mono ${
-                    activeYear === 2028
-                      ? "bg-white/20 text-white"
-                      : isDark
-                      ? "bg-purple-950 text-purple-300 border border-purple-800/60"
-                      : "bg-purple-100 text-purple-800"
+                  className={`text-[9px] px-1.5 py-0.2 rounded font-mono ${
+                    activeYear === 2028 ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
                   }`}
                 >
                   EU-reform
@@ -461,62 +269,43 @@ export function MatrixExplorer({
               </button>
             </div>
 
-            {/* Share Link Button */}
             <button
               type="button"
-              onClick={handleCopyLink}
-              title="Kopiér direkte link"
-              className={`p-2 rounded-lg border text-xs transition-colors cursor-pointer ${
-                isDark
-                  ? "bg-[#0f1d18] border-emerald-900/60 text-emerald-300 hover:bg-emerald-900/40 hover:text-white"
-                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-              }`}
+              onClick={handleCopyFacts}
+              className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-medium hover:bg-slate-50 transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
             >
-              {copiedLinkNotification ? (
-                <Check className="w-4 h-4 text-emerald-400" />
+              {copiedNotification ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-700" />
+                  <span className="text-emerald-800 font-semibold">Kopieret</span>
+                </>
               ) : (
-                <Share2 className="w-4 h-4" />
+                <>
+                  <Copy className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Kopier til Sagsnotat</span>
+                </>
               )}
             </button>
 
-            {/* Dark / Light Mode Toggle */}
             <button
               type="button"
-              onClick={() => setIsDark(!isDark)}
-              title={isDark ? "Skift til lyst tema" : "Skift til mørkt tema"}
-              className={`p-2 rounded-lg border text-xs transition-colors cursor-pointer ${
-                isDark
-                  ? "bg-[#0f1d18] border-emerald-900/60 text-amber-300 hover:bg-emerald-900/40"
-                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-              }`}
+              onClick={handleCopyLink}
+              title="Kopier direkte link"
+              className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-medium hover:bg-slate-50 transition-all shadow-xs cursor-pointer"
             >
-              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {copiedLinkNotification ? "Link kopieret!" : "Del"}
             </button>
           </div>
         </div>
       </header>
 
-      {/* Quick Scenario Selector Bar ("Forvaltnings-Scenarier") */}
-      <section
-        className={`border-b px-6 py-2.5 transition-colors ${
-          isDark
-            ? "bg-[#0a120f] border-emerald-900/40 text-xs"
-            : "bg-emerald-50/50 border-emerald-100 text-xs"
-        }`}
-      >
-        <div className="max-w-[1780px] mx-auto flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-2 shrink-0">
-            <span
-              className={`font-semibold tracking-wide uppercase text-[11px] flex items-center gap-1.5 ${
-                isDark ? "text-emerald-400" : "text-emerald-900"
-              }`}
-            >
-              <Compass className="w-3.5 h-3.5 text-emerald-500" />
-              Forvaltnings-Scenarier:
+      {/* Main Subheader / Scenarios Strip */}
+      <div className="bg-white border-b border-slate-200 px-6 py-3">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0 mr-1">
+              Hurtigvalg:
             </span>
-          </div>
-
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 flex-wrap">
             {MATRIX_SCENARIOS.map((scenario) => {
               const isSelected =
                 activeNodeId === scenario.focusNodeId && activeYear === scenario.year;
@@ -524,28 +313,20 @@ export function MatrixExplorer({
                 <button
                   key={scenario.id}
                   type="button"
-                  onClick={() => activateScenario(scenario)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer shrink-0 border ${
+                  onClick={() => {
+                    handleSelectYear(scenario.year);
+                    handleSelectNode(scenario.focusNodeId);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer shrink-0 border flex items-center gap-1.5 ${
                     isSelected
-                      ? isDark
-                        ? "bg-emerald-500 text-slate-950 font-bold border-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.5)]"
-                        : "bg-emerald-800 text-white font-bold border-emerald-900 shadow-sm"
-                      : isDark
-                      ? "bg-[#0e1a15] text-emerald-200 border-emerald-800/40 hover:border-emerald-500 hover:text-white"
-                      : "bg-white text-slate-700 border-slate-200 hover:border-emerald-600 hover:text-emerald-900"
+                      ? "bg-slate-900 text-white font-semibold border-slate-900 shadow-xs"
+                      : "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
                   }`}
                 >
-                  <span className={isSelected ? "text-slate-950" : isDark ? "text-emerald-400" : "text-emerald-700"}>
-                    {getScenarioIcon(scenario.icon)}
-                  </span>
                   <span>{scenario.titleDa}</span>
                   <span
                     className={`text-[9px] px-1.5 py-0.2 rounded font-mono ${
-                      isSelected
-                        ? "bg-slate-950/20 text-slate-950 font-bold"
-                        : isDark
-                        ? "bg-emerald-950 text-emerald-300 border border-emerald-800/60"
-                        : "bg-slate-100 text-slate-600"
+                      isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
                     }`}
                   >
                     {scenario.badgeDa}
@@ -553,681 +334,462 @@ export function MatrixExplorer({
                 </button>
               );
             })}
-
-            {activeNodeId && (
-              <button
-                type="button"
-                onClick={() => handleSelectNode(null)}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
-                  isDark
-                    ? "bg-red-950/40 text-red-300 border-red-800/50 hover:bg-red-900/60"
-                    : "bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100"
-                }`}
-              >
-                ✕ Nulstil Valg
-              </button>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Narrative Storyboard Ribbon (Shows Current Path & Rationale) */}
-      <section
-        className={`px-6 py-3 border-b transition-all ${
-          isDark
-            ? "bg-[#060b09] border-emerald-900/30 text-xs"
-            : "bg-white border-slate-200 text-xs"
-        }`}
-      >
-        <div className="max-w-[1780px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex-1">
-            {selectedNode ? (
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                <div className="flex items-center gap-2 shrink-0">
-                  <span
-                    className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold uppercase ${
-                      isDark
-                        ? "bg-emerald-950 text-emerald-400 border border-emerald-700"
-                        : "bg-emerald-100 text-emerald-800"
-                    }`}
-                  >
-                    Aktiv Kæde
-                  </span>
-                  <strong className={isDark ? "text-emerald-300 text-sm" : "text-emerald-950 text-sm"}>
-                    {selectedNode.titleDa}
-                  </strong>
-                  {selectedNode.legalReference && (
-                    <span
-                      className={`text-[11px] font-mono px-2 py-0.5 rounded ${
-                        isDark ? "bg-[#11221b] text-emerald-300" : "bg-slate-100 text-slate-700"
-                      }`}
-                    >
-                      ⚖️ {selectedNode.legalReference}
-                    </span>
-                  )}
-                </div>
-
-                <div
-                  className={`text-xs flex-1 line-clamp-2 sm:line-clamp-1 ${
-                    isDark ? "text-emerald-200/80" : "text-slate-600"
-                  }`}
-                >
-                  {activeScenario ? (
-                    <span>
-                      <strong className={isDark ? "text-white" : "text-slate-900"}>Forløb:</strong>{" "}
-                      {activeScenario.narrativeDa} — {activeScenario.descriptionDa}
-                    </span>
-                  ) : (
-                    <span>{selectedNode.descriptionDa}</span>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-emerald-400/80">
-                <Info className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span className={isDark ? "text-emerald-300/80" : "text-slate-600"}>
-                  <strong>Vejledning:</strong> Vælg et scenarie foroven eller klik på et vilkårligt kort herunder for at
-                  aktivere de levende synapser og belyse den samlede tilsynskæde.
-                </span>
-              </div>
-            )}
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            <span
-              className={`text-[11px] font-mono ${
-                isDark ? "text-emerald-400/70" : "text-slate-500"
+          {/* View Switcher: Kontrolkæde vs Hele Matrixen */}
+          <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs shrink-0 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setActiveTab("chain")}
+              className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                activeTab === "chain"
+                  ? "bg-white text-slate-900 font-semibold shadow-xs"
+                  : "text-slate-500 hover:text-slate-800"
               }`}
             >
-              {activeYear === 2026 ? (
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Gældende 2026 Kontrolregler
-                </span>
-              ) : (
-                <span className="flex items-center gap-1.5 text-purple-400 font-semibold">
-                  <span className="w-2 h-2 rounded-full bg-purple-500 animate-ping" />
-                  2028 Målarkitektur (EU 2023/2842)
-                </span>
-              )}
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* Main 4-Column Canvas with Interactive Synapse Overlay */}
-      <main className="max-w-[1780px] mx-auto px-6 py-6 relative">
-        <div ref={gridRef} className="relative min-h-[600px]">
-          {/* Glowing Synapse SVG Connection Overlay */}
-          <svg
-            className="absolute inset-0 w-full h-full pointer-events-none z-10"
-            style={{ overflow: "visible" }}
-          >
-            <defs>
-              <linearGradient id="synapseGlow2026" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#10b981" stopOpacity="0.85" />
-                <stop offset="50%" stopColor="#38bdf8" stopOpacity="0.95" />
-                <stop offset="100%" stopColor="#10b981" stopOpacity="0.85" />
-              </linearGradient>
-
-              <linearGradient id="synapseGlow2028" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#c084fc" stopOpacity="0.9" />
-                <stop offset="50%" stopColor="#818cf8" stopOpacity="0.95" />
-                <stop offset="100%" stopColor="#34d399" stopOpacity="0.85" />
-              </linearGradient>
-
-              <filter id="synapseFilterGlow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-            </defs>
-
-            {synapseCurves.map((curve) => (
-              <g key={curve.id}>
-                {/* Background glow halo */}
-                <path
-                  d={curve.path}
-                  fill="none"
-                  stroke={activeYear === 2028 ? "#a855f7" : "#10b981"}
-                  strokeWidth={curve.isDirect ? 6 : 3}
-                  strokeOpacity={isDark ? (curve.isDirect ? 0.35 : 0.15) : (curve.isDirect ? 0.2 : 0.08)}
-                  filter="url(#synapseFilterGlow)"
-                />
-
-                {/* Main animated pulsing line */}
-                <path
-                  d={curve.path}
-                  fill="none"
-                  stroke={
-                    activeYear === 2028
-                      ? "url(#synapseGlow2028)"
-                      : "url(#synapseGlow2026)"
-                  }
-                  strokeWidth={curve.isDirect ? 2.5 : 1.5}
-                  strokeDasharray="8 6"
-                  className="synapse-flowing"
-                />
-              </g>
-            ))}
-          </svg>
-
-          {/* 4 Interactive Columns Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 relative z-20">
-            {MATRIX_COLUMNS.map((col) => {
-              const nodes = filteredNodesByColumn[col.id];
-              return (
-                <div
-                  key={col.id}
-                  className={`rounded-2xl p-4 border transition-colors flex flex-col ${
-                    isDark
-                      ? "bg-[#0b1410]/70 border-emerald-950/80 backdrop-blur-sm shadow-[0_4px_30px_rgba(0,0,0,0.3)]"
-                      : "bg-slate-50/80 border-slate-200/90 shadow-sm"
-                  }`}
-                >
-                  {/* Column Header */}
-                  <div
-                    className={`pb-3 mb-3 border-b flex items-start justify-between gap-2 ${
-                      isDark ? "border-emerald-900/40" : "border-slate-200"
-                    }`}
-                  >
-                    <div>
-                      <h2
-                        className={`text-sm font-bold tracking-tight ${
-                          isDark ? "text-emerald-100" : "text-slate-900"
-                        }`}
-                      >
-                        {col.titleDa}
-                      </h2>
-                      <p
-                        className={`text-[11px] line-clamp-1 mt-0.5 ${
-                          isDark ? "text-emerald-400/60" : "text-slate-500"
-                        }`}
-                      >
-                        {col.descriptionDa}
-                      </p>
-                    </div>
-
-                    <span
-                      className={`text-xs font-mono px-2 py-0.5 rounded-full font-bold shrink-0 ${
-                        isDark
-                          ? "bg-[#0f2119] text-emerald-400 border border-emerald-800/60"
-                          : "bg-white text-slate-700 border border-slate-200"
-                      }`}
-                    >
-                      {nodes.length}
-                    </span>
-                  </div>
-
-                  {/* Cards Container */}
-                  <div className="space-y-2.5 flex-1 overflow-y-auto pr-1">
-                    {nodes.map((node) => {
-                      const isSelected = activeNodeId === node.id;
-                      const isConnected = activeNodeId ? connectedNodeIds.has(node.id) : false;
-                      const isDimmed = activeNodeId ? !isConnected : false;
-                      const is2028Only = node.introducedYear === 2028;
-
-                      return (
-                        <div
-                          key={node.id}
-                          id={`matrix-card-${node.id}`}
-                          onMouseEnter={() => setHoveredNodeId(node.id)}
-                          onMouseLeave={() => setHoveredNodeId(null)}
-                          onClick={() => handleSelectNode(isSelected ? null : node.id)}
-                          className={`p-3.5 rounded-xl border transition-all duration-200 cursor-pointer relative group text-left ${
-                            isSelected
-                              ? isDark
-                                ? "bg-emerald-950/90 border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.35)] ring-2 ring-emerald-400"
-                                : "bg-emerald-50 border-emerald-600 shadow-md ring-2 ring-emerald-600/30"
-                              : isConnected
-                              ? isDark
-                                ? "bg-[#0e2119] border-emerald-500/80 shadow-[0_0_12px_rgba(16,185,129,0.2)]"
-                                : "bg-white border-emerald-400 shadow-xs ring-1 ring-emerald-200"
-                              : isDimmed
-                              ? "opacity-20 hover:opacity-75 grayscale hover:grayscale-0 border-transparent bg-black/10"
-                              : isDark
-                              ? "bg-[#0e1a14] border-emerald-900/40 hover:border-emerald-600/80 hover:bg-[#12221b] hover:shadow-md"
-                              : "bg-white border-slate-200 hover:border-emerald-300 hover:shadow-sm"
-                          }`}
-                        >
-                          {/* Card Top Category & 2028 Badges */}
-                          <div className="flex items-center justify-between gap-1.5 mb-1.5">
-                            <span
-                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                                isSelected
-                                  ? isDark
-                                    ? "bg-emerald-400 text-slate-950 font-bold border-emerald-300"
-                                    : "bg-emerald-700 text-white font-bold border-emerald-800"
-                                  : isConnected
-                                  ? isDark
-                                    ? "bg-emerald-900/80 text-emerald-200 border-emerald-700"
-                                    : "bg-emerald-100 text-emerald-800 border-emerald-300"
-                                  : isDark
-                                  ? "bg-[#14281f] text-emerald-300 border-emerald-800/40"
-                                  : "bg-slate-100 text-slate-600 border-slate-200"
-                              }`}
-                            >
-                              {node.category}
-                            </span>
-
-                            {is2028Only && (
-                              <span
-                                className={`text-[9px] font-mono px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
-                                  activeYear === 2028
-                                    ? isDark
-                                      ? "bg-purple-900/90 text-purple-200 border-purple-500 animate-pulse shadow-[0_0_8px_rgba(168,85,247,0.4)]"
-                                      : "bg-purple-100 text-purple-900 border-purple-300 font-bold"
-                                    : isDark
-                                    ? "bg-slate-900/60 text-slate-500 border-slate-800"
-                                    : "bg-slate-100 text-slate-400 border-slate-200"
-                                }`}
-                              >
-                                2028 Krav
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Card Title */}
-                          <h3
-                            className={`text-xs font-bold leading-snug tracking-tight ${
-                              isSelected
-                                ? isDark
-                                  ? "text-white font-extrabold"
-                                  : "text-emerald-950 font-extrabold"
-                                : isDark
-                                ? "text-emerald-50 group-hover:text-emerald-300"
-                                : "text-slate-900 group-hover:text-emerald-900"
-                            }`}
-                          >
-                            {node.titleDa}
-                          </h3>
-
-                          {/* Subtitle */}
-                          {node.subtitleDa && (
-                            <p
-                              className={`text-[11px] mt-0.5 line-clamp-1 ${
-                                isDark ? "text-emerald-400/60" : "text-slate-500"
-                              }`}
-                            >
-                              {node.subtitleDa}
-                            </p>
-                          )}
-
-                          {/* Legal Reference Pin */}
-                          {node.legalReference && (
-                            <div
-                              className={`mt-2 pt-1.5 border-t text-[10px] font-mono flex items-center justify-between ${
-                                isDark ? "border-emerald-900/40 text-emerald-400/80" : "border-slate-100 text-slate-500"
-                              }`}
-                            >
-                              <span className="truncate">⚖️ {node.legalReference}</span>
-                              {isConnected && !isSelected && (
-                                <span className="font-sans font-bold text-emerald-400 text-[10px] shrink-0 ml-1">
-                                  ✓ Forbundet
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Executive Dossier Drawer / Sagsbehandler Fakta-Panel */}
-        {selectedNode && (
-          <div
-            className={`mt-8 rounded-2xl border p-6 transition-all duration-300 shadow-2xl ${
-              isDark
-                ? "bg-[#08130e] border-emerald-500/80 ring-1 ring-emerald-500/30 shadow-[0_8px_40px_rgba(0,0,0,0.6)]"
-                : "bg-white border-emerald-600 shadow-xl ring-2 ring-emerald-600/20"
-            }`}
-          >
-            {/* Header with Title & Action Buttons */}
-            <div
-              className={`flex flex-col md:flex-row md:items-start justify-between gap-4 pb-5 border-b ${
-                isDark ? "border-emerald-900/60" : "border-slate-200"
+              Kontrolkæde (Standard)
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("matrix")}
+              className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                activeTab === "matrix"
+                  ? "bg-white text-slate-900 font-semibold shadow-xs"
+                  : "text-slate-500 hover:text-slate-800"
               }`}
             >
-              <div>
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <span
-                    className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
-                      isDark
-                        ? "bg-emerald-500 text-slate-950 border-emerald-300"
-                        : "bg-emerald-800 text-white border-emerald-900"
-                    }`}
-                  >
-                    {selectedNode.category}
+              Alle Elementer ({MATRIX_NODES.length})
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
+        {/* Search bar & Active Element Banner */}
+        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <span className="text-xs font-bold uppercase tracking-wider text-[#0e472f] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                  {selectedNode.category}
+                </span>
+                {selectedNode.legalReference && (
+                  <span className="text-xs font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                    ⚖️ {selectedNode.legalReference}
                   </span>
-
-                  {selectedNode.legalReference && (
-                    <span
-                      className={`text-xs font-mono px-2.5 py-0.5 rounded border ${
-                        isDark
-                          ? "bg-[#0e2119] text-emerald-300 border-emerald-700/60"
-                          : "bg-slate-100 text-slate-800 border-slate-200 font-semibold"
-                      }`}
-                    >
-                      ⚖️ Lovhjemmel: {selectedNode.legalReference}
-                    </span>
-                  )}
-
-                  {selectedNode.introducedYear === 2028 && (
-                    <span
-                      className={`text-xs font-mono px-2.5 py-0.5 rounded font-bold uppercase border ${
-                        isDark
-                          ? "bg-purple-950 text-purple-300 border-purple-700"
-                          : "bg-purple-100 text-purple-900 border-purple-300"
-                      }`}
-                    >
-                      ✨ Træder i kraft 10. januar 2028 (EU 2023/2842)
-                    </span>
-                  )}
-                </div>
-
-                <h3
-                  className={`text-2xl font-bold tracking-tight mt-2 ${
-                    isDark ? "text-white" : "text-slate-900"
-                  }`}
-                >
-                  {selectedNode.titleDa}
-                </h3>
-                {selectedNode.subtitleDa && (
-                  <p
-                    className={`text-sm mt-0.5 font-medium ${
-                      isDark ? "text-emerald-300/80" : "text-slate-600"
-                    }`}
-                  >
-                    {selectedNode.subtitleDa}
-                  </p>
+                )}
+                {selectedNode.introducedYear === 2028 && (
+                  <span className="text-xs font-mono text-purple-800 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 font-semibold">
+                    Træder i kraft 2028
+                  </span>
                 )}
               </div>
+              <h2 className="text-xl font-bold text-slate-900">{selectedNode.titleDa}</h2>
+              {selectedNode.subtitleDa && (
+                <p className="text-xs text-slate-500 mt-0.5">{selectedNode.subtitleDa}</p>
+              )}
+              <p className="text-sm text-slate-700 mt-2 max-w-3xl leading-relaxed">
+                {selectedNode.descriptionDa}
+              </p>
+              {activeScenario && (
+                <div className="mt-2.5 text-xs text-[#0e472f] bg-emerald-50/70 p-2.5 rounded-lg border border-emerald-200/80 leading-relaxed">
+                  <strong>Forvaltnings-kontekst:</strong> {activeScenario.descriptionDa}
+                </div>
+              )}
+            </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2.5 shrink-0">
-                <button
-                  type="button"
-                  onClick={handleCopyFacts}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-md ${
-                    isDark
-                      ? "bg-emerald-500 hover:bg-emerald-400 text-slate-950"
-                      : "bg-emerald-800 hover:bg-emerald-700 text-white"
-                  }`}
-                >
-                  {copiedNotification ? (
-                    <>
-                      <Check className="w-4 h-4" />
-                      <span>✓ Kopieret til Sagsnotat!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4" />
-                      <span>Kopier til Sagsnotat</span>
-                    </>
-                  )}
-                </button>
+            {/* Quick selector dropdown */}
+            <div className="flex flex-col gap-1.5 shrink-0 w-full sm:w-72">
+              <label htmlFor="node-select" className="text-xs font-semibold text-slate-500">
+                Skift fokuspunkt:
+              </label>
+              <select
+                id="node-select"
+                value={selectedNode.id}
+                onChange={(e) => handleSelectNode(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0e472f]"
+              >
+                <optgroup label="1. Aktører & Fartøjer">
+                  {MATRIX_NODES.filter((n) => n.column === "actors").map((n) => (
+                    <option key={n.id} value={n.id}>
+                      {n.titleDa}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="2. Hændelser i Kæden">
+                  {MATRIX_NODES.filter((n) => n.column === "events").map((n) => (
+                    <option key={n.id} value={n.id}>
+                      {n.titleDa}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="3. IT-Systemer & Registre">
+                  {MATRIX_NODES.filter((n) => n.column === "systems").map((n) => (
+                    <option key={n.id} value={n.id}>
+                      {n.titleDa}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="4. Regelsæt & Hjemmel">
+                  {MATRIX_NODES.filter((n) => n.column === "regulations").map((n) => (
+                    <option key={n.id} value={n.id}>
+                      {n.titleDa}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+          </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleSelectNode(null)}
-                  className={`p-2 rounded-xl border transition-colors cursor-pointer ${
-                    isDark
-                      ? "bg-[#0e2119] border-emerald-800/60 text-emerald-400 hover:text-white"
-                      : "bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900"
-                  }`}
-                  title="Luk dossier (Esc)"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+          {/* 2028 Transformation Notice if relevant */}
+          {year2028Changes.length > 0 && activeYear === 2026 && (
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
+              <span>
+                <strong className="text-slate-800">2028 Udsigt:</strong> For dette element tilføjes{" "}
+                <span className="font-semibold text-purple-900">{year2028Changes.length} nye krav</span> i 2028 (bl.a.{" "}
+                {year2028Changes.map((n) => n.titleDa).join(", ")}).
+              </span>
+              <button
+                type="button"
+                onClick={() => handleSelectYear(2028)}
+                className="text-[#0e472f] hover:underline font-semibold text-xs cursor-pointer shrink-0 ml-2"
+              >
+                Vis 2028 regler →
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* PRIMARY VIEW: Forbundne Krydsfelter i Kontrolkæden */}
+        {activeTab === "chain" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-[#0e472f]" />
+                  Forbundne Krydsfelter i Kontrolkæden
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Relevante aktører, forvaltningshændelser, IT-systemer og lovhjemmel forbundet med det valgte element.
+                </p>
+              </div>
+              <span className="text-xs font-mono font-medium text-slate-500 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+                {connectedNodeIds.size} forbundne elementer
+              </span>
+            </div>
+
+            {/* The 4 Lanes / Columns of Connected Elements */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Column 1: Aktører */}
+              <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex flex-col space-y-3">
+                <div className="pb-2 border-b border-slate-100 flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    1. Aktør / Fartøjsklasse
+                  </h4>
+                  <span className="text-[11px] font-mono font-semibold text-slate-400">
+                    {connectedByColumn.actors.length}
+                  </span>
+                </div>
+                <div className="space-y-2 flex-1 overflow-y-auto">
+                  {connectedByColumn.actors.map(({ node, roleDa, isSource }) => (
+                    <div
+                      key={node.id}
+                      onClick={() => handleSelectNode(node.id)}
+                      className={`p-3 rounded-lg border text-left transition-all cursor-pointer ${
+                        isSource
+                          ? "bg-emerald-50/80 border-[#0e472f] shadow-xs"
+                          : "bg-slate-50/70 border-slate-200 hover:bg-slate-100/80 hover:border-slate-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-[10px] font-bold text-slate-600 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                          {node.category}
+                        </span>
+                        {isSource && (
+                          <span className="text-[9px] font-bold text-[#0e472f] bg-emerald-100 px-1.5 py-0.2 rounded uppercase">
+                            Fokus
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs font-bold text-slate-900">{node.titleDa}</div>
+                      {node.subtitleDa && (
+                        <div className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+                          {node.subtitleDa}
+                        </div>
+                      )}
+                      {roleDa && (
+                        <div className="mt-2 pt-1 border-t border-slate-200 text-[10px] text-emerald-800 font-medium">
+                          → {roleDa}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Column 2: Hændelser */}
+              <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex flex-col space-y-3">
+                <div className="pb-2 border-b border-slate-100 flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    2. Operationel Hændelse
+                  </h4>
+                  <span className="text-[11px] font-mono font-semibold text-slate-400">
+                    {connectedByColumn.events.length}
+                  </span>
+                </div>
+                <div className="space-y-2 flex-1 overflow-y-auto">
+                  {connectedByColumn.events.map(({ node, roleDa, isSource }) => (
+                    <div
+                      key={node.id}
+                      onClick={() => handleSelectNode(node.id)}
+                      className={`p-3 rounded-lg border text-left transition-all cursor-pointer ${
+                        isSource
+                          ? "bg-emerald-50/80 border-[#0e472f] shadow-xs"
+                          : "bg-slate-50/70 border-slate-200 hover:bg-slate-100/80 hover:border-slate-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-[10px] font-bold text-slate-600 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                          {node.category}
+                        </span>
+                        {isSource && (
+                          <span className="text-[9px] font-bold text-[#0e472f] bg-emerald-100 px-1.5 py-0.2 rounded uppercase">
+                            Fokus
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs font-bold text-slate-900">{node.titleDa}</div>
+                      {node.subtitleDa && (
+                        <div className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+                          {node.subtitleDa}
+                        </div>
+                      )}
+                      {roleDa && (
+                        <div className="mt-2 pt-1 border-t border-slate-200 text-[10px] text-emerald-800 font-medium">
+                          → {roleDa}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Column 3: IT-Systemer */}
+              <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex flex-col space-y-3">
+                <div className="pb-2 border-b border-slate-100 flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    3. IT-System & Datastrøm
+                  </h4>
+                  <span className="text-[11px] font-mono font-semibold text-slate-400">
+                    {connectedByColumn.systems.length}
+                  </span>
+                </div>
+                <div className="space-y-2 flex-1 overflow-y-auto">
+                  {connectedByColumn.systems.map(({ node, roleDa, isSource }) => (
+                    <div
+                      key={node.id}
+                      onClick={() => handleSelectNode(node.id)}
+                      className={`p-3 rounded-lg border text-left transition-all cursor-pointer ${
+                        isSource
+                          ? "bg-emerald-50/80 border-[#0e472f] shadow-xs"
+                          : "bg-slate-50/70 border-slate-200 hover:bg-slate-100/80 hover:border-slate-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-[10px] font-bold text-slate-600 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                          {node.category}
+                        </span>
+                        {isSource && (
+                          <span className="text-[9px] font-bold text-[#0e472f] bg-emerald-100 px-1.5 py-0.2 rounded uppercase">
+                            Fokus
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs font-bold text-slate-900">{node.titleDa}</div>
+                      {node.subtitleDa && (
+                        <div className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+                          {node.subtitleDa}
+                        </div>
+                      )}
+                      {roleDa && (
+                        <div className="mt-2 pt-1 border-t border-slate-200 text-[10px] text-emerald-800 font-medium">
+                          → {roleDa}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Column 4: Regelsæt & Hjemmel */}
+              <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex flex-col space-y-3">
+                <div className="pb-2 border-b border-slate-100 flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    4. Regelsæt & Hjemmel
+                  </h4>
+                  <span className="text-[11px] font-mono font-semibold text-slate-400">
+                    {connectedByColumn.regulations.length}
+                  </span>
+                </div>
+                <div className="space-y-2 flex-1 overflow-y-auto">
+                  {connectedByColumn.regulations.map(({ node, roleDa, isSource }) => (
+                    <div
+                      key={node.id}
+                      onClick={() => handleSelectNode(node.id)}
+                      className={`p-3 rounded-lg border text-left transition-all cursor-pointer ${
+                        isSource
+                          ? "bg-emerald-50/80 border-[#0e472f] shadow-xs"
+                          : "bg-slate-50/70 border-slate-200 hover:bg-slate-100/80 hover:border-slate-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-[10px] font-bold text-slate-600 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                          {node.category}
+                        </span>
+                        {isSource && (
+                          <span className="text-[9px] font-bold text-[#0e472f] bg-emerald-100 px-1.5 py-0.2 rounded uppercase">
+                            Fokus
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs font-bold text-slate-900">{node.titleDa}</div>
+                      {node.legalReference && (
+                        <div className="text-[11px] font-mono text-slate-600 mt-0.5">
+                          ⚖️ {node.legalReference}
+                        </div>
+                      )}
+                      {roleDa && (
+                        <div className="mt-2 pt-1 border-t border-slate-200 text-[10px] text-emerald-800 font-medium">
+                          → {roleDa}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Dossier Body: Narrative & Connected Entities */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-              {/* Left 1 Column: Legal Basis & Field Catalog */}
-              <div
-                className={`p-5 rounded-xl border flex flex-col gap-4 ${
-                  isDark ? "bg-[#091610] border-emerald-900/50" : "bg-slate-50 border-slate-200"
-                }`}
-              >
-                <div>
-                  <h4
-                    className={`text-xs font-bold uppercase tracking-wider mb-1.5 flex items-center gap-1.5 ${
-                      isDark ? "text-emerald-400" : "text-emerald-900"
-                    }`}
-                  >
-                    <FileText className="w-4 h-4" /> Forvaltningsbetydning
-                  </h4>
-                  <p
-                    className={`text-xs leading-relaxed ${
-                      isDark ? "text-emerald-100" : "text-slate-700"
-                    }`}
-                  >
-                    {selectedNode.descriptionDa}
-                  </p>
+            {/* Administrative Field Catalog References */}
+            {selectedNode.feltkatalogRefs && selectedNode.feltkatalogRefs.length > 0 && (
+              <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-[#0e472f]" />
+                  Feltkatalog & Datastandarder (Teknisk specifikation)
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {selectedNode.feltkatalogRefs.map((ref, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2.5 py-1 bg-slate-100 border border-slate-200 rounded text-xs font-mono text-slate-800 font-medium"
+                    >
+                      {ref}
+                    </span>
+                  ))}
                 </div>
+              </div>
+            )}
+          </div>
+        )}
 
-                {selectedNode.feltkatalogRefs && selectedNode.feltkatalogRefs.length > 0 && (
-                  <div className="pt-3 border-t border-emerald-900/30">
-                    <h4
-                      className={`text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5 ${
-                        isDark ? "text-emerald-400" : "text-emerald-900"
+        {/* ALTERNATIVE VIEW: All 38 Nodes in searchable table */}
+        {activeTab === "matrix" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <h3 className="text-base font-bold text-slate-900">
+                Samlet Katalog over alle 38 Domæneelementer
+              </h3>
+              <div className="relative w-64">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Hurtigsøgning..."
+                  className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-semibold">
+                  <tr>
+                    <th className="p-3">Element / Titel</th>
+                    <th className="p-3">Søjle</th>
+                    <th className="p-3">Kategori</th>
+                    <th className="p-3">Lovhjemmel</th>
+                    <th className="p-3">Tidslinje</th>
+                    <th className="p-3 text-right">Handling</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredAllNodes.map((node) => (
+                    <tr
+                      key={node.id}
+                      className={`hover:bg-slate-50/80 transition-colors ${
+                        selectedNode.id === node.id ? "bg-emerald-50/50 font-medium" : ""
                       }`}
                     >
-                      <Layers className="w-4 h-4" /> Feltkatalog & Datastandard
-                    </h4>
-                    <div className="flex flex-wrap gap-1.5">
-                      {selectedNode.feltkatalogRefs.map((ref, idx) => (
-                        <span
-                          key={idx}
-                          className={`text-xs font-mono px-2.5 py-1 rounded-md border ${
-                            isDark
-                              ? "bg-[#0f251c] text-emerald-300 border-emerald-700/60"
-                              : "bg-white text-slate-800 border-slate-300 font-medium"
-                          }`}
-                        >
-                          {ref}
+                      <td className="p-3 font-semibold text-slate-900">
+                        {node.titleDa}
+                        {node.subtitleDa && (
+                          <div className="text-[11px] font-normal text-slate-500">{node.subtitleDa}</div>
+                        )}
+                      </td>
+                      <td className="p-3 font-mono text-slate-600">
+                        {node.column === "actors" && "1. Aktør"}
+                        {node.column === "events" && "2. Hændelse"}
+                        {node.column === "systems" && "3. IT-System"}
+                        {node.column === "regulations" && "4. Regelsæt"}
+                      </td>
+                      <td className="p-3">
+                        <span className="px-2 py-0.5 bg-slate-100 rounded text-[11px] text-slate-700">
+                          {node.category}
                         </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Right 2 Columns: Connected Entities Across the 4 Domains */}
-              <div className="lg:col-span-2">
-                <h4
-                  className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center justify-between ${
-                    isDark ? "text-emerald-400" : "text-emerald-900"
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <Shield className="w-4 h-4 text-emerald-500" />
-                    Forbundne Krydsfelter i Kontrolkæden
-                  </span>
-                  <span className="text-[11px] font-mono normal-case">
-                    {connectedNodeIds.size - 1} direkte & transitive relationer
-                  </span>
-                </h4>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {connectedByColumn && (
-                    <>
-                      {/* Actors Group */}
-                      {connectedByColumn.actors.length > 0 && (
-                        <div
-                          className={`p-3 rounded-xl border ${
-                            isDark ? "bg-[#091510] border-emerald-900/40" : "bg-white border-slate-200"
-                          }`}
+                      </td>
+                      <td className="p-3 font-mono text-slate-600">{node.legalReference || "—"}</td>
+                      <td className="p-3">
+                        {node.introducedYear === 2028 ? (
+                          <span className="px-2 py-0.5 bg-purple-50 text-purple-800 rounded font-semibold text-[10px]">
+                            2028
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">2026</span>
+                        )}
+                      </td>
+                      <td className="p-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleSelectNode(node.id);
+                            setActiveTab("chain");
+                          }}
+                          className="text-[#0e472f] hover:underline font-semibold cursor-pointer"
                         >
-                          <div
-                            className={`text-xs font-bold pb-2 mb-2 border-b flex items-center justify-between ${
-                              isDark ? "border-emerald-900/40 text-emerald-300" : "border-slate-100 text-slate-800"
-                            }`}
-                          >
-                            <span>1. Involverede Aktører</span>
-                            <span className="font-mono text-[10px] opacity-75">
-                              ({connectedByColumn.actors.length})
-                            </span>
-                          </div>
-                          <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                            {connectedByColumn.actors.map(({ node, roleDa }) => (
-                              <button
-                                key={node.id}
-                                type="button"
-                                onClick={() => handleSelectNode(node.id)}
-                                className={`w-full text-left p-2 rounded-lg text-xs transition-colors flex items-center justify-between cursor-pointer ${
-                                  isDark
-                                    ? "bg-[#0d1e16] hover:bg-emerald-900/50 text-emerald-100"
-                                    : "bg-slate-50 hover:bg-emerald-50 text-slate-800"
-                                }`}
-                              >
-                                <span className="font-medium truncate">{node.titleDa}</span>
-                                {roleDa && (
-                                  <span className="text-[10px] text-emerald-500 shrink-0 ml-2 font-mono">
-                                    → {roleDa}
-                                  </span>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Events Group */}
-                      {connectedByColumn.events.length > 0 && (
-                        <div
-                          className={`p-3 rounded-xl border ${
-                            isDark ? "bg-[#091510] border-emerald-900/40" : "bg-white border-slate-200"
-                          }`}
-                        >
-                          <div
-                            className={`text-xs font-bold pb-2 mb-2 border-b flex items-center justify-between ${
-                              isDark ? "border-emerald-900/40 text-emerald-300" : "border-slate-100 text-slate-800"
-                            }`}
-                          >
-                            <span>2. Forvaltningshændelser</span>
-                            <span className="font-mono text-[10px] opacity-75">
-                              ({connectedByColumn.events.length})
-                            </span>
-                          </div>
-                          <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                            {connectedByColumn.events.map(({ node, roleDa }) => (
-                              <button
-                                key={node.id}
-                                type="button"
-                                onClick={() => handleSelectNode(node.id)}
-                                className={`w-full text-left p-2 rounded-lg text-xs transition-colors flex items-center justify-between cursor-pointer ${
-                                  isDark
-                                    ? "bg-[#0d1e16] hover:bg-emerald-900/50 text-emerald-100"
-                                    : "bg-slate-50 hover:bg-emerald-50 text-slate-800"
-                                }`}
-                              >
-                                <span className="font-medium truncate">{node.titleDa}</span>
-                                {roleDa && (
-                                  <span className="text-[10px] text-emerald-500 shrink-0 ml-2 font-mono">
-                                    → {roleDa}
-                                  </span>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Systems Group */}
-                      {connectedByColumn.systems.length > 0 && (
-                        <div
-                          className={`p-3 rounded-xl border ${
-                            isDark ? "bg-[#091510] border-emerald-900/40" : "bg-white border-slate-200"
-                          }`}
-                        >
-                          <div
-                            className={`text-xs font-bold pb-2 mb-2 border-b flex items-center justify-between ${
-                              isDark ? "border-emerald-900/40 text-emerald-300" : "border-slate-100 text-slate-800"
-                            }`}
-                          >
-                            <span>3. IT-Systemer & Registre</span>
-                            <span className="font-mono text-[10px] opacity-75">
-                              ({connectedByColumn.systems.length})
-                            </span>
-                          </div>
-                          <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                            {connectedByColumn.systems.map(({ node, roleDa }) => (
-                              <button
-                                key={node.id}
-                                type="button"
-                                onClick={() => handleSelectNode(node.id)}
-                                className={`w-full text-left p-2 rounded-lg text-xs transition-colors flex items-center justify-between cursor-pointer ${
-                                  isDark
-                                    ? "bg-[#0d1e16] hover:bg-emerald-900/50 text-emerald-100"
-                                    : "bg-slate-50 hover:bg-emerald-50 text-slate-800"
-                                }`}
-                              >
-                                <span className="font-medium truncate">{node.titleDa}</span>
-                                {roleDa && (
-                                  <span className="text-[10px] text-emerald-500 shrink-0 ml-2 font-mono">
-                                    → {roleDa}
-                                  </span>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Regulations Group */}
-                      {connectedByColumn.regulations.length > 0 && (
-                        <div
-                          className={`p-3 rounded-xl border ${
-                            isDark ? "bg-[#091510] border-emerald-900/40" : "bg-white border-slate-200"
-                          }`}
-                        >
-                          <div
-                            className={`text-xs font-bold pb-2 mb-2 border-b flex items-center justify-between ${
-                              isDark ? "border-emerald-900/40 text-emerald-300" : "border-slate-100 text-slate-800"
-                            }`}
-                          >
-                            <span>4. Regelsæt & Retskilder</span>
-                            <span className="font-mono text-[10px] opacity-75">
-                              ({connectedByColumn.regulations.length})
-                            </span>
-                          </div>
-                          <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                            {connectedByColumn.regulations.map(({ node, roleDa }) => (
-                              <button
-                                key={node.id}
-                                type="button"
-                                onClick={() => handleSelectNode(node.id)}
-                                className={`w-full text-left p-2 rounded-lg text-xs transition-colors flex items-center justify-between cursor-pointer ${
-                                  isDark
-                                    ? "bg-[#0d1e16] hover:bg-emerald-900/50 text-emerald-100"
-                                    : "bg-slate-50 hover:bg-emerald-50 text-slate-800"
-                                }`}
-                              >
-                                <span className="font-medium truncate">{node.titleDa}</span>
-                                {roleDa && (
-                                  <span className="text-[10px] text-emerald-500 shrink-0 ml-2 font-mono">
-                                    → {roleDa}
-                                  </span>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
+                          Vis Kæde →
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
       </main>
+
+      {/* Clean Footer */}
+      <footer className="bg-white border-t border-slate-200 px-6 py-4 mt-auto text-xs text-slate-500">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div>
+            <strong>Fiskeristyrelsen</strong> · Styrelsen for Fødevarer, Landbrug og Fiskeri
+          </div>
+          <div>
+            Retsgrundlag: (EU) 1224/2009, (EU) 2023/2842, (EU) 2025/2196, BEK 1144/2025, BEK 1197/2025
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
