@@ -1,6 +1,6 @@
-/** Derives a human-readable document label from an uploaded PDF filename. */
+/** Derives a human-readable document label from an uploaded PDF or HTML filename. */
 export function deriveLabelFromFilename(filename: string): string {
-  const withoutExtension = filename.replace(/\.pdf$/i, "");
+  const withoutExtension = filename.replace(/\.(pdf|html?|xhtml)$/i, "");
   const normalized = withoutExtension.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
   if (!normalized) return "";
 

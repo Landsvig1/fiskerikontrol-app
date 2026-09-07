@@ -149,9 +149,10 @@ describe("/api/parse", () => {
 
   it("rejects a combined upload over the platform-safe size cap", async () => {
     const fd = new FormData();
-    fd.append("pdf0", pdf("a.pdf", 3 * 1024 * 1024));
+    const halfOver = (Math.floor(MAX_UPLOAD_MB / 2) + 1) * 1024 * 1024;
+    fd.append("pdf0", pdf("a.pdf", halfOver));
     fd.append("label0", "A");
-    fd.append("pdf1", pdf("b.pdf", 3 * 1024 * 1024));
+    fd.append("pdf1", pdf("b.pdf", halfOver));
     fd.append("label1", "B");
 
     const res = await POST(makeRequest(fd));
@@ -285,5 +286,55 @@ describe("/api/parse preset ids", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toMatch(/JSON kunne ikke læses/i);
+  });
+
+  it("accepts HTML files uploaded via FormData", async () => {
+    const fd = new FormData();
+    const htmlA = new File(
+      ["<html><body><p><strong>Artikel 1</strong></p><p>Regel 1</p><p><strong>Artikel 2</strong></p><p>Regel 2</p></body></html>"],
+      "actA.html",
+      { type: "text/html" }
+    );
+    const htmlB = new File(
+      ["<html><body><p><strong>§ 1</strong></p><p>National regel jf. artikel 1.</p><p><strong>§ 2</strong></p><p>Straffebestemmelse</p></body></html>"],
+      "actB.html",
+      { type: "text/html" }
+    );
+    fd.append("doc0", htmlA);
+    fd.append("label0", "Act A HTML");
+    fd.append("doc1", htmlB);
+    fd.append("label1", "Act B HTML");
+
+    const res = await POST(makeRequest(fd));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.docs).toHaveLength(2);
+    expect(body.docs[0].label).toBe("Act A HTML");
+    expect(body.docs[1].label).toBe("Act B HTML");
+  });
+
+  it("accepts injected HTML documents sent as JSON payload", async () => {
+    const payload = {
+      documents: [
+        {
+          label: "EU Grundforordning",
+          html: "<div><p><strong>Artikel 1</strong></p><p>Forordningskrav.</p><p><strong>Artikel 2</strong></p><p>Forbud mod udsmid.</p></div>",
+          type: "eu",
+        },
+        {
+          label: "Dansk Bekendtgørelse",
+          html: "<div><p><strong>§ 1</strong></p><p>Regler for fangst jf. artikel 1.</p><p><strong>§ 2</strong></p><p>Håndhævelse.</p></div>",
+          type: "bek",
+        },
+      ],
+    };
+
+    const res = await POST(makeJsonRequest(payload));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.docs).toHaveLength(2);
+    expect(body.docs[0]).toEqual({ id: "doc0", label: "EU Grundforordning", type: "eu" });
+    expect(body.docs[1]).toEqual({ id: "doc1", label: "Dansk Bekendtgørelse", type: "bek" });
+    expect(body.nodes.length).toBeGreaterThanOrEqual(4);
   });
 });
