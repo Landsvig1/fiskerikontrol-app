@@ -87,4 +87,39 @@ describe("Home Matrix Application", () => {
 
     expect(replace).toHaveBeenCalledWith(expect.stringContaining("node=actor_large"), { scroll: false });
   });
+
+  it("opens article inspector modal when clicking ? button on a regulation card", () => {
+    render(<Home />);
+
+    // Find question mark buttons for regulation cards
+    const questionButtons = screen.getAllByRole("button", { name: /Se artikler/i });
+    expect(questionButtons.length).toBeGreaterThan(0);
+
+    // Click the first question button (e.g. EU 1224/2009 or BEK 1144)
+    fireEvent.click(questionButtons[0]);
+
+    // Modal dialog should be in the document
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText(/Retsgrundlag & Paragraffer/i)).toBeInTheDocument();
+    expect(screen.getByText(/Relevante artikler for kontrolkæden/i)).toBeInTheDocument();
+
+    // Close button works
+    const closeBtn = screen.getByRole("button", { name: /^Luk$/i });
+    fireEvent.click(closeBtn);
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("closes article inspector modal on Escape key", () => {
+    render(<Home />);
+
+    const questionButtons = screen.getAllByRole("button", { name: /Se artikler/i });
+    fireEvent.click(questionButtons[0]);
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
 });

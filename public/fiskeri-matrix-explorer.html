@@ -508,6 +508,131 @@
       flex-wrap: wrap;
       gap: 1rem;
     }
+
+    /* Question Mark Button */
+    .btn-question {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: var(--text-dim);
+      font-size: 0.65rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+
+    .btn-question:hover {
+      border-color: var(--mim-green);
+      background: var(--mim-green-tint);
+      color: var(--mim-green);
+    }
+
+    /* Modal Backdrop and Card */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(2px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .modal-card {
+      background: #ffffff;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      max-width: 640px;
+      width: 100%;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: modalFadeIn 0.15s ease-out;
+    }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.97); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+      background: #f8fafc;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .modal-badge-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: var(--mim-green-tint);
+      border: 1px solid var(--mim-green-border);
+      color: var(--mim-green);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.4rem;
+      line-height: 1;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 0.2rem 0.4rem;
+      border-radius: 6px;
+    }
+
+    .modal-close:hover {
+      background: #e2e8f0;
+      color: var(--text);
+    }
+
+    .modal-body {
+      padding: 1.25rem 1.5rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .modal-article-row {
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 0.85rem;
+    }
+
+    .modal-article-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .modal-footer {
+      padding: 0.85rem 1.5rem;
+      border-top: 1px solid var(--border-subtle);
+      background: #f8fafc;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+    }
   </style>
 </head>
 <body>
@@ -630,6 +755,37 @@
       </div>
     </div>
   </main>
+
+  <!-- Article Reference Modal -->
+  <div id="article-modal" class="modal-backdrop" style="display: none;" onclick="closeArticleModal()">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div style="display:flex;align-items:flex-start;gap:0.75rem;">
+          <div class="modal-badge-icon">⚖️</div>
+          <div>
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.2rem;">
+              <span id="modal-celex" class="chip-tag" style="background:#e2e8f0;color:#1e293b;font-family:var(--font-mono);font-size:0.7rem;font-weight:600;"></span>
+              <span style="font-size:0.75rem;color:var(--text-dim);">Lovhjemmel & Artikler</span>
+            </div>
+            <h3 id="modal-title" style="font-size:1.05rem;font-weight:700;color:var(--text);"></h3>
+            <p id="modal-full-title" style="font-size:0.75rem;color:var(--text-dim);margin-top:0.25rem;line-height:1.4;"></p>
+          </div>
+        </div>
+        <button type="button" class="modal-close" onclick="closeArticleModal()" aria-label="Luk dialog">×</button>
+      </div>
+      <div id="modal-articles-list" class="modal-body">
+        <!-- Injected via JS -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" id="modal-btn-chain" onclick="selectModalRegulation()">
+          Vis hele kontrolkæden for dette regelsæt →
+        </button>
+        <button type="button" class="btn-primary" onclick="closeArticleModal()">
+          Luk
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Clean Footer -->
   <footer>
@@ -1635,6 +1791,334 @@
     "icon": "Sparkles"
   }
 ];
+    const REGULATION_ARTICLES = {
+  "reg_1224_2009": {
+    "regulationId": "reg_1224_2009",
+    "shortTitleDa": "EU 1224/2009 (Kontrolforordningen)",
+    "fullTitleDa": "Rådets forordning (EF) nr. 1224/2009 om oprettelse af en EF-kontrolordning",
+    "celexOrBekNr": "CELEX 32009R1224",
+    "articles": [
+      {
+        "article": "Art. 6-7",
+        "titleDa": "Fiskerilicens & Fiskeritilladelse",
+        "summaryDa": "Et EU-fiskerfartøj må kun anvendes til erhvervsmæssig udnyttelse af levende akvatiske ressourcer, hvis det har en gyldig fiskerilicens og specifik tilladelse.",
+        "relevanceDa": "Hjemmel til tildeling af FKA/IOK kvoter og fiskerirettigheder."
+      },
+      {
+        "article": "Art. 9",
+        "titleDa": "Fartøjsovervågningssystem (VMS/FOS)",
+        "summaryDa": "Fartøjer skal have installeret en fuldt funktionsdygtig VMS-enhed, der automatisk transmitterer position, kurs og fart hvert 10.-30. minut til FMC.",
+        "relevanceDa": "Gælder i 2026 for fartøjer ≥12m. Fra 10. januar 2028 også obligatorisk for småbåde <12m via mobil-sporing."
+      },
+      {
+        "article": "Art. 14",
+        "titleDa": "Elektronisk Logbog (eLog) & 10% Margen",
+        "summaryDa": "Føreren skal registrere alle operationer halingsvis. For alle arter gælder en maksimal tilladt tolerancemargen på 10 % mellem skippers estimat og den faktiske vejede mængde.",
+        "relevanceDa": "Grundstenen i fangstdokumentation og overholdelse af landingsforpligtelsen."
+      },
+      {
+        "article": "Art. 15a",
+        "titleDa": "Elektronisk registrering for fartøjer < 12m",
+        "summaryDa": "Indført ved EU 2023/2842: Forpligter små kystfartøjer til før anløb eller landing at indsende en elektronisk fangsterklæring.",
+        "relevanceDa": "Træder i kraft 10. januar 2028. I 2026 er fartøjer <12m undtaget.",
+        "yearIntroduced": 2028
+      },
+      {
+        "article": "Art. 17",
+        "titleDa": "Forudgående Anmeldelse af Anløb (PNO)",
+        "summaryDa": "Førere af fartøjer ≥12m skal anmelde anløb til myndigheden mindst 4 timer før ankomst til havn med angivelse af havn, tidspunkt og ombordværende fangster.",
+        "relevanceDa": "Giver FMC og lokale kontrollører mulighed for at planlægge kajkontrol og vejetilsyn."
+      },
+      {
+        "article": "Art. 23",
+        "titleDa": "Elektronisk Landingserklæring (LAN)",
+        "summaryDa": "Efter hver landing skal fartøjsføreren udfylde og indsende en elektronisk landingserklæring til flagstatens myndighed senest inden 24 timer.",
+        "relevanceDa": "Fartøjer <12m er fritaget for eLog LAN i 2026 (her træder opkøbers salgsnota i stedet)."
+      },
+      {
+        "article": "Art. 60-61",
+        "titleDa": "Vejekrav ved Landing & Vejetilladelse",
+        "summaryDa": "Al landet fisk skal vejes umiddelbart ved landing på godkendte, plomberede vægte af autoriserede vejeoperatører, før fisken må videretransporteres eller sælges.",
+        "relevanceDa": "Skærpet 10. januar 2026: Vejning skal ske efter en forhåndsgodkendt kontrolplan."
+      },
+      {
+        "article": "Art. 62-65",
+        "titleDa": "Elektronisk Salgsnota fra Førsteopkøber",
+        "summaryDa": "Førsteopkøbere, auktioner og godkendte modtagere er forpligtet til elektronisk at indsende en salgsnota inden 48 timer efter første salg.",
+        "relevanceDa": "For kystfiskere <12m er salgsnotaen i 2026 den eneste myndighedsregistrering af fangstmængden."
+      },
+      {
+        "article": "Art. 68",
+        "titleDa": "Transportdokument for Fiskevarer",
+        "summaryDa": "Ved transport af uforarbejdede fiskevarer, der endnu ikke er solgt eller vejet, skal et transportdokument ledsage partiet og indsendes elektronisk.",
+        "relevanceDa": "Sikrer sporbarhed fra kajkanten til forarbejdningsvirksomhed eller auktion."
+      },
+      {
+        "article": "Art. 71-88",
+        "titleDa": "Kontrolbeføjelser til Søs & i Havn",
+        "summaryDa": "Bemyndiger kontrolfartøjer (Havørnen, Vestkysten) og havnekontrollører til bording, redskabsmåling, inspektion af lastrum og udarbejdelse af inspektionsrapporter.",
+        "relevanceDa": "Juridisk grundlag for fysisk tilsyn, vejekontrol og optagelse af forseelsessager."
+      },
+      {
+        "article": "Art. 92",
+        "titleDa": "Pointsystem for Alvorlige Overtrædelser",
+        "summaryDa": "Forpligter medlemsstaterne til at tildele point til fiskerilicenshavere og skippere ved alvorlige overtrædelser (fx overtrædelse af 10% tolerancemargen eller manglende VMS).",
+        "relevanceDa": "Udmøntet i dansk ret via BEK 978/2019."
+      },
+      {
+        "article": "Art. 109",
+        "titleDa": "Automatiseret Krydskontrol & Datavalidering",
+        "summaryDa": "Myndighederne skal oprette et automatiseret computervalideringssystem, der krydstjekker VMS-spor, eLog-data, PNO-varsler, vejede salgsnotaer og landingserklæringer.",
+        "relevanceDa": "Fiskeristyrelsens valideringsmotor (Art. 49-53) genererer automatiske flag ved uoverensstemmelser."
+      }
+    ]
+  },
+  "reg_2023_2842": {
+    "regulationId": "reg_2023_2842",
+    "shortTitleDa": "EU 2023/2842 (Kontrolrevisionen)",
+    "fullTitleDa": "Europa-Parlamentets og Rådets forordning (EU) 2023/2842 om ændring af kontrolforordningen",
+    "celexOrBekNr": "CELEX 32023R2842",
+    "articles": [
+      {
+        "article": "Art. 13",
+        "titleDa": "Elektronisk Fjernovervågning (REM / CCTV)",
+        "summaryDa": "Obligatorisk installation af CCTV-kameraer og sensorer til kontinuerlig overvågning af landingsforpligtelsen for risikofartøjer ≥18m.",
+        "relevanceDa": "Træder i kraft 10. januar 2028 (efter 4 års overgangsperiode).",
+        "yearIntroduced": 2028
+      },
+      {
+        "article": "Art. 15a",
+        "titleDa": "Obligatorisk Sporing & eLog for Småfartøjer",
+        "summaryDa": "Ophæver de hidtidige nationale undtagelser for fartøjer under 12 meter. Indfører obligatorisk mobil positionssporing og digital logbog.",
+        "relevanceDa": "Træder i kraft 10. januar 2028. Berører ca. 500-600 mindre danske fartøjer.",
+        "yearIntroduced": 2028
+      },
+      {
+        "article": "Art. 39a-39c",
+        "titleDa": "Kontinuerlig Motoreffekt-Måling",
+        "summaryDa": "Fartøjer med høj risiko for motormanipulation skal udstyres med kontinuerlige fysiske sensorer, der måler og logger aksel- eller motoreffekt (kW).",
+        "relevanceDa": "Forhindrer ulovlig overskridelse af tilladt maskineffekt i trawl- og bomtrawlfiskeri.",
+        "yearIntroduced": 2028
+      },
+      {
+        "article": "Art. 60, stk. 1a",
+        "titleDa": "Krav om Forhåndsgodkendt Vejeaktør",
+        "summaryDa": "Enhver der vejer fiskevarer ved landing skal være forhåndsgodkendt af de kompetente myndigheder og anvende kalibrerede, plomberede systemer.",
+        "relevanceDa": "Trådt i kraft 10. januar 2026. Udmøntet i BEK 1144/2025."
+      }
+    ]
+  },
+  "reg_2025_2196": {
+    "regulationId": "reg_2025_2196",
+    "shortTitleDa": "EU 2025/2196 (Gennemførelsesforordning)",
+    "fullTitleDa": "Kommissionens gennemførelsesforordning (EU) 2025/2196 om kontrolforordningens tekniske regler",
+    "celexOrBekNr": "CELEX 32025R2196",
+    "articles": [
+      {
+        "article": "Art. 19-23",
+        "titleDa": "Positionsdata & VMS Transmissionsstandard",
+        "summaryDa": "Definerer de præcise datastrukturer, kryptering og rapporteringsintervaller for satellit- og mobilpositionsdata til FMC.",
+        "relevanceDa": "Understøtter både traditionel Inmarsat/Iridium VMS og den nye 2028 mobil-app for kystfiskere."
+      },
+      {
+        "article": "Art. 49-53",
+        "titleDa": "Valideringsalgoritmer & Krydskontrol",
+        "summaryDa": "Fastlægger de automatiske valideringsregler: Tjekker om en afsejling har en matchende eLog, om VMS-fart matcher trawl-aktivitet, og om salgsnota matcher landed mængde.",
+        "relevanceDa": "Kernen i Fiskeristyrelsens automatiserede sagsåbningsmotor."
+      },
+      {
+        "article": "Bilag VI",
+        "titleDa": "Datakatalog for Fartøjssporing",
+        "summaryDa": "Specifikation af alle obligatoriske felter i en positionsmeddelelse: breddegrad, længdegrad, kurs, fart, dato, tid og fartøjs-ID.",
+        "relevanceDa": "Teknisk standard for FMC og FOS."
+      },
+      {
+        "article": "Bilag XV",
+        "titleDa": "Feltkatalog for Elektronisk Logbog (eLog)",
+        "summaryDa": "Indeholder feltdefinitionerne 1-44 for eLog: redskabstype, maskestørrelse, havområde, ICES-afsnit, art (FAO 3-alfa), estimeret vægt og halingstid.",
+        "relevanceDa": "Brugt i alle godkendte eLog-systemer i Danmark."
+      },
+      {
+        "article": "Bilag XIX",
+        "titleDa": "Feltkatalog for Salgsnotaer & Omsætning",
+        "summaryDa": "Indeholder felterne 1-26 for salgsnotaer: opkøber-ID, fartøjsnavn, landingshavn, artskode, sortering, vejet vægt, pris og unikt fangstrejse-ID.",
+        "relevanceDa": "Teknisk grundlag for indberetning til FOS Salgsdatabase."
+      }
+    ]
+  },
+  "reg_1380_2013": {
+    "regulationId": "reg_1380_2013",
+    "shortTitleDa": "EU 1380/2013 (CFP Grundforordningen)",
+    "fullTitleDa": "Europa-Parlamentets og Rådets forordning (EU) nr. 1380/2013 om den fælles fiskeripolitik",
+    "celexOrBekNr": "CELEX 32013R1380",
+    "articles": [
+      {
+        "article": "Art. 15",
+        "titleDa": "Landingsforpligtelsen (Discardforbud)",
+        "summaryDa": "Forpligter fiskere til at bringe samtlige fangster af kvoterede arter i land og modregne dem i kvoten. Udsmid af kvoterede arter er forbudt med snævre undtagelser.",
+        "relevanceDa": "Hovedårsagen til skærpet overvågning, 10% toleranceregel og krav om CCTV."
+      },
+      {
+        "article": "Art. 16-17",
+        "titleDa": "Kvotefordeling & Gennemsigtighed",
+        "summaryDa": "Fastlægger princippet om relativ stabilitet og pålægger medlemsstaterne at anvende gennemskuelige og objektive kriterier ved national fordeling af fiskerimuligheder.",
+        "relevanceDa": "Danner grundlag for Danmarks FKA/IOK og kystfiskerordning."
+      }
+    ]
+  },
+  "reg_2019_1241": {
+    "regulationId": "reg_2019_1241",
+    "shortTitleDa": "EU 2019/1241 (Tekniske Foranstaltninger)",
+    "fullTitleDa": "Forordning (EU) 2019/1241 om bevarelse af fiskeressourcerne gennem tekniske foranstaltninger",
+    "celexOrBekNr": "CELEX 32019R1241",
+    "articles": [
+      {
+        "article": "Art. 7-10",
+        "titleDa": "Tilladte Redskaber & Maskestørrelser",
+        "summaryDa": "Fastsætter specifikationer for lovlige fangstredskaber, herunder minimumsmaskestørrelser, selektionsriste og paneler i Nordsøen og Østersøen.",
+        "relevanceDa": "Kontrolleres af Havørnen og Vestkysten ved søtilsyn med kalibreret målekile."
+      },
+      {
+        "article": "Art. 13 & Bilag",
+        "titleDa": "Bevarelsesmæssige Mindstemål (MCRS)",
+        "summaryDa": "Lister mindstemål for fiskearter (fx rødspætte, torsk, sild). Fisk under MCRS må ikke anvendes til direkte konsum, men skal landes jf. art. 15.",
+        "relevanceDa": "Kontrolleres ved stikprøver ved kajtilsyn og søbording."
+      }
+    ]
+  },
+  "reg_fiskeriloven": {
+    "regulationId": "reg_fiskeriloven",
+    "shortTitleDa": "Fiskeriloven (LBK 205/2023)",
+    "fullTitleDa": "Lov om fiskeri og fiskeopdræt (Fiskeriloven)",
+    "celexOrBekNr": "LBK nr. 205 af 01/03/2023",
+    "articles": [
+      {
+        "article": "§ 10",
+        "titleDa": "Bemyndigelse til Reguleringsregler",
+        "summaryDa": "Giver ministeren hjemmel til at udstede administrative bekendtgørelser om regulering af fiskeriet, herunder kvoter, fartøjskategorier og redskaber.",
+        "relevanceDa": "Hjemmel for BEK 1571, BEK 1144 og BEK 1197."
+      },
+      {
+        "article": "§ 117-119",
+        "titleDa": "Kontrollørernes Beføjelser til Tilsyn",
+        "summaryDa": "Fiskeristyrelsens kontrollører har til enhver tid mod behørig legitimation og uden retskendelse adgang til fiskerfartøjer, transportmidler, salgslokaler og vejeanlæg.",
+        "relevanceDa": "Grundlaget for fysiske inspektioner til søs og på land."
+      },
+      {
+        "article": "§ 120-122",
+        "titleDa": "Tvangsmidler & Beslaglæggelse",
+        "summaryDa": "Kontrollører kan udstede påbud, tilbageholde fartøjer i havn og foretage beslaglæggelse af ulovlige redskaber eller ulovligt landede fangster.",
+        "relevanceDa": "Håndhævelse ved alvorlige overtrædelser af kvote- eller redskabsregler."
+      }
+    ]
+  },
+  "reg_bek_1144_landing": {
+    "regulationId": "reg_bek_1144_landing",
+    "shortTitleDa": "BEK 1144/2025 (Landingsbekendtgørelsen)",
+    "fullTitleDa": "Bekendtgørelse om landing af fisk, anløbsmelding, vejning og salgsnotaer",
+    "celexOrBekNr": "BEK nr 1144 af 25/09/2025",
+    "articles": [
+      {
+        "article": "§ 3-4",
+        "titleDa": "Varsel for Forudgående Anmeldelse",
+        "summaryDa": "Fartøjer over 12 meter skal anmelde anløb elektronisk til FMC i Kolding mindst 4 timer før ankomst. Angivelse af estimeret mængde pr. art.",
+        "relevanceDa": "Dansk implementering af kontrolforordningens art. 17."
+      },
+      {
+        "article": "§ 5-9",
+        "titleDa": "Godkendelse af Vejeoperatører",
+        "summaryDa": "Pr. 10. januar 2026 skal modtagere have skriftlig tilladelse som autoriseret vejeoperatør og følge en godkendt kontrolplan for vejning.",
+        "relevanceDa": "Obligatorisk for alle fiskeauktioner, samlecentraler og fiskeopkøbere."
+      },
+      {
+        "article": "§ 12-16",
+        "titleDa": "48-timers Frist for Elektronisk Salgsnota",
+        "summaryDa": "Førsteopkøberen skal inden 48 timer efter afholdt auktion eller modtagelse indsende fuldstændig elektronisk salgsnota til FOS med unikt fangstrejse-ID.",
+        "relevanceDa": "Understøtter automatiseret krydskontrol mod fartøjets eLog."
+      }
+    ]
+  },
+  "reg_bek_1197_logbog": {
+    "regulationId": "reg_bek_1197_logbog",
+    "shortTitleDa": "BEK 1197/2025 (Logbogsbekendtgørelsen)",
+    "fullTitleDa": "Bekendtgørelse om elektronisk logbog og registrering af fiskeriaktiviteter",
+    "celexOrBekNr": "BEK nr 1197 af 07/10/2025",
+    "articles": [
+      {
+        "article": "§ 2-6",
+        "titleDa": "Brug af Godkendt eLog-Klient",
+        "summaryDa": "Erhvervsfiskere skal anvende godkendt elektronisk logbogsprogrammel og sikre kontinuerlig satellit- eller datatransmission af alle meddelelser.",
+        "relevanceDa": "Understøtter afsejlingsrapport (DEP), fangstrapport (FAR) og anløbsrapport (COE)."
+      },
+      {
+        "article": "§ 7",
+        "titleDa": "10% Tolerancemargen ved Haling",
+        "summaryDa": "Estimeringen af fangst i logbogen må ikke afvige mere end 10 % fra den faktisk landede og vejede mængde for hver enkelt art.",
+        "relevanceDa": "Overtrædelse medfører automatisk kontrolsag og mulig tildeling af licenspoint."
+      },
+      {
+        "article": "§ 10",
+        "titleDa": "Overgangsregler for Fartøjer < 12m",
+        "summaryDa": "Fartøjer under 12 meter er frem til 10. januar 2028 undtaget fra krav om elektronisk logbog under forudsætning af korrekt kystfiskerafregning.",
+        "relevanceDa": "Ophører endegyldigt den 10. januar 2028 jf. EU 2023/2842."
+      }
+    ]
+  },
+  "reg_bek_1571_regulering": {
+    "regulationId": "reg_bek_1571_regulering",
+    "shortTitleDa": "BEK 1571/2025 (Reguleringsbekendtgørelsen)",
+    "fullTitleDa": "Bekendtgørelse om regulering af fiskeriet for 2026",
+    "celexOrBekNr": "BEK nr 1571 af 04/12/2025",
+    "articles": [
+      {
+        "article": "§ 8-15",
+        "titleDa": "FKA og IOK Kvotevilkår",
+        "summaryDa": "Fastlægger de årlige mængder og lånemuligheder for fartøjskvoteandele (konsumfartøjer) og individuelle overdragelige kvoteandele (pelagisk/industri).",
+        "relevanceDa": "Danner loftet for tilladte landinger i danske farvande."
+      },
+      {
+        "article": "§ 20-25",
+        "titleDa": "Kystfiskerordningen (MAF)",
+        "summaryDa": "Særlige tildelinger af ekstra kvotemængder til skånsomme kystfiskere (garn, liner, snurrevod) med fartøjer op til 17 meter og ture under 24 timer.",
+        "relevanceDa": "Understøtter kystfiskeriet og stiller specifikke redskabsbetingelser."
+      }
+    ]
+  },
+  "reg_bek_978_point": {
+    "regulationId": "reg_bek_978_point",
+    "shortTitleDa": "BEK 978/2019 (Pointbekendtgørelsen)",
+    "fullTitleDa": "Bekendtgørelse om pointtildeling for alvorlige overtrædelser af fiskerilovgivningen",
+    "celexOrBekNr": "BEK nr 978 af 24/09/2019",
+    "articles": [
+      {
+        "article": "§ 3 & Bilag 1",
+        "titleDa": "Pointkatalog for Alvorlige Overtrædelser",
+        "summaryDa": "Tildeler point (fx 3-7 point pr. overtrædelse) for kvoteunddragelse, manipulation af VMS, overskridelse af tolerancemargen eller manglende PNO.",
+        "relevanceDa": "Automatisk koblet til Fiskeristyrelsens validerings- og sagssystem."
+      },
+      {
+        "article": "§ 7",
+        "titleDa": "Suspension af Fiskerilicens",
+        "summaryDa": "Når en licenshaver akkumulerer 18 point suspenderes fiskerilicensen automatisk i 2 måneder. Ved 36 point i 4 måneder; ved 72 point inddrages licensen permanent.",
+        "relevanceDa": "Kontrolmyndighedens strengeste administrative sanktion mod ulovligt fiskeri."
+      }
+    ]
+  },
+  "reg_bek_240_cctv": {
+    "regulationId": "reg_bek_240_cctv",
+    "shortTitleDa": "BEK 240/2020 (Kattegat CCTV)",
+    "fullTitleDa": "Bekendtgørelse om forsøg med elektronisk monitorering (CCTV) i Kattegat",
+    "celexOrBekNr": "BEK nr 240 af 16/03/2020",
+    "articles": [
+      {
+        "article": "§ 1-5",
+        "titleDa": "Frivillig CCTV i Jomfruhummerfiskeriet",
+        "summaryDa": "Regler for fartøjer, der frivilligt installerer kamerasystemer i Kattegat mod at opnå lempede kvoter og adgang til jomfruhummerområder.",
+        "relevanceDa": "Forløberen for EU's obligatoriske 2028-CCTV krav under EU 2023/2842."
+      }
+    ]
+  }
+};
 
     let currentYear = 2026;
     let selectedNodeId = "actor_micro";
@@ -1804,14 +2288,22 @@
           card.className = "item-card" + (isCurrent ? " is-focus" : "");
           card.onclick = () => selectNode(node.id);
 
+          const isReg = node.column === 'regulations';
+
           card.innerHTML = `
             <div class="item-card-top">
               <span class="item-card-category">${node.category}</span>
-              ${isCurrent ? '<span style="font-size: 0.65rem; font-weight: 700; color: var(--mim-green);">Fokus</span>' : ''}
+              <div style="display:flex;align-items:center;gap:0.35rem;">
+                ${isCurrent ? '<span style="font-size: 0.65rem; font-weight: 700; color: var(--mim-green);">Fokus</span>' : ''}
+                ${isReg ? `<button type="button" class="btn-question" onclick="event.stopPropagation(); showArticleModal('${node.id}');" title="Se specifikke artikler for ${node.titleDa}" aria-label="Se artikler for ${node.titleDa}">?</button>` : ''}
+              </div>
             </div>
             <div class="item-card-title">${node.titleDa}</div>
             ${node.legalReference ? `<div style="font-size:0.68rem;font-family:var(--font-mono);color:var(--text-dim);margin-top:0.15rem;">⚖️ ${node.legalReference}</div>` : ''}
-            ${roleDa ? `<div class="item-card-role">→ ${roleDa}</div>` : ''}
+            ${roleDa ? `<div class="item-card-role" style="display:flex;justify-content:space-between;align-items:center;">
+              <span>→ ${roleDa}</span>
+              ${isReg ? `<span style="font-size:0.65rem;text-decoration:underline;color:var(--text-dim);cursor:pointer;" onclick="event.stopPropagation(); showArticleModal('${node.id}');">Artikler</span>` : ''}
+            </div>` : ''}
           `;
 
           itemsCont.appendChild(card);
@@ -1827,13 +2319,19 @@
 
       for (const n of MATRIX_NODES) {
         const tr = document.createElement("tr");
+        const isReg = n.column === "regulations";
+
         tr.innerHTML = `
           <td><strong>${n.titleDa}</strong></td>
           <td>${n.column}</td>
           <td>${n.category}</td>
-          <td style="font-family:var(--font-mono);">${n.legalReference || "—"}</td>
+          <td style="font-family:var(--font-mono);">
+            ${n.legalReference || "—"}
+            ${isReg ? `<button type="button" class="btn-question" style="margin-left:0.35rem;vertical-align:middle;" onclick="showArticleModal('${n.id}');" title="Se artikler">?</button>` : ''}
+          </td>
           <td>${n.introducedYear === 2028 ? '<span style="color:#6b21a8;font-weight:700;">2028</span>' : '2026'}</td>
           <td style="text-align: right;">
+            ${isReg ? `<button type="button" class="btn-secondary" style="padding: 2px 6px; margin-right: 4px;" onclick="showArticleModal('${n.id}')">Artikler</button>` : ''}
             <button type="button" class="btn-secondary" style="padding: 2px 6px;" onclick="selectNode('${n.id}'); switchTab('chain');">
               Vis Kæde →
             </button>
@@ -1842,6 +2340,67 @@
         tbody.appendChild(tr);
       }
     }
+
+    let modalRegulationId = null;
+
+    function showArticleModal(regId) {
+      const reg = REGULATION_ARTICLES[regId];
+      if (!reg) return;
+      modalRegulationId = regId;
+
+      document.getElementById("modal-celex").textContent = reg.celexOrBekNr;
+      document.getElementById("modal-title").textContent = reg.shortTitleDa;
+      document.getElementById("modal-full-title").textContent = reg.fullTitleDa;
+
+      const cont = document.getElementById("modal-articles-list");
+      cont.innerHTML = `
+        <div style="font-size:0.75rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.25rem;">
+          Relevante artikler & paragraffer (${reg.articles.length}):
+        </div>
+      `;
+
+      for (const art of reg.articles) {
+        const row = document.createElement("div");
+        row.className = "modal-article-row";
+        row.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:0.25rem;">
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+              <span class="chip-tag" style="background:#f1f5f9;border:1px solid #cbd5e1;color:#0f172a;font-family:var(--font-mono);font-size:0.75rem;font-weight:700;">${art.article}</span>
+              <strong style="font-size:0.8rem;color:var(--text);">${art.titleDa}</strong>
+            </div>
+            ${art.yearIntroduced === 2028 ? '<span class="badge-2028" style="display:inline-block;margin:0;">2028 EU-reform</span>' : ''}
+          </div>
+          <p style="font-size:0.75rem;color:var(--text-muted);line-height:1.45;margin-top:0.25rem;">${art.summaryDa}</p>
+          ${art.relevanceDa ? `
+            <div style="margin-top:0.35rem;padding:0.4rem 0.6rem;background:var(--mim-green-tint);border:1px solid var(--mim-green-border);border-radius:6px;font-size:0.72rem;color:var(--mim-green);display:flex;gap:0.35rem;">
+              <strong>Betydning for tilsyn:</strong> <span>${art.relevanceDa}</span>
+            </div>
+          ` : ''}
+        `;
+        cont.appendChild(row);
+      }
+
+      document.getElementById("article-modal").style.display = "flex";
+    }
+
+    function closeArticleModal() {
+      document.getElementById("article-modal").style.display = "none";
+      modalRegulationId = null;
+    }
+
+    function selectModalRegulation() {
+      if (modalRegulationId) {
+        selectNode(modalRegulationId);
+        switchTab("chain");
+        closeArticleModal();
+      }
+    }
+
+    window.addEventListener("keydown", function(e) {
+      if (e.key === "Escape") {
+        closeArticleModal();
+      }
+    });
 
     function copyNotat() {
       const node = MATRIX_NODES.find(n => n.id === selectedNodeId) || MATRIX_NODES[0];

@@ -8,6 +8,9 @@ import {
 import {
   MATRIX_SCENARIOS,
 } from '../src/lib/matrixScenarios';
+import {
+  REGULATION_ARTICLES,
+} from '../src/lib/matrixArticles';
 
 const htmlContent = `<!DOCTYPE html>
 <html lang="da-DK">
@@ -519,6 +522,131 @@ const htmlContent = `<!DOCTYPE html>
       flex-wrap: wrap;
       gap: 1rem;
     }
+
+    /* Question Mark Button */
+    .btn-question {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: var(--text-dim);
+      font-size: 0.65rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+
+    .btn-question:hover {
+      border-color: var(--mim-green);
+      background: var(--mim-green-tint);
+      color: var(--mim-green);
+    }
+
+    /* Modal Backdrop and Card */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(2px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .modal-card {
+      background: #ffffff;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      max-width: 640px;
+      width: 100%;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: modalFadeIn 0.15s ease-out;
+    }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.97); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+      background: #f8fafc;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .modal-badge-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: var(--mim-green-tint);
+      border: 1px solid var(--mim-green-border);
+      color: var(--mim-green);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.4rem;
+      line-height: 1;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 0.2rem 0.4rem;
+      border-radius: 6px;
+    }
+
+    .modal-close:hover {
+      background: #e2e8f0;
+      color: var(--text);
+    }
+
+    .modal-body {
+      padding: 1.25rem 1.5rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .modal-article-row {
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 0.85rem;
+    }
+
+    .modal-article-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .modal-footer {
+      padding: 0.85rem 1.5rem;
+      border-top: 1px solid var(--border-subtle);
+      background: #f8fafc;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+    }
   </style>
 </head>
 <body>
@@ -642,6 +770,37 @@ const htmlContent = `<!DOCTYPE html>
     </div>
   </main>
 
+  <!-- Article Reference Modal -->
+  <div id="article-modal" class="modal-backdrop" style="display: none;" onclick="closeArticleModal()">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div style="display:flex;align-items:flex-start;gap:0.75rem;">
+          <div class="modal-badge-icon">⚖️</div>
+          <div>
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.2rem;">
+              <span id="modal-celex" class="chip-tag" style="background:#e2e8f0;color:#1e293b;font-family:var(--font-mono);font-size:0.7rem;font-weight:600;"></span>
+              <span style="font-size:0.75rem;color:var(--text-dim);">Lovhjemmel & Artikler</span>
+            </div>
+            <h3 id="modal-title" style="font-size:1.05rem;font-weight:700;color:var(--text);"></h3>
+            <p id="modal-full-title" style="font-size:0.75rem;color:var(--text-dim);margin-top:0.25rem;line-height:1.4;"></p>
+          </div>
+        </div>
+        <button type="button" class="modal-close" onclick="closeArticleModal()" aria-label="Luk dialog">×</button>
+      </div>
+      <div id="modal-articles-list" class="modal-body">
+        <!-- Injected via JS -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" id="modal-btn-chain" onclick="selectModalRegulation()">
+          Vis hele kontrolkæden for dette regelsæt →
+        </button>
+        <button type="button" class="btn-primary" onclick="closeArticleModal()">
+          Luk
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Clean Footer -->
   <footer>
     <div class="footer-inner">
@@ -658,6 +817,7 @@ const htmlContent = `<!DOCTYPE html>
     const MATRIX_NODES = ${JSON.stringify(MATRIX_NODES, null, 2)};
     const MATRIX_EDGES = ${JSON.stringify(MATRIX_EDGES, null, 2)};
     const MATRIX_SCENARIOS = ${JSON.stringify(MATRIX_SCENARIOS, null, 2)};
+    const REGULATION_ARTICLES = ${JSON.stringify(REGULATION_ARTICLES, null, 2)};
 
     let currentYear = 2026;
     let selectedNodeId = "actor_micro";
@@ -827,14 +987,22 @@ const htmlContent = `<!DOCTYPE html>
           card.className = "item-card" + (isCurrent ? " is-focus" : "");
           card.onclick = () => selectNode(node.id);
 
+          const isReg = node.column === 'regulations';
+
           card.innerHTML = \`
             <div class="item-card-top">
               <span class="item-card-category">\${node.category}</span>
-              \${isCurrent ? '<span style="font-size: 0.65rem; font-weight: 700; color: var(--mim-green);">Fokus</span>' : ''}
+              <div style="display:flex;align-items:center;gap:0.35rem;">
+                \${isCurrent ? '<span style="font-size: 0.65rem; font-weight: 700; color: var(--mim-green);">Fokus</span>' : ''}
+                \${isReg ? \`<button type="button" class="btn-question" onclick="event.stopPropagation(); showArticleModal('\${node.id}');" title="Se specifikke artikler for \${node.titleDa}" aria-label="Se artikler for \${node.titleDa}">?</button>\` : ''}
+              </div>
             </div>
             <div class="item-card-title">\${node.titleDa}</div>
             \${node.legalReference ? \`<div style="font-size:0.68rem;font-family:var(--font-mono);color:var(--text-dim);margin-top:0.15rem;">⚖️ \${node.legalReference}</div>\` : ''}
-            \${roleDa ? \`<div class="item-card-role">→ \${roleDa}</div>\` : ''}
+            \${roleDa ? \`<div class="item-card-role" style="display:flex;justify-content:space-between;align-items:center;">
+              <span>→ \${roleDa}</span>
+              \${isReg ? \`<span style="font-size:0.65rem;text-decoration:underline;color:var(--text-dim);cursor:pointer;" onclick="event.stopPropagation(); showArticleModal('\${node.id}');">Artikler</span>\` : ''}
+            </div>\` : ''}
           \`;
 
           itemsCont.appendChild(card);
@@ -850,13 +1018,19 @@ const htmlContent = `<!DOCTYPE html>
 
       for (const n of MATRIX_NODES) {
         const tr = document.createElement("tr");
+        const isReg = n.column === "regulations";
+
         tr.innerHTML = \`
           <td><strong>\${n.titleDa}</strong></td>
           <td>\${n.column}</td>
           <td>\${n.category}</td>
-          <td style="font-family:var(--font-mono);">\${n.legalReference || "—"}</td>
+          <td style="font-family:var(--font-mono);">
+            \${n.legalReference || "—"}
+            \${isReg ? \`<button type="button" class="btn-question" style="margin-left:0.35rem;vertical-align:middle;" onclick="showArticleModal('\${n.id}');" title="Se artikler">?</button>\` : ''}
+          </td>
           <td>\${n.introducedYear === 2028 ? '<span style="color:#6b21a8;font-weight:700;">2028</span>' : '2026'}</td>
           <td style="text-align: right;">
+            \${isReg ? \`<button type="button" class="btn-secondary" style="padding: 2px 6px; margin-right: 4px;" onclick="showArticleModal('\${n.id}')">Artikler</button>\` : ''}
             <button type="button" class="btn-secondary" style="padding: 2px 6px;" onclick="selectNode('\${n.id}'); switchTab('chain');">
               Vis Kæde →
             </button>
@@ -865,6 +1039,67 @@ const htmlContent = `<!DOCTYPE html>
         tbody.appendChild(tr);
       }
     }
+
+    let modalRegulationId = null;
+
+    function showArticleModal(regId) {
+      const reg = REGULATION_ARTICLES[regId];
+      if (!reg) return;
+      modalRegulationId = regId;
+
+      document.getElementById("modal-celex").textContent = reg.celexOrBekNr;
+      document.getElementById("modal-title").textContent = reg.shortTitleDa;
+      document.getElementById("modal-full-title").textContent = reg.fullTitleDa;
+
+      const cont = document.getElementById("modal-articles-list");
+      cont.innerHTML = \`
+        <div style="font-size:0.75rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.25rem;">
+          Relevante artikler & paragraffer (\${reg.articles.length}):
+        </div>
+      \`;
+
+      for (const art of reg.articles) {
+        const row = document.createElement("div");
+        row.className = "modal-article-row";
+        row.innerHTML = \`
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:0.25rem;">
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+              <span class="chip-tag" style="background:#f1f5f9;border:1px solid #cbd5e1;color:#0f172a;font-family:var(--font-mono);font-size:0.75rem;font-weight:700;">\${art.article}</span>
+              <strong style="font-size:0.8rem;color:var(--text);">\${art.titleDa}</strong>
+            </div>
+            \${art.yearIntroduced === 2028 ? '<span class="badge-2028" style="display:inline-block;margin:0;">2028 EU-reform</span>' : ''}
+          </div>
+          <p style="font-size:0.75rem;color:var(--text-muted);line-height:1.45;margin-top:0.25rem;">\${art.summaryDa}</p>
+          \${art.relevanceDa ? \`
+            <div style="margin-top:0.35rem;padding:0.4rem 0.6rem;background:var(--mim-green-tint);border:1px solid var(--mim-green-border);border-radius:6px;font-size:0.72rem;color:var(--mim-green);display:flex;gap:0.35rem;">
+              <strong>Betydning for tilsyn:</strong> <span>\${art.relevanceDa}</span>
+            </div>
+          \` : ''}
+        \`;
+        cont.appendChild(row);
+      }
+
+      document.getElementById("article-modal").style.display = "flex";
+    }
+
+    function closeArticleModal() {
+      document.getElementById("article-modal").style.display = "none";
+      modalRegulationId = null;
+    }
+
+    function selectModalRegulation() {
+      if (modalRegulationId) {
+        selectNode(modalRegulationId);
+        switchTab("chain");
+        closeArticleModal();
+      }
+    }
+
+    window.addEventListener("keydown", function(e) {
+      if (e.key === "Escape") {
+        closeArticleModal();
+      }
+    });
 
     function copyNotat() {
       const node = MATRIX_NODES.find(n => n.id === selectedNodeId) || MATRIX_NODES[0];

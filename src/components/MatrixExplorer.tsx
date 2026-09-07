@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   Search,
   Copy,
   Check,
   Layers,
   Shield,
+  X,
+  BookOpen,
 } from "lucide-react";
 import {
   MATRIX_NODES,
@@ -17,6 +19,9 @@ import {
   getConnectedNodes,
 } from "../lib/matrixData";
 import { MATRIX_SCENARIOS } from "../lib/matrixScenarios";
+import {
+  getArticlesForRegulation,
+} from "../lib/matrixArticles";
 
 interface MatrixExplorerProps {
   selectedNodeId?: string | null;
@@ -38,6 +43,17 @@ export function MatrixExplorer({
   const [copiedNotification, setCopiedNotification] = useState(false);
   const [copiedLinkNotification, setCopiedLinkNotification] = useState(false);
   const [activeTab, setActiveTab] = useState<"chain" | "matrix">("chain");
+  const [inspectingRegulationId, setInspectingRegulationId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setInspectingRegulationId(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const activeNodeId =
     propSelectedNodeId !== undefined && propSelectedNodeId !== null
@@ -80,6 +96,12 @@ export function MatrixExplorer({
     () => MATRIX_SCENARIOS.find((s) => s.focusNodeId === activeNodeId && s.year === activeYear) || null,
     [activeNodeId, activeYear]
   );
+
+  // Regulation currently being inspected via the ? icon
+  const inspectedRegulation = useMemo(() => {
+    if (!inspectingRegulationId) return null;
+    return getArticlesForRegulation(inspectingRegulationId);
+  }, [inspectingRegulationId]);
 
   // Connected nodes across all 4 columns for current timeline
   const connectedNodeIds = useMemo(() => {
@@ -379,6 +401,18 @@ export function MatrixExplorer({
                     ⚖️ {selectedNode.legalReference}
                   </span>
                 )}
+                {selectedNode.column === "regulations" && (
+                  <button
+                    type="button"
+                    onClick={() => setInspectingRegulationId(selectedNode.id)}
+                    className="text-xs font-medium text-[#0e472f] bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <span className="w-3.5 h-3.5 rounded-full bg-[#0e472f] text-white flex items-center justify-center text-[9px] font-bold">
+                      ?
+                    </span>
+                    <span>Se artikler ({getArticlesForRegulation(selectedNode.id)?.articles.length || 0})</span>
+                  </button>
+                )}
                 {selectedNode.introducedYear === 2028 && (
                   <span className="text-xs font-mono text-purple-800 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 font-semibold">
                     Træder i kraft 2028
@@ -644,14 +678,30 @@ export function MatrixExplorer({
                       }`}
                     >
                       <div className="flex items-center justify-between gap-1 mb-1">
-                        <span className="text-[10px] font-bold text-slate-600 bg-white px-1.5 py-0.5 rounded border border-slate-200">
-                          {node.category}
-                        </span>
-                        {isSource && (
-                          <span className="text-[9px] font-bold text-[#0e472f] bg-emerald-100 px-1.5 py-0.2 rounded uppercase">
-                            Fokus
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-bold text-slate-600 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                            {node.category}
                           </span>
-                        )}
+                          {isSource && (
+                            <span className="text-[9px] font-bold text-[#0e472f] bg-emerald-100 px-1.5 py-0.2 rounded uppercase">
+                              Fokus
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Small Question Mark (?) icon for exact article breakdown */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setInspectingRegulationId(node.id);
+                          }}
+                          title={`Se specifikke artikler for ${node.titleDa}`}
+                          className="w-5 h-5 rounded-full border border-slate-300 bg-white hover:bg-emerald-50 hover:border-[#0e472f] hover:text-[#0e472f] text-slate-600 flex items-center justify-center text-[11px] font-bold shadow-xs transition-colors shrink-0 cursor-pointer"
+                          aria-label={`Se artikler for ${node.titleDa}`}
+                        >
+                          ?
+                        </button>
                       </div>
                       <div className="text-xs font-bold text-slate-900">{node.titleDa}</div>
                       {node.legalReference && (
@@ -660,8 +710,18 @@ export function MatrixExplorer({
                         </div>
                       )}
                       {roleDa && (
-                        <div className="mt-2 pt-1 border-t border-slate-200 text-[10px] text-emerald-800 font-medium">
-                          → {roleDa}
+                        <div className="mt-2 pt-1 border-t border-slate-200 text-[10px] text-emerald-800 font-medium flex items-center justify-between">
+                          <span>→ {roleDa}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setInspectingRegulationId(node.id);
+                            }}
+                            className="text-[10px] text-slate-500 hover:text-slate-900 underline font-normal cursor-pointer"
+                          >
+                            Artikler
+                          </button>
                         </div>
                       )}
                     </div>
@@ -748,7 +808,19 @@ export function MatrixExplorer({
                           {node.category}
                         </span>
                       </td>
-                      <td className="p-3 font-mono text-slate-600">{node.legalReference || "—"}</td>
+                      <td className="p-3 font-mono text-slate-600">
+                        <span>{node.legalReference || "—"}</span>
+                        {node.column === "regulations" && (
+                          <button
+                            type="button"
+                            onClick={() => setInspectingRegulationId(node.id)}
+                            className="ml-2 w-4 h-4 rounded-full border border-slate-300 bg-white hover:bg-emerald-50 hover:border-[#0e472f] hover:text-[#0e472f] text-slate-600 inline-flex items-center justify-center text-[10px] font-bold cursor-pointer align-middle transition-colors shadow-2xs"
+                            title={`Se artikler for ${node.titleDa}`}
+                          >
+                            ?
+                          </button>
+                        )}
+                      </td>
                       <td className="p-3">
                         {node.introducedYear === 2028 ? (
                           <span className="px-2 py-0.5 bg-purple-50 text-purple-800 rounded font-semibold text-[10px]">
@@ -759,16 +831,27 @@ export function MatrixExplorer({
                         )}
                       </td>
                       <td className="p-3 text-right">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleSelectNode(node.id);
-                            setActiveTab("chain");
-                          }}
-                          className="text-[#0e472f] hover:underline font-semibold cursor-pointer"
-                        >
-                          Vis Kæde →
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          {node.column === "regulations" && (
+                            <button
+                              type="button"
+                              onClick={() => setInspectingRegulationId(node.id)}
+                              className="text-slate-500 hover:text-slate-800 font-medium text-[11px] cursor-pointer"
+                            >
+                              Artikler
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleSelectNode(node.id);
+                              setActiveTab("chain");
+                            }}
+                            className="text-[#0e472f] hover:underline font-semibold cursor-pointer"
+                          >
+                            Vis Kæde →
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -778,6 +861,114 @@ export function MatrixExplorer({
           </div>
         )}
       </main>
+
+      {/* Article Reference Inspector Modal */}
+      {inspectedRegulation && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="article-inspector-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => setInspectingRegulationId(null)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-100 flex items-start justify-between gap-4 bg-slate-50/70">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-[#0e472f] shrink-0 mt-0.5 shadow-2xs">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-slate-200 text-slate-800">
+                      {inspectedRegulation.celexOrBekNr}
+                    </span>
+                    <span className="text-xs text-slate-500 font-medium">Retsgrundlag & Paragraffer</span>
+                  </div>
+                  <h3 id="article-inspector-title" className="text-base font-bold text-slate-900 mt-1">
+                    {inspectedRegulation.shortTitleDa}
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                    {inspectedRegulation.fullTitleDa}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setInspectingRegulationId(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                aria-label="Luk dialog"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body: Articles list */}
+            <div className="p-5 overflow-y-auto space-y-3.5 divide-y divide-slate-100">
+              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Relevante artikler for kontrolkæden ({inspectedRegulation.articles.length} bestemmelser):
+              </div>
+
+              {inspectedRegulation.articles.map((art, idx) => (
+                <div key={idx} className="pt-3.5 first:pt-0">
+                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-bold text-slate-900 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded shadow-2xs">
+                        {art.article}
+                      </span>
+                      <span className="text-xs font-bold text-slate-900">{art.titleDa}</span>
+                    </div>
+                    {art.yearIntroduced === 2028 && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-purple-50 text-purple-800 border border-purple-200 shrink-0 font-mono">
+                        2028 EU-reform
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-slate-700 leading-relaxed pl-0.5">
+                    {art.summaryDa}
+                  </p>
+
+                  {art.relevanceDa && (
+                    <div className="mt-2 text-[11px] text-emerald-950 bg-emerald-50/80 border border-emerald-200/80 rounded-lg p-2.5 flex items-start gap-1.5">
+                      <span className="font-semibold text-[#0e472f] shrink-0">Betydning for tilsyn:</span>
+                      <span>{art.relevanceDa}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  handleSelectNode(inspectedRegulation.regulationId);
+                  setActiveTab("chain");
+                  setInspectingRegulationId(null);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-medium hover:bg-slate-100 transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
+              >
+                <span>Vis hele kontrolkæden for dette regelsæt</span>
+                <span className="text-slate-400">→</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setInspectingRegulationId(null)}
+                className="px-4 py-1.5 rounded-lg bg-[#0e472f] text-white font-semibold hover:bg-[#0b3825] transition-all cursor-pointer shadow-xs"
+              >
+                Luk
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Clean Footer */}
       <footer className="bg-white border-t border-slate-200 px-6 py-4 mt-auto text-xs text-slate-500">
