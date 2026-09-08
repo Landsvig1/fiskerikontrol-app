@@ -44,6 +44,10 @@ export type TranslationKey =
   | "clickForExplanation" | "conflictWarning"
   | "viewErrorTitle" | "viewErrorBody" | "viewErrorDetails" | "viewErrorRetry"
   | "uploadTooLargeError" | "httpErrorFallback"
+  | "injectHtmlButton" | "injectHtmlTitle" | "injectHtmlSubtitle"
+  | "injectHtmlLabel" | "injectHtmlLabelPlaceholder"
+  | "injectHtmlContentLabel" | "injectHtmlContentPlaceholder"
+  | "injectHtmlAdd" | "injectHtmlCancel" | "injectHtmlEmptyError"
   | "apiErrContentType" | "apiErrBadJson" | "apiErrPresetIds" | "apiErrUnknownPreset"
   | "apiErrPresetUnreadable" | "apiErrNotAFile" | "apiErrLabelNotText" | "apiErrLabelTooLong"
   | "apiErrBadType" | "apiErrMinDocs" | "apiErrMaxDocs" | "apiErrEmptyLabel"
@@ -65,17 +69,17 @@ const da: Translations = {
   browse: "Søg & Slå Op",
   matrix: "Fiskeriets Matrix",
   uploadTitle: "Start ny analyse",
-  uploadSubtitle: "Upload dine PDF-dokumenter og angiv navne for at kortlægge citationer og konflikter.",
-  dropZoneSlot: "Træk og slip en PDF her, eller klik for at vælge",
-  dropZoneBulk: "Træk og slip dine PDF-dokumenter her, eller klik for at vælge flere",
+  uploadSubtitle: "Upload dine PDF- eller HTML-dokumenter og angiv navne for at kortlægge citationer og konflikter.",
+  dropZoneSlot: "Træk og slip en PDF- eller HTML-fil her, eller klik for at vælge",
+  dropZoneBulk: "Træk og slip dine PDF- eller HTML-dokumenter her, eller klik for at vælge flere",
   analyseButton: "Analysér",
   analysing: "Analyserer...",
-  invalidPdfError: "Kun PDF-filer accepteres.",
+  invalidPdfError: "Kun PDF- og HTML-filer accepteres.",
   sizeLimitError: "Samlet filstørrelse overstiger {max} MB.",
   unknownError: "Ukendt fejl. Prøv igen.",
   malformedResponseError: "Serveren returnerede et uventet svar. Prøv igen.",
-  multiDropNonPdfIgnored: "Ikke-PDF-filer blev ignoreret.",
-  multiDropCapReached: "Kun de første {max} PDF-filer blev brugt; øvrige filer blev ignoreret.",
+  multiDropNonPdfIgnored: "Ikke-understøttede filer blev ignoreret.",
+  multiDropCapReached: "Kun de første {max} filer blev brugt; øvrige filer blev ignoreret.",
   uploadModeBulk: "Slip alle på én gang",
   uploadModeIndividual: "Tilføj ét ad gangen",
   addDocument: "Tilføj dokument",
@@ -158,8 +162,20 @@ const da: Translations = {
   // Client-side fallbacks for an error response the app could not read as JSON. A platform
   // in front of the route (a proxy, an auth gate, a body-size guard) answers in HTML or
   // plain text, and without these the user only ever saw "Ukendt fejl. Prøv igen."
-  uploadTooLargeError: "Dokumenterne er for store til at blive sendt til serveren. Vælg færre eller mindre PDF-filer.",
+  uploadTooLargeError: "Dokumenterne er for store til at blive sendt til serveren. Vælg færre eller mindre filer.",
   httpErrorFallback: "Serveren afviste anmodningen (HTTP {status}). Prøv igen, eller vælg færre dokumenter.",
+
+  // HTML injection dialog
+  injectHtmlButton: "Indsæt HTML",
+  injectHtmlTitle: "Indsæt HTML-retsakt",
+  injectHtmlSubtitle: "Indsæt rå HTML fra EUR-Lex, Retsinformation eller andet kildemateriale.",
+  injectHtmlLabel: "Dokumentnavn",
+  injectHtmlLabelPlaceholder: "F.eks. Forordning 1224/2009 eller BEK 1197/2025",
+  injectHtmlContentLabel: "HTML-kildekode",
+  injectHtmlContentPlaceholder: "Indsæt HTML her (f.eks. <p>Artikel 1...</p>)...",
+  injectHtmlAdd: "Tilføj dokument",
+  injectHtmlCancel: "Annuller",
+  injectHtmlEmptyError: "Indsæt venligst HTML-indhold.",
 
   // Messages returned by /api/parse. The route is the last place a user-facing string could
   // still be English, so they live in the same table as the rest of the UI.
@@ -176,7 +192,7 @@ const da: Translations = {
   apiErrMaxDocs: "Der understøttes højst {max} PDF-dokumenter pr. analyse.",
   apiErrEmptyLabel: "Alle dokumenter skal have et navn.",
   apiErrSizeLimit: "Samlet filstørrelse overstiger grænsen på {max} MB.",
-  apiErrPdfRead: "En af PDF-filerne kunne ikke læses. Den kan være beskadiget, adgangskodebeskyttet eller ikke en gyldig PDF.",
+  apiErrPdfRead: "Et af dokumenterne kunne ikke læses. Filen kan være beskadiget eller i et ugyldigt format.",
   apiErrTooMuchText: "Dokument {index} indeholder for meget tekst til at kunne analyseres.",
   apiErrNoStructure: "Der blev ikke fundet nogen paragraf- eller artikelstruktur i {doc}. Dokumentet kan være scannet uden tekstlag.",
   apiErrUnexpected: "Uventet serverfejl under analysen.",

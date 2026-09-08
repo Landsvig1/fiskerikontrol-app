@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { analyzeCitationsAndBuildGraph, type DocType, type ParseResult } from "./parser";
 import { PRESET_DOCUMENTS } from "./presetCorpus";
+import { isHtmlInput, extractTextFromHtml } from "./htmlExtract";
 import DOMMatrixPolyfill from "dommatrix";
 
 /**
@@ -22,10 +23,9 @@ if (!("DOMMatrix" in globalThis)) {
   (globalThis as unknown as { DOMMatrix: typeof DOMMatrixPolyfill }).DOMMatrix = DOMMatrixPolyfill;
 }
 
-// A 10 MB PDF can decompress to far more text than 10 MB. The parser runs several global
-// regex sweeps over the full extracted string, so the decompressed size is the real input
-// to the expensive work and needs its own bound.
-export const MAX_CHARS_PER_DOC = 4_000_000;
+// The parser runs several global regex sweeps over the full extracted string, so the
+// decompressed size is the real input to the expensive work and needs its own bound.
+export const MAX_CHARS_PER_DOC = 10_000_000;
 
 // Documents per analysis. Shared so the upload route and the read-only consolidation route
 // cannot drift into accepting different corpus sizes for the same underlying parse.
@@ -96,6 +96,8 @@ export interface ParseInput {
   buffer: Buffer;
   label: string;
   type?: DocType;
+  contentType?: string;
+  filename?: string;
 }
 
 /** Everything that can go wrong between a set of inputs and a finished graph. */
@@ -120,20 +122,44 @@ export async function readPresetInput(presetId: string): Promise<ParseInput | nu
   const doc = PRESET_DOCUMENTS.find(d => d.id === presetId);
   if (!doc) return null;
   const buffer = await readFile(path.join(process.cwd(), "public", "corpus", doc.filename));
-  return { buffer, label: doc.code, type: doc.type };
+  return { buffer, label: doc.code, type: doc.type, filename: doc.filename };
 }
 
 /** Text extraction plus graph construction. Never throws; failures come back as data. */
 export async function buildGraphFromInputs(inputs: ParseInput[]): Promise<GraphBuildResult> {
-  const { PDFParse } = await import("pdf-parse");
-  const parsers = inputs.map(input => new PDFParse({ data: input.buffer }));
-  let extracted;
-  try {
-    extracted = await Promise.all(parsers.map(p => p.getText()));
-  } catch (cause: unknown) {
-    return { ok: false, failure: { kind: "pdf_read", cause } };
-  } finally {
-    await Promise.all(parsers.map(p => p.destroy()));
+  const extracted: Array<{ text: string }> = new Array(inputs.length);
+  const pdfIndices: number[] = [];
+
+  for (let i = 0; i < inputs.length; i++) {
+    const input = inputs[i];
+    if (isHtmlInput(input)) {
+      try {
+        const text = extractTextFromHtml(input.buffer.toString("utf-8"));
+        extracted[i] = { text };
+      } catch (cause: unknown) {
+        return { ok: false, failure: { kind: "pdf_read", cause } };
+      }
+    } else {
+      pdfIndices.push(i);
+    }
+  }
+
+  if (pdfIndices.length > 0) {
+    const { PDFParse } = await import("pdf-parse");
+    const parsers = pdfIndices.map(idx => ({
+      index: idx,
+      parser: new PDFParse({ data: inputs[idx].buffer }),
+    }));
+    try {
+      const pdfTexts = await Promise.all(parsers.map(p => p.parser.getText()));
+      parsers.forEach((p, pos) => {
+        extracted[p.index] = { text: pdfTexts[pos].text };
+      });
+    } catch (cause: unknown) {
+      return { ok: false, failure: { kind: "pdf_read", cause } };
+    } finally {
+      await Promise.all(parsers.map(p => p.parser.destroy()));
+    }
   }
 
   const oversized = extracted.findIndex(e => e.text.length > MAX_CHARS_PER_DOC);

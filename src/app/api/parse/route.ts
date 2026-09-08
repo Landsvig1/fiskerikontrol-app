@@ -66,11 +66,9 @@ const DOC_TYPES: readonly DocType[] = ["eu", "bek", "lov"];
 async function handleParse(request: Request) {
   const contentType = request.headers.get("content-type") || "";
 
-  // Preset runs post a list of ids. The corpus PDFs already ship with the deployment, so
-  // downloading them into the browser and posting the bytes back achieved nothing except a
-  // multi-megabyte request that the platform's body limit rejected.
+  // Preset runs and injected HTML runs can post JSON.
   if (contentType.includes("application/json")) {
-    return handlePresetParse(request);
+    return handleJsonParse(request);
   }
   if (!contentType.includes("multipart/form-data")) {
     return NextResponse.json({ error: msg("apiErrContentType") }, { status: 400 });
@@ -78,7 +76,7 @@ async function handleParse(request: Request) {
   return handleUploadParse(request);
 }
 
-async function handlePresetParse(request: Request) {
+async function handleJsonParse(request: Request) {
   let body: unknown;
   try {
     body = await request.json();
@@ -87,6 +85,86 @@ async function handlePresetParse(request: Request) {
   }
 
   const presetIds = (body as { presetIds?: unknown })?.presetIds;
+  if (presetIds !== undefined) {
+    return handlePresetParseBody(presetIds);
+  }
+
+  const rawDocs = (body as { documents?: unknown })?.documents ?? (body as { docs?: unknown })?.docs;
+  if (Array.isArray(rawDocs)) {
+    return handleInjectedDocumentsParse(rawDocs);
+  }
+
+  return NextResponse.json({ error: msg("apiErrPresetIds") }, { status: 400 });
+}
+
+async function handleInjectedDocumentsParse(rawDocs: unknown[]) {
+  if (rawDocs.length < 2) {
+    return NextResponse.json({ error: msg("apiErrMinDocs") }, { status: 400 });
+  }
+  if (rawDocs.length > MAX_DOCS) {
+    return NextResponse.json(
+      { error: msg("apiErrMaxDocs", { max: MAX_DOCS }) },
+      { status: 400 }
+    );
+  }
+
+  const inputs: ParseInput[] = [];
+  let totalBytes = 0;
+
+  for (let i = 0; i < rawDocs.length; i++) {
+    const item = rawDocs[i] as { label?: unknown; html?: unknown; text?: unknown; type?: unknown; filename?: unknown };
+    if (!item || typeof item !== "object") {
+      return NextResponse.json({ error: msg("apiErrNotAFile", { field: `documents[${i}]` }) }, { status: 400 });
+    }
+
+    const rawLabel = item.label;
+    if (typeof rawLabel !== "string" || !rawLabel.trim()) {
+      return NextResponse.json({ error: msg("apiErrEmptyLabel") }, { status: 400 });
+    }
+    const label = rawLabel.trim();
+    if (label.length > MAX_LABEL_CHARS) {
+      return NextResponse.json({ error: msg("apiErrLabelTooLong", { max: MAX_LABEL_CHARS }) }, { status: 400 });
+    }
+
+    const contentStr = typeof item.html === "string" ? item.html : typeof item.text === "string" ? item.text : null;
+    if (contentStr === null) {
+      return NextResponse.json({ error: msg("apiErrNotAFile", { field: `documents[${i}]` }) }, { status: 400 });
+    }
+
+    const buffer = Buffer.from(contentStr, "utf-8");
+    totalBytes += buffer.length;
+
+    let docType: DocType | undefined = undefined;
+    if (item.type !== undefined) {
+      if (typeof item.type !== "string" || !DOC_TYPES.includes(item.type as DocType)) {
+        return NextResponse.json(
+          { error: msg("apiErrBadType", { field: `type[${i}]`, types: DOC_TYPES.join(", ") }) },
+          { status: 400 }
+        );
+      }
+      docType = item.type as DocType;
+    }
+
+    inputs.push({
+      buffer,
+      label,
+      type: docType,
+      contentType: typeof item.html === "string" ? "text/html" : undefined,
+      filename: typeof item.filename === "string" ? item.filename : (typeof item.html === "string" ? "injected.html" : "injected.txt"),
+    });
+  }
+
+  if (totalBytes > MAX_UPLOAD_BYTES) {
+    return NextResponse.json(
+      { error: msg("apiErrSizeLimit", { max: MAX_UPLOAD_MB }) },
+      { status: 413 }
+    );
+  }
+
+  return buildGraphResponse(inputs);
+}
+
+async function handlePresetParseBody(presetIds: unknown) {
   if (!Array.isArray(presetIds) || presetIds.some(id => typeof id !== "string")) {
     return NextResponse.json({ error: msg("apiErrPresetIds") }, { status: 400 });
   }
@@ -143,7 +221,7 @@ async function handleUploadParse(request: Request) {
 
   const docs: { file: File; label: string; type?: DocType }[] = [];
   for (let i = 0; i <= MAX_DOCS; i++) {
-    const file = formData.get(`pdf${i}`);
+    const file = formData.get(`pdf${i}`) || formData.get(`doc${i}`) || formData.get(`file${i}`);
     if (!file) break;
     if (!(file instanceof File)) {
       return NextResponse.json(
@@ -207,6 +285,8 @@ async function handleUploadParse(request: Request) {
     docs.map(async d => ({
       buffer: Buffer.from(await d.file.arrayBuffer()),
       label: d.label,
+      filename: d.file.name,
+      contentType: d.file.type,
       ...(d.type ? { type: d.type } : {}),
     }))
   );

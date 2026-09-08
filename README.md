@@ -95,7 +95,7 @@ The repository also retains the historical citation graph parsing tool:
 - `GET /api/consolidation?docs=eu-1224-2009,eu-2023-2842`
 - Evaluates inter-act cross citations and amendment registrations.
 
-Uploaded PDFs get no link. There is nowhere to persist them, and a link that
+Uploaded documents (PDF or HTML) get no link. There is nowhere to persist them, and a link that
 silently resolved to a different corpus would be worse than no link.
 
 ### Reading it without a browser
@@ -124,7 +124,7 @@ meaningful against the document order that produced it.
 ## Development
 
 ```bash
-npm test         # vitest, 260 tests
+npm test         # vitest, 282 tests
 npm run lint
 npm run build
 ```
