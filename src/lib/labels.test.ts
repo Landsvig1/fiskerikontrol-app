@@ -16,6 +16,11 @@ describe("deriveLabelFromFilename", () => {
     expect(deriveLabelFromFilename("Doc.PDF")).toBe("Doc");
   });
 
+  it("strips .html and .htm extensions", () => {
+    expect(deriveLabelFromFilename("regulation_2023_2842.html")).toBe("Regulation 2023 2842");
+    expect(deriveLabelFromFilename("bek-1197.htm")).toBe("Bek 1197");
+  });
+
   it("collapses repeated whitespace and mixed separators", () => {
     expect(deriveLabelFromFilename("multiple   spaces  and_underscores.pdf")).toBe(
       "Multiple Spaces And Underscores"
@@ -24,6 +29,7 @@ describe("deriveLabelFromFilename", () => {
 
   it("returns an empty string for an empty basename", () => {
     expect(deriveLabelFromFilename(".pdf")).toBe("");
+    expect(deriveLabelFromFilename(".html")).toBe("");
   });
 
   it("still derives a label when there is no .pdf extension present", () => {

@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Database, Upload, FileText, AlertTriangle, RefreshCw, Info, Plus, X, BookOpen, Check } from "lucide-react";
+import { Database, Upload, FileText, AlertTriangle, RefreshCw, Info, Plus, X, BookOpen, Check, Code } from "lucide-react";
 import type { GraphData } from "@/lib/types";
 import { isGraphData, readErrorResponse } from "@/lib/parseResponse";
 import { MAX_UPLOAD_MB, MAX_UPLOAD_BYTES } from "@/lib/uploadLimits";
 import { TranslateFn } from "@/lib/i18n";
 import { deriveLabelFromFilename } from "@/lib/labels";
 import { PRESET_DOCUMENTS } from "@/lib/presetCorpus";
+import { extractTitleFromHtml } from "@/lib/htmlExtract";
 
 const MIN_SLOTS = 2;
 const MAX_SLOTS = 12;
@@ -148,7 +149,7 @@ function FileSlot({ file, error, label, dropZoneText, onFile, inputRef, disabled
       <input
         ref={inputRef}
         type="file"
-        accept=".pdf"
+        accept=".pdf,.html,.htm,text/html"
         className="hidden"
         onChange={handleInputChange}
         aria-hidden="true"
@@ -274,12 +275,66 @@ export function UploadScreen({
       ? t("sizeLimitError").replace("{max}", String(MAX_UPLOAD_MB))
       : null;
 
+  const [isHtmlModalOpen, setIsHtmlModalOpen] = useState(false);
+  const [htmlInputText, setHtmlInputText] = useState("");
+  const [htmlInputLabel, setHtmlInputLabel] = useState("");
+  const [htmlInputError, setHtmlInputError] = useState<string | null>(null);
+
+  const isAcceptedDocument = (file: File) =>
+    file.type === "application/pdf" ||
+    file.type === "text/html" ||
+    /\.(pdf|html?|xhtml)$/i.test(file.name);
+
+  const handleInjectHtmlSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedHtml = htmlInputText.trim();
+    if (!trimmedHtml) {
+      setHtmlInputError(t("injectHtmlEmptyError"));
+      return;
+    }
+
+    const explicitLabel = htmlInputLabel.trim();
+    const derivedLabel =
+      explicitLabel || extractTitleFromHtml(trimmedHtml) || "HTML Dokument";
+    const safeFilename = `${derivedLabel.replace(/[/\\?%*:|"<>]/g, "-").trim() || "dokument"}.html`;
+    const file = new File([trimmedHtml], safeFilename, { type: "text/html" });
+
+    setSlots(prev => {
+      const next = [...prev];
+      let assigned = false;
+      const finalLabel = explicitLabel || deriveLabelFromFilename(safeFilename);
+
+      for (let i = 0; i < next.length; i++) {
+        if (next[i].file === null) {
+          next[i] = { file, error: null, label: finalLabel, labelTouched: !!explicitLabel };
+          assigned = true;
+          break;
+        }
+      }
+
+      if (!assigned && next.length < MAX_SLOTS) {
+        next.push({ file, error: null, label: finalLabel, labelTouched: !!explicitLabel });
+      }
+
+      if (next.filter(s => s.file !== null).length >= 2) {
+        autoTriggerArmedRef.current = true;
+      }
+
+      return next;
+    });
+
+    setIsHtmlModalOpen(false);
+    setHtmlInputText("");
+    setHtmlInputLabel("");
+    setHtmlInputError(null);
+  };
+
   const isSameFile = (a: File | null, b: File) =>
     a !== null && a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
 
   const handleSlotFile = (index: number, file: File) => {
     if (loading) return;
-    if (file.type !== "application/pdf") {
+    if (!isAcceptedDocument(file)) {
       setSlots(prev => prev.map((s, i) => i === index ? { ...s, error: t("invalidPdfError"), file: null } : s));
       return;
     }
@@ -351,14 +406,14 @@ export function UploadScreen({
   };
 
   // Bulk assignment (shared by container drop and the bulk box's multi-file browse input):
-  // fill existing empty slots first (in drop order), then append any remaining PDFs as new
+  // fill existing empty slots first (in drop order), then append any remaining files as new
   // slots up to MAX_SLOTS. Existing filled slots are never overwritten or reordered.
   const assignFiles = (files: File[]) => {
     if (files.length === 0) return;
 
-    const pdfFiles = files.filter((f) => f.type === "application/pdf");
+    const acceptedFiles = files.filter(isAcceptedDocument);
 
-    if (pdfFiles.length === 0) {
+    if (acceptedFiles.length === 0) {
       setMultiDropNotice(t("invalidPdfError"));
       return;
     }
@@ -366,28 +421,28 @@ export function UploadScreen({
     setSlots(prev => {
       const next = [...prev];
       let capped = false;
-      let pdfIndex = 0;
+      let fileIndex = 0;
 
-      for (let i = 0; i < next.length && pdfIndex < pdfFiles.length; i++) {
+      for (let i = 0; i < next.length && fileIndex < acceptedFiles.length; i++) {
         if (next[i].file === null) {
-          const f = pdfFiles[pdfIndex++];
+          const f = acceptedFiles[fileIndex++];
           next[i] = { file: f, error: null, label: deriveLabelFromFilename(f.name), labelTouched: false };
         }
       }
 
-      while (pdfIndex < pdfFiles.length) {
+      while (fileIndex < acceptedFiles.length) {
         if (next.length >= MAX_SLOTS) {
           capped = true;
           break;
         }
-        const f = pdfFiles[pdfIndex++];
+        const f = acceptedFiles[fileIndex++];
         next.push({ file: f, error: null, label: deriveLabelFromFilename(f.name), labelTouched: false });
       }
 
       const usedCount = next.filter(s => s.file !== null).length - prev.filter(s => s.file !== null).length;
       if (capped) {
         setMultiDropNotice(t("multiDropCapReached").replace("{max}", String(MAX_SLOTS)));
-      } else if (pdfFiles.length < files.length) {
+      } else if (acceptedFiles.length < files.length) {
         setMultiDropNotice(t("multiDropNonPdfIgnored"));
       } else {
         setMultiDropNotice(null);
@@ -801,6 +856,17 @@ export function UploadScreen({
                           <span className="text-sm text-center leading-snug text-slate-500">
                             {t("dropZoneBulk")}
                           </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsHtmlModalOpen(true);
+                            }}
+                            className="mt-1 text-xs text-sky-700 hover:text-sky-900 font-medium hover:underline flex items-center gap-1 cursor-pointer"
+                          >
+                            <Code className="w-3.5 h-3.5" />
+                            {t("injectHtmlButton")}
+                          </button>
                         </>
                       ) : (
                         <div className="space-y-2">
@@ -809,7 +875,11 @@ export function UploadScreen({
                               <FileText className="w-5 h-5 text-emerald-700 shrink-0" />
                               <div className="min-w-0 shrink-0 w-40 sm:w-56">
                                 <p className="text-sm font-medium text-slate-800 truncate">{slot.file.name}</p>
-                                <p className="text-xs text-slate-400">{(slot.file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                <p className="text-xs text-slate-400">
+                                  {slot.file.size >= 1024 * 1024
+                                    ? `${(slot.file.size / 1024 / 1024).toFixed(2)} MB`
+                                    : `${(slot.file.size / 1024).toFixed(1)} KB`}
+                                </p>
                               </div>
                               <input
                                 type="text"
@@ -834,21 +904,32 @@ export function UploadScreen({
                               )}
                             </div>
                           ))}
-                          <button
-                            type="button"
-                            disabled={loading || slots.length >= MAX_SLOTS}
-                            onClick={openBulkFileBrowser}
-                            className="w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-xs font-medium text-slate-500 hover:text-slate-800 hover:border-slate-400 transition-all duration-200 flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            {t("addDocument")}
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              disabled={loading || slots.length >= MAX_SLOTS}
+                              onClick={openBulkFileBrowser}
+                              className="flex-1 py-2.5 rounded-xl border border-dashed border-slate-300 text-xs font-medium text-slate-500 hover:text-slate-800 hover:border-slate-400 transition-all duration-200 flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              {t("addDocument")}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={loading || slots.length >= MAX_SLOTS}
+                              onClick={() => setIsHtmlModalOpen(true)}
+                              className="py-2.5 px-3.5 rounded-xl border border-dashed border-sky-300 bg-sky-50/50 text-xs font-medium text-sky-700 hover:text-sky-900 hover:bg-sky-50 hover:border-sky-400 transition-all duration-200 flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                            >
+                              <Code className="w-3.5 h-3.5" />
+                              {t("injectHtmlButton")}
+                            </button>
+                          </div>
                         </div>
                       )}
                       <input
                         ref={bulkFileInputRef}
                         type="file"
-                        accept=".pdf"
+                        accept=".pdf,.html,.htm,text/html"
                         multiple
                         className="hidden"
                         onChange={handleBulkFileInputChange}
@@ -908,15 +989,26 @@ export function UploadScreen({
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    disabled={loading || slots.length >= MAX_SLOTS}
-                    onClick={handleAddSlot}
-                    className="w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-xs font-medium text-slate-500 hover:text-slate-800 hover:border-slate-400 transition-all duration-200 flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    {t("addDocument")}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={loading || slots.length >= MAX_SLOTS}
+                      onClick={handleAddSlot}
+                      className="flex-1 py-2.5 rounded-xl border border-dashed border-slate-300 text-xs font-medium text-slate-500 hover:text-slate-800 hover:border-slate-400 transition-all duration-200 flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      {t("addDocument")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={loading || slots.length >= MAX_SLOTS}
+                      onClick={() => setIsHtmlModalOpen(true)}
+                      className="py-2.5 px-3.5 rounded-xl border border-dashed border-sky-300 bg-sky-50/50 text-xs font-medium text-sky-700 hover:text-sky-900 hover:bg-sky-50 hover:border-sky-400 transition-all duration-200 flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                    >
+                      <Code className="w-3.5 h-3.5" />
+                      {t("injectHtmlButton")}
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -978,6 +1070,78 @@ export function UploadScreen({
           </div>
         </div>
       </main>
+
+      {/* HTML Injection Modal */}
+      {isHtmlModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-lg w-full p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Code className="w-5 h-5 text-sky-700" />
+                <h3 className="text-base font-bold text-slate-900">{t("injectHtmlTitle")}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsHtmlModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500">{t("injectHtmlSubtitle")}</p>
+
+            <form onSubmit={handleInjectHtmlSubmit} className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">{t("injectHtmlLabel")}</label>
+                <input
+                  type="text"
+                  value={htmlInputLabel}
+                  onChange={(e) => setHtmlInputLabel(e.target.value)}
+                  placeholder={t("injectHtmlLabelPlaceholder")}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">{t("injectHtmlContentLabel")}</label>
+                <textarea
+                  rows={7}
+                  value={htmlInputText}
+                  onChange={(e) => {
+                    setHtmlInputText(e.target.value);
+                    if (htmlInputError) setHtmlInputError(null);
+                  }}
+                  placeholder={t("injectHtmlContentPlaceholder")}
+                  className="w-full px-3 py-2 text-xs font-mono rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 resize-y"
+                />
+                {htmlInputError && (
+                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    {htmlInputError}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsHtmlModalOpen(false)}
+                  className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
+                >
+                  {t("injectHtmlCancel")}
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-xs cursor-pointer"
+                >
+                  {t("injectHtmlAdd")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

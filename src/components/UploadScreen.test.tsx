@@ -467,5 +467,55 @@ describe("UploadScreen mode toggle and individual mode", () => {
       expect(global.fetch).toHaveBeenCalledWith("/api/parse", expect.objectContaining({ method: "POST" }));
     });
   });
+
+  it("accepts dropped HTML files and derives title-cased labels", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => makeGraphData(),
+    });
+    renderUploadScreen();
+    const dropZone = screen.getByTestId("upload-drop-zone");
+
+    const html1 = new File(["<p>Artikel 1</p>"], "regulation_2024.html", { type: "text/html" });
+    const html2 = new File(["<p>§ 1</p>"], "bek_1197.htm", { type: "text/html" });
+
+    fireEvent.drop(dropZone, { dataTransfer: { files: [html1, html2] } });
+
+    expect(await screen.findByText("regulation_2024.html")).toBeInTheDocument();
+    expect(screen.getByText("bek_1197.htm")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Regulation 2024")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Bek 1197")).toBeInTheDocument();
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+  });
+
+  it("opens HTML injection modal and adds injected HTML document to slots", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => makeGraphData(),
+    });
+    renderUploadScreen();
+
+    // Click "Indsæt HTML" button
+    const injectButtons = screen.getAllByRole("button", { name: new RegExp(t("injectHtmlButton"), "i") });
+    fireEvent.click(injectButtons[0]);
+
+    expect(screen.getByText(t("injectHtmlTitle"))).toBeInTheDocument();
+
+    // Fill in HTML content and label
+    const labelInput = screen.getByPlaceholderText(t("injectHtmlLabelPlaceholder"));
+    const contentInput = screen.getByPlaceholderText(t("injectHtmlContentPlaceholder"));
+
+    fireEvent.change(labelInput, { target: { value: "EUR-Lex 2023/2842" } });
+    fireEvent.change(contentInput, {
+      target: { value: "<html><body><p><strong>Artikel 1</strong></p><p>Krav</p></body></html>" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: t("injectHtmlAdd") }));
+
+    // Modal closes and slot is added
+    expect(screen.queryByText(t("injectHtmlTitle"))).not.toBeInTheDocument();
+    expect(await screen.findByDisplayValue("EUR-Lex 2023/2842")).toBeInTheDocument();
+  });
 });
 
