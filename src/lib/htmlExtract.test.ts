@@ -155,4 +155,35 @@ describe("htmlExtract", () => {
       expect(extractTitleFromHtml(html)).toBeNull();
     });
   });
+
+  describe("Danish legal acts HTML corpus parsing", () => {
+    it("parses downloaded BEK 1197/2025 HTML into exactly 10 sections", async () => {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+      const filePath = path.join(process.cwd(), "public", "corpus", "bek-1197-2025-logbog.html");
+      const content = await fs.readFile(filePath, "utf-8");
+
+      expect(isHtmlBuffer(Buffer.from(content))).toBe(true);
+      const title = extractTitleFromHtml(content);
+      expect(title).toContain("BEK nr 1197");
+
+      const text = extractTextFromHtml(content);
+      const sections = parsePdfTextIntoSections(text, "doc0", "BEK 1197/2025");
+      expect(sections.length).toBe(10);
+      expect(sections[0].number).toBe(1);
+      expect(sections[9].number).toBe(10);
+    });
+
+    it("parses downloaded LBK 205/2023 HTML into complete statutory sections", async () => {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+      const filePath = path.join(process.cwd(), "public", "corpus", "lbk-205-2023-fiskeriloven.html");
+      const content = await fs.readFile(filePath, "utf-8");
+
+      const text = extractTextFromHtml(content);
+      const sections = parsePdfTextIntoSections(text, "doc0", "LBK 205/2023");
+      expect(sections.length).toBeGreaterThan(150);
+      expect(sections[0].number).toBe(1);
+    });
+  });
 });
